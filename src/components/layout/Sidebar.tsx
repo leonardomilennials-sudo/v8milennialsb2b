@@ -16,8 +16,12 @@ import {
   MessageSquare,
   Kanban,
   UserCheck,
+  LogOut,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   label: string;
@@ -28,8 +32,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
-  { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao", badge: 12 },
-  { label: "Propostas", icon: Kanban, path: "/pipe-propostas", badge: 5 },
+  { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
+  { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
   { label: "WhatsApp SDR", icon: MessageSquare, path: "/pipe-whatsapp" },
   { label: "Leads", icon: Users, path: "/leads" },
   { label: "Ranking", icon: Trophy, path: "/ranking" },
@@ -46,10 +50,33 @@ const bottomNavItems: NavItem[] = [
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
+  const { data: userRole } = useUserRole();
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
+  };
+
+  const getUserInitials = () => {
+    if (!user?.email) return "??";
+    const email = user.email;
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  const getUserName = () => {
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+    return user?.email?.split("@")[0] || "Usuário";
+  };
+
+  const getRoleLabel = () => {
+    if (!userRole?.role) return "Usuário";
+    const labels: Record<string, string> = {
+      admin: "Admin",
+      sdr: "SDR",
+      closer: "Closer",
+    };
+    return labels[userRole.role] || "Usuário";
   };
 
   return (
@@ -130,15 +157,25 @@ export function Sidebar() {
       <div className="p-3 border-t border-sidebar-border">
         <div className="sidebar-item cursor-pointer">
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-primary-foreground">JS</span>
+            <span className="text-sm font-semibold text-primary-foreground">{getUserInitials()}</span>
           </div>
           <motion.div
             animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
-            className="overflow-hidden"
+            className="overflow-hidden flex-1"
           >
-            <p className="text-sm font-medium text-sidebar-foreground">João Silva</p>
-            <p className="text-xs text-sidebar-foreground/60">Closer</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{getUserName()}</p>
+            <p className="text-xs text-sidebar-foreground/60">{getRoleLabel()}</p>
           </motion.div>
+          {!collapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              onClick={signOut}
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
     </motion.aside>
