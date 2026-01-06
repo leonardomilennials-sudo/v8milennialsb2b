@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, MessageCircle, User, Building2, Star, Phone, Loader2, MoreHorizontal } from "lucide-react";
+import { Search, Filter, Plus, MessageCircle, User, Building2, Star, Phone, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { usePipeWhatsapp, statusColumns } from "@/hooks/usePipeWhatsapp";
+import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
+import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
+import { usePipeConfirmacao, useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
-interface WhatsappLead {
-  id: string;
+interface WhatsappCard extends DraggableItem {
   name: string;
   company: string;
   phone?: string;
@@ -28,9 +30,11 @@ interface WhatsappLead {
   scheduledDate?: string;
   createdAt: string;
   segment?: string;
+  leadId: string;
+  closerId?: string;
 }
 
-function WhatsappCard({ lead }: { lead: WhatsappLead }) {
+function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
@@ -39,11 +43,11 @@ function WhatsappCard({ lead }: { lead: WhatsappLead }) {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-            {lead.name}
+            {card.name}
           </h4>
           <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
             <Building2 className="w-3 h-3" />
-            <span className="text-xs truncate">{lead.company}</span>
+            <span className="text-xs truncate">{card.company}</span>
           </div>
         </div>
         <div className="flex items-center gap-0.5 ml-2">
@@ -51,7 +55,7 @@ function WhatsappCard({ lead }: { lead: WhatsappLead }) {
             <Star
               key={i}
               className={`w-3 h-3 ${
-                i < lead.rating
+                i < card.rating
                   ? "text-primary fill-primary"
                   : "text-muted-foreground/30"
               }`}
@@ -61,24 +65,24 @@ function WhatsappCard({ lead }: { lead: WhatsappLead }) {
       </div>
 
       {/* Phone */}
-      {lead.phone && (
+      {card.phone && (
         <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
           <Phone className="w-3.5 h-3.5" />
-          <span className="text-xs">{lead.phone}</span>
+          <span className="text-xs">{card.phone}</span>
         </div>
       )}
 
       {/* Tags */}
-      {lead.tags.length > 0 && (
+      {card.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
-          {lead.tags.slice(0, 2).map((tag) => (
+          {card.tags.slice(0, 2).map((tag) => (
             <Badge key={tag} variant="secondary" className="text-xs">
               {tag}
             </Badge>
           ))}
-          {lead.tags.length > 2 && (
+          {card.tags.length > 2 && (
             <Badge variant="secondary" className="text-xs">
-              +{lead.tags.length - 2}
+              +{card.tags.length - 2}
             </Badge>
           )}
         </div>
@@ -88,13 +92,13 @@ function WhatsappCard({ lead }: { lead: WhatsappLead }) {
       <div className="flex items-center justify-between pt-2 border-t border-border">
         <div className="flex items-center gap-1.5">
           <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true, locale: ptBR })}
+            {formatDistanceToNow(new Date(card.createdAt), { addSuffix: true, locale: ptBR })}
           </span>
         </div>
-        {lead.sdr && (
+        {card.sdr && (
           <div className="flex items-center gap-1.5">
             <User className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{lead.sdr}</span>
+            <span className="text-xs text-muted-foreground">{card.sdr}</span>
           </div>
         )}
       </div>
@@ -108,13 +112,15 @@ export default function PipeWhatsapp() {
 
   const { data: pipeData, isLoading } = usePipeWhatsapp();
   const { data: teamMembers } = useTeamMembers();
+  const updatePipeWhatsapp = useUpdatePipeWhatsapp();
+  const createPipeConfirmacao = useCreatePipeConfirmacao();
 
   const sdrs = useMemo(() => {
     return teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
   }, [teamMembers]);
 
-  // Transform pipe data to WhatsappLead format
-  const transformToLead = (item: any): WhatsappLead => {
+  // Transform pipe data to WhatsappCard format
+  const transformToCard = (item: any): WhatsappCard => {
     const lead = item.lead;
     return {
       id: item.id,
@@ -128,12 +134,14 @@ export default function PipeWhatsapp() {
       scheduledDate: item.scheduled_date,
       createdAt: item.created_at,
       segment: lead?.segment,
+      leadId: item.lead_id,
+      closerId: lead?.closer_id,
     };
   };
 
   // Organize data by status columns
-  const columns = useMemo(() => {
-    if (!pipeData) return statusColumns.map(col => ({ ...col, leads: [] as WhatsappLead[] }));
+  const columns = useMemo((): KanbanColumn<WhatsappCard>[] => {
+    if (!pipeData) return statusColumns.map(col => ({ ...col, items: [] }));
 
     return statusColumns.map(col => {
       const columnItems = pipeData
@@ -152,11 +160,11 @@ export default function PipeWhatsapp() {
           
           return matchesSearch && matchesSdr;
         })
-        .map(transformToLead);
+        .map(transformToCard);
 
       return {
         ...col,
-        leads: columnItems,
+        items: columnItems,
       };
     });
   }, [pipeData, searchTerm, filterSdr]);
@@ -172,6 +180,35 @@ export default function PipeWhatsapp() {
 
     return { total, emContato, scheduled, pending };
   }, [pipeData]);
+
+  // Handle status change from drag-and-drop
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    const item = pipeData?.find(p => p.id === itemId);
+    if (!item) return;
+
+    try {
+      await updatePipeWhatsapp.mutateAsync({ 
+        id: itemId, 
+        status: newStatus as PipeWhatsappStatus 
+      });
+
+      // If moved to "compareceu", automatically create entry in pipe_confirmacao
+      if (newStatus === "compareceu") {
+        await createPipeConfirmacao.mutateAsync({
+          lead_id: item.lead_id,
+          sdr_id: item.sdr_id,
+          status: "reuniao_marcada",
+          meeting_date: item.scheduled_date,
+        });
+        toast.success("Lead movido para Confirmação de Reunião automaticamente!");
+      } else {
+        toast.success("Status atualizado com sucesso!");
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar status");
+      console.error(error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -195,7 +232,7 @@ export default function PipeWhatsapp() {
             Leads WhatsApp (SDR)
           </motion.h1>
           <p className="text-muted-foreground mt-1">
-            Qualificação e agendamento de leads via WhatsApp
+            Arraste os cards para alterar o status • Compareceu → move para Confirmação
           </p>
         </div>
 
@@ -260,52 +297,12 @@ export default function PipeWhatsapp() {
         </Select>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((column, colIndex) => (
-          <motion.div
-            key={column.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: colIndex * 0.05 }}
-            className="kanban-column min-w-[280px] max-w-[300px] flex-shrink-0"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: column.color }}
-                />
-                <h3 className="font-semibold text-sm">{column.title}</h3>
-                <span className="bg-muted text-muted-foreground text-xs font-medium px-2 py-0.5 rounded-full">
-                  {column.leads.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="p-1.5 rounded-lg hover:bg-background transition-colors">
-                  <Plus className="w-4 h-4 text-muted-foreground" />
-                </button>
-                <button className="p-1.5 rounded-lg hover:bg-background transition-colors">
-                  <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {column.leads.map((lead, leadIndex) => (
-                <motion.div
-                  key={lead.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2, delay: leadIndex * 0.03 }}
-                >
-                  <WhatsappCard lead={lead} />
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {/* Kanban Board with Drag-and-Drop */}
+      <DraggableKanbanBoard
+        columns={columns}
+        onStatusChange={handleStatusChange}
+        renderCard={(card) => <WhatsappCardComponent card={card} />}
+      />
     </div>
   );
 }

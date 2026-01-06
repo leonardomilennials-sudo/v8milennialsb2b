@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, MoreHorizontal, Calendar, User, Building2, Star, DollarSign, Clock, Tag, Loader2 } from "lucide-react";
+import { Search, Filter, Plus, Calendar, User, Building2, Star, DollarSign, Clock, Tag, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,13 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { usePipePropostas, statusColumns as propostaStatusColumns } from "@/hooks/usePipePropostas";
+import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
+import { usePipePropostas, statusColumns as propostaStatusColumns, useUpdatePipeProposta, PipePropostasStatus } from "@/hooks/usePipePropostas";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
-interface Proposal {
-  id: string;
+interface ProposalCard extends DraggableItem {
   name: string;
   company: string;
   email?: string;
@@ -33,7 +34,7 @@ interface Proposal {
   segment?: string;
 }
 
-function ProposalCard({ proposal }: { proposal: Proposal }) {
+function ProposalCardComponent({ proposal }: { proposal: ProposalCard }) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -142,13 +143,14 @@ export default function PipePropostas() {
 
   const { data: pipeData, isLoading } = usePipePropostas();
   const { data: teamMembers } = useTeamMembers();
+  const updatePipeProposta = useUpdatePipeProposta();
 
   const closers = useMemo(() => {
     return teamMembers?.filter(m => m.role === "closer" && m.is_active) || [];
   }, [teamMembers]);
 
-  // Transform pipe data to Proposal format
-  const transformToProposal = (item: any): Proposal => {
+  // Transform pipe data to ProposalCard format
+  const transformToCard = (item: any): ProposalCard => {
     const lead = item.lead;
     return {
       id: item.id,
@@ -171,8 +173,8 @@ export default function PipePropostas() {
   };
 
   // Organize data by status columns
-  const columns = useMemo(() => {
-    if (!pipeData) return propostaStatusColumns.map(col => ({ ...col, proposals: [] as Proposal[] }));
+  const columns = useMemo((): KanbanColumn<ProposalCard>[] => {
+    if (!pipeData) return propostaStatusColumns.map(col => ({ ...col, items: [] }));
 
     return propostaStatusColumns.map(col => {
       const columnItems = pipeData
@@ -193,11 +195,11 @@ export default function PipePropostas() {
           
           return matchesSearch && matchesCloser && matchesType;
         })
-        .map(transformToProposal);
+        .map(transformToCard);
 
       return {
         ...col,
-        proposals: columnItems,
+        items: columnItems,
       };
     });
   }, [pipeData, searchTerm, filterCloser, filterProductType]);
@@ -228,6 +230,44 @@ export default function PipePropostas() {
     }).format(value);
   };
 
+  // Handle status change from drag-and-drop
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    try {
+      const updates: any = { 
+        id: itemId, 
+        status: newStatus as PipePropostasStatus 
+      };
+
+      // If moved to "vendido", set closed_at date
+      if (newStatus === "vendido") {
+        updates.closed_at = new Date().toISOString();
+      }
+
+      await updatePipeProposta.mutateAsync(updates);
+
+      if (newStatus === "vendido") {
+        toast.success("🎉 Venda fechada com sucesso!");
+      } else {
+        toast.success("Status atualizado com sucesso!");
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar status");
+      console.error(error);
+    }
+  };
+
+  // Render column footer with total value
+  const renderColumnFooter = (column: KanbanColumn<ProposalCard>) => (
+    <div className="mb-3 p-2 rounded-lg bg-background/50">
+      <p className="text-xs text-muted-foreground">
+        Total:{" "}
+        <span className="font-semibold text-foreground">
+          {formatCurrency(column.items.reduce((sum, p) => sum + p.value, 0))}
+        </span>
+      </p>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -243,7 +283,7 @@ export default function PipePropostas() {
         <div>
           <h1 className="text-2xl font-bold">Gestão de Propostas</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Pipeline de negociação e fechamento de vendas
+            Arraste os cards para alterar o status • Vendido → registra data de fechamento
           </p>
         </div>
         <Button className="gap-2">
@@ -332,64 +372,13 @@ export default function PipePropostas() {
         </Button>
       </div>
 
-      {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {columns.map((column, colIndex) => (
-          <motion.div
-            key={column.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: colIndex * 0.05 }}
-            className="kanban-column min-w-[300px] max-w-[320px] flex-shrink-0"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: column.color }}
-                />
-                <h3 className="font-semibold text-sm">{column.title}</h3>
-                <span className="bg-muted text-muted-foreground text-xs font-medium px-2 py-0.5 rounded-full">
-                  {column.proposals.length}
-                </span>
-              </div>
-              <div className="flex items-center gap-1">
-                <button className="p-1.5 rounded-lg hover:bg-background transition-colors">
-                  <Plus className="w-4 h-4 text-muted-foreground" />
-                </button>
-                <button className="p-1.5 rounded-lg hover:bg-background transition-colors">
-                  <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-
-            {/* Column Value Summary */}
-            <div className="mb-3 p-2 rounded-lg bg-background/50">
-              <p className="text-xs text-muted-foreground">
-                Total:{" "}
-                <span className="font-semibold text-foreground">
-                  {formatCurrency(
-                    column.proposals.reduce((sum, p) => sum + p.value, 0)
-                  )}
-                </span>
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {column.proposals.map((proposal, proposalIndex) => (
-                <motion.div
-                  key={proposal.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2, delay: proposalIndex * 0.03 }}
-                >
-                  <ProposalCard proposal={proposal} />
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      {/* Kanban Board with Drag-and-Drop */}
+      <DraggableKanbanBoard
+        columns={columns}
+        onStatusChange={handleStatusChange}
+        renderCard={(card) => <ProposalCardComponent proposal={card} />}
+        renderColumnFooter={renderColumnFooter}
+      />
     </div>
   );
 }
