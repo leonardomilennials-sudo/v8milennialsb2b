@@ -14,16 +14,645 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      awards: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          month: number | null
+          name: string
+          prize_description: string | null
+          prize_value: number | null
+          threshold: number
+          type: string
+          year: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          month?: number | null
+          name: string
+          prize_description?: string | null
+          prize_value?: number | null
+          threshold: number
+          type: string
+          year?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          month?: number | null
+          name?: string
+          prize_description?: string | null
+          prize_value?: number | null
+          threshold?: number
+          type?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      commissions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          month: number
+          paid: boolean | null
+          pipe_proposta_id: string | null
+          team_member_id: string
+          type: Database["public"]["Enums"]["product_type"]
+          year: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          month: number
+          paid?: boolean | null
+          pipe_proposta_id?: string | null
+          team_member_id: string
+          type: Database["public"]["Enums"]["product_type"]
+          year: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          month?: number
+          paid?: boolean | null
+          pipe_proposta_id?: string | null
+          team_member_id?: string
+          type?: Database["public"]["Enums"]["product_type"]
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_pipe_proposta_id_fkey"
+            columns: ["pipe_proposta_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          created_at: string
+          current_value: number | null
+          id: string
+          month: number
+          name: string
+          target_value: number
+          team_member_id: string | null
+          type: string
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          month: number
+          name: string
+          target_value: number
+          team_member_id?: string | null
+          type: string
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          current_value?: number | null
+          id?: string
+          month?: number
+          name?: string
+          target_value?: number
+          team_member_id?: string | null
+          type?: string
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_history: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          lead_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          lead_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          lead_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_history_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_tags: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_tags_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          closer_id: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          faturamento: number | null
+          id: string
+          name: string
+          notes: string | null
+          origin: Database["public"]["Enums"]["lead_origin"]
+          phone: string | null
+          rating: number | null
+          sdr_id: string | null
+          segment: string | null
+          updated_at: string
+          urgency: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          closer_id?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          faturamento?: number | null
+          id?: string
+          name: string
+          notes?: string | null
+          origin?: Database["public"]["Enums"]["lead_origin"]
+          phone?: string | null
+          rating?: number | null
+          sdr_id?: string | null
+          segment?: string | null
+          updated_at?: string
+          urgency?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          closer_id?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          faturamento?: number | null
+          id?: string
+          name?: string
+          notes?: string | null
+          origin?: Database["public"]["Enums"]["lead_origin"]
+          phone?: string | null
+          rating?: number | null
+          sdr_id?: string | null
+          segment?: string | null
+          updated_at?: string
+          urgency?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_closer_id_fkey"
+            columns: ["closer_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads_reativacao: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          original_pipe: string | null
+          reactivation_date: string | null
+          reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          original_pipe?: string | null
+          reactivation_date?: string | null
+          reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          original_pipe?: string | null
+          reactivation_date?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_reativacao_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipe_confirmacao: {
+        Row: {
+          closer_id: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          meeting_date: string | null
+          notes: string | null
+          sdr_id: string | null
+          status: Database["public"]["Enums"]["pipe_confirmacao_status"]
+          updated_at: string
+        }
+        Insert: {
+          closer_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          meeting_date?: string | null
+          notes?: string | null
+          sdr_id?: string | null
+          status?: Database["public"]["Enums"]["pipe_confirmacao_status"]
+          updated_at?: string
+        }
+        Update: {
+          closer_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          meeting_date?: string | null
+          notes?: string | null
+          sdr_id?: string | null
+          status?: Database["public"]["Enums"]["pipe_confirmacao_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipe_confirmacao_closer_id_fkey"
+            columns: ["closer_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_confirmacao_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_confirmacao_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipe_propostas: {
+        Row: {
+          closed_at: string | null
+          closer_id: string | null
+          commitment_date: string | null
+          contract_duration: number | null
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          product_type: Database["public"]["Enums"]["product_type"] | null
+          sale_value: number | null
+          status: Database["public"]["Enums"]["pipe_propostas_status"]
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closer_id?: string | null
+          commitment_date?: string | null
+          contract_duration?: number | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          sale_value?: number | null
+          status?: Database["public"]["Enums"]["pipe_propostas_status"]
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closer_id?: string | null
+          commitment_date?: string | null
+          contract_duration?: number | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          product_type?: Database["public"]["Enums"]["product_type"] | null
+          sale_value?: number | null
+          status?: Database["public"]["Enums"]["pipe_propostas_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipe_propostas_closer_id_fkey"
+            columns: ["closer_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_propostas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipe_whatsapp: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          scheduled_date: string | null
+          sdr_id: string | null
+          status: Database["public"]["Enums"]["pipe_whatsapp_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          scheduled_date?: string | null
+          sdr_id?: string | null
+          status?: Database["public"]["Enums"]["pipe_whatsapp_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          scheduled_date?: string | null
+          sdr_id?: string | null
+          status?: Database["public"]["Enums"]["pipe_whatsapp_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipe_whatsapp_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_whatsapp_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          commission_mrr_percent: number | null
+          commission_projeto_percent: number | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          ote_base: number | null
+          ote_bonus: number | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          commission_mrr_percent?: number | null
+          commission_projeto_percent?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          ote_base?: number | null
+          ote_bonus?: number | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          commission_mrr_percent?: number | null
+          commission_projeto_percent?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          ote_base?: number | null
+          ote_bonus?: number | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_team_member: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "sdr" | "closer"
+      lead_origin: "calendly" | "whatsapp" | "meta_ads" | "outro"
+      pipe_confirmacao_status:
+        | "reuniao_marcada"
+        | "confirmar_d3"
+        | "confirmar_d1"
+        | "pre_confirmada"
+        | "confirmacao_no_dia"
+        | "confirmada_no_dia"
+        | "compareceu"
+        | "perdido"
+      pipe_propostas_status:
+        | "marcar_compromisso"
+        | "compromisso_marcado"
+        | "esfriou"
+        | "futuro"
+        | "vendido"
+        | "perdido"
+      pipe_whatsapp_status: "novo" | "em_contato" | "agendado" | "compareceu"
+      product_type: "mrr" | "projeto"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +779,29 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "sdr", "closer"],
+      lead_origin: ["calendly", "whatsapp", "meta_ads", "outro"],
+      pipe_confirmacao_status: [
+        "reuniao_marcada",
+        "confirmar_d3",
+        "confirmar_d1",
+        "pre_confirmada",
+        "confirmacao_no_dia",
+        "confirmada_no_dia",
+        "compareceu",
+        "perdido",
+      ],
+      pipe_propostas_status: [
+        "marcar_compromisso",
+        "compromisso_marcado",
+        "esfriou",
+        "futuro",
+        "vendido",
+        "perdido",
+      ],
+      pipe_whatsapp_status: ["novo", "em_contato", "agendado", "compareceu"],
+      product_type: ["mrr", "projeto"],
+    },
   },
 } as const
