@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useTeamMembers, useCreateTeamMember, useUpdateTeamMember, useDeleteTeamMember, TeamMember } from "@/hooks/useTeamMembers";
 import { useIsAdmin } from "@/hooks/useUserRole";
+import { useProfiles } from "@/hooks/useProfiles";
 import { toast } from "sonner";
 
 type TeamRole = "sdr" | "closer";
@@ -63,6 +64,7 @@ interface TeamMemberFormData {
   commission_mrr_percent: number;
   commission_projeto_percent: number;
   is_active: boolean;
+  user_id: string | null;
 }
 
 const initialFormData: TeamMemberFormData = {
@@ -73,6 +75,7 @@ const initialFormData: TeamMemberFormData = {
   commission_mrr_percent: 1.0,
   commission_projeto_percent: 0.5,
   is_active: true,
+  user_id: null,
 };
 
 export default function Equipe() {
@@ -102,6 +105,8 @@ export default function Equipe() {
     return matchesSearch && matchesRole;
   });
 
+  const { data: profiles = [] } = useProfiles();
+
   const handleOpenDialog = (member?: TeamMember) => {
     if (member) {
       setEditingMember(member);
@@ -113,6 +118,7 @@ export default function Equipe() {
         commission_mrr_percent: Number(member.commission_mrr_percent) || 1.0,
         commission_projeto_percent: Number(member.commission_projeto_percent) || 0.5,
         is_active: member.is_active,
+        user_id: member.user_id || null,
       });
     } else {
       setEditingMember(null);
@@ -263,6 +269,28 @@ export default function Equipe() {
                       onChange={(e) => setFormData({ ...formData, commission_projeto_percent: Number(e.target.value) })}
                     />
                   </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="user_id">Vincular ao Usuário</Label>
+                  <Select
+                    value={formData.user_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, user_id: value === "none" ? null : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um usuário" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Vincule a um usuário cadastrado para ele acessar suas comissões
+                  </p>
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="is_active">Membro Ativo</Label>
