@@ -18,6 +18,7 @@ import Equipe from "./pages/Equipe";
 import Premiacoes from "./pages/Premiacoes";
 import Comissoes from "./pages/Comissoes";
 import Leads from "./pages/Leads";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -147,7 +148,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <LayoutWrapper>
-              <div className="p-8"><h1 className="text-2xl font-bold">Configurações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+              <Configuracoes />
             </LayoutWrapper>
           </ProtectedRoute>
         }

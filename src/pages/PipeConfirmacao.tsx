@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
-import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
+import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus, useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
+import { useCreateLead } from "@/hooks/useLeads";
+import { LeadModal } from "@/components/leads/LeadModal";
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -39,11 +41,12 @@ const originLabels = {
   outro: "Outro",
 };
 
-function ConfirmacaoCardComponent({ card }: { card: ConfirmacaoCard }) {
+function ConfirmacaoCardComponent({ card, onClick }: { card: ConfirmacaoCard; onClick?: () => void }) {
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
       className="kanban-card group cursor-pointer"
+      onClick={onClick}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
@@ -115,10 +118,14 @@ function ConfirmacaoCardComponent({ card }: { card: ConfirmacaoCard }) {
 export default function PipeConfirmacao() {
   const [searchQuery, setSearchQuery] = useState("");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<any>(null);
   
-  const { data: pipeData, isLoading } = usePipeConfirmacao();
+  const { data: pipeData, isLoading, refetch } = usePipeConfirmacao();
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
   const createPipeProposta = useCreatePipeProposta();
+  const createPipeConfirmacao = useCreatePipeConfirmacao();
+  const createLead = useCreateLead();
 
   // Transform pipe data to Card format
   const transformToCard = (item: any): ConfirmacaoCard => {
@@ -269,7 +276,7 @@ export default function PipeConfirmacao() {
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </Button>
-          <Button size="sm" className="gradient-gold">
+          <Button size="sm" className="gradient-gold" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Reunião
           </Button>
@@ -354,7 +361,29 @@ export default function PipeConfirmacao() {
       <DraggableKanbanBoard
         columns={columns}
         onStatusChange={handleStatusChange}
-        renderCard={(card) => <ConfirmacaoCardComponent card={card} />}
+        renderCard={(card) => (
+          <ConfirmacaoCardComponent 
+            card={card} 
+            onClick={() => {
+              const item = pipeData?.find(p => p.id === card.id);
+              if (item?.lead) {
+                setEditingLead(item.lead);
+                setIsLeadModalOpen(true);
+              }
+            }}
+          />
+        )}
+      />
+
+      {/* Lead Modal */}
+      <LeadModal
+        open={isLeadModalOpen}
+        onOpenChange={setIsLeadModalOpen}
+        lead={editingLead}
+        onSuccess={() => {
+          refetch();
+          setEditingLead(null);
+        }}
       />
     </div>
   );
