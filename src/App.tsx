@@ -6,10 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import Index from "./pages/Index";
 import PipeConfirmacao from "./pages/PipeConfirmacao";
+import PipePropostas from "./pages/PipePropostas";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 // Wrapper for pages that need the main layout
@@ -54,7 +54,7 @@ const App = () => (
             path="/pipe-propostas"
             element={
               <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Gestão de Propostas</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+                <PipePropostas />
               </LayoutWrapper>
             }
           />
