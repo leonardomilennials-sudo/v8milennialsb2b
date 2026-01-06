@@ -6,18 +6,21 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useAutoAdminAssignment } from "@/hooks/useAutoAdminAssignment";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PipeConfirmacao from "./pages/PipeConfirmacao";
 import PipePropostas from "./pages/PipePropostas";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
+import Equipe from "./pages/Equipe";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 // Wrapper for pages that need the main layout
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
+  useAutoAdminAssignment();
   return <MainLayout>{children}</MainLayout>;
 }
 
@@ -130,7 +133,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <LayoutWrapper>
-              <div className="p-8"><h1 className="text-2xl font-bold">Equipe</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+              <Equipe />
             </LayoutWrapper>
           </ProtectedRoute>
         }
