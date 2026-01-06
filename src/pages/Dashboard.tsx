@@ -8,15 +8,21 @@ import {
   DollarSign,
   Target,
   Zap,
+  Activity,
+  BarChart3,
 } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
 import { RankingPreview } from "@/components/dashboard/RankingPreview";
 import { FunnelChart } from "@/components/dashboard/FunnelChart";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
+import { ConversionChart } from "@/components/dashboard/ConversionChart";
 import { useDashboardMetrics, useFunnelData, useRankingData, useConversionRates } from "@/hooks/useDashboardMetrics";
 import { useTeamGoals } from "@/hooks/useGoals";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import boltIcon from "@/assets/bolt-icon.png";
@@ -228,6 +234,33 @@ export default function Dashboard() {
         </motion.div>
       )}
 
+      {/* Performance & Activity Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Performance do Mês
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PerformanceChart />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Atividade Recente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 px-2">
+            <ActivityFeed />
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <FunnelChart 
@@ -245,110 +278,16 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Conversion by SDR/Closer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
-          className="bg-card rounded-xl border border-border p-5"
-        >
-          <h3 className="font-semibold mb-4">Conversão por SDR</h3>
-          {conversionLoading ? (
-            <div className="space-y-4">
-              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16" />)}
-            </div>
-          ) : conversionRates?.sdrRates && conversionRates.sdrRates.length > 0 ? (
-            <div className="space-y-4">
-              {conversionRates.sdrRates.slice(0, 5).map((sdr) => (
-                <div key={sdr.id} className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs font-semibold text-primary">
-                      {sdr.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">{sdr.name}</span>
-                      <span className="text-sm font-bold text-success">
-                        {Math.round(sdr.rate)}%
-                      </span>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill bg-success"
-                        style={{ width: `${Math.min(sdr.rate, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {sdr.sales} de {sdr.meetings} reuniões
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhum SDR cadastrado ou com dados.
-            </p>
-          )}
-        </motion.div>
+      {/* Conversion Charts */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Taxa de Conversão por Membro</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ConversionChart />
+        </CardContent>
+      </Card>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.4 }}
-          className="bg-card rounded-xl border border-border p-5"
-        >
-          <h3 className="font-semibold mb-4">Conversão por Closer</h3>
-          {conversionLoading ? (
-            <div className="space-y-4">
-              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-16" />)}
-            </div>
-          ) : conversionRates?.closerRates && conversionRates.closerRates.length > 0 ? (
-            <div className="space-y-4">
-              {conversionRates.closerRates.slice(0, 5).map((closer) => (
-                <div key={closer.id} className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
-                    <span className="text-xs font-semibold text-accent-foreground">
-                      {closer.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")
-                        .slice(0, 2)}
-                    </span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium">{closer.name}</span>
-                      <span className="text-sm font-bold text-primary">
-                        {Math.round(closer.rate)}%
-                      </span>
-                    </div>
-                    <div className="progress-bar">
-                      <div
-                        className="progress-fill gradient-gold"
-                        style={{ width: `${Math.min(closer.rate, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {closer.sales} de {closer.meetings} propostas
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhum Closer cadastrado ou com dados.
-            </p>
-          )}
-        </motion.div>
-      </div>
     </div>
   );
 }
