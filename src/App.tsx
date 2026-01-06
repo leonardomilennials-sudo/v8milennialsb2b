@@ -15,6 +15,7 @@ import PipeWhatsapp from "./pages/PipeWhatsapp";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import Equipe from "./pages/Equipe";
+import Premiacoes from "./pages/Premiacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -114,7 +115,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <LayoutWrapper>
-              <div className="p-8"><h1 className="text-2xl font-bold">Premiações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+              <Premiacoes />
             </LayoutWrapper>
           </ProtectedRoute>
         }
