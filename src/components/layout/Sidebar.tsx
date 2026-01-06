@@ -42,8 +42,12 @@ const navItems: NavItem[] = [
   { label: "Comissões", icon: DollarSign, path: "/comissoes" },
 ];
 
-const bottomNavItems: NavItem[] = [
+const adminNavItems: NavItem[] = [
   { label: "Equipe", icon: UserCheck, path: "/equipe" },
+  { label: "Gestão de Metas", icon: Target, path: "/gestao-metas" },
+];
+
+const bottomNavItems: NavItem[] = [
   { label: "Configurações", icon: Settings, path: "/configuracoes" },
 ];
 
@@ -130,6 +134,34 @@ export function Sidebar() {
             )}
           </NavLink>
         ))}
+        
+        {/* Admin Navigation */}
+        {userRole?.role === "admin" && (
+          <>
+            {!collapsed && (
+              <div className="pt-3 pb-1">
+                <span className="text-xs text-sidebar-foreground/50 uppercase font-medium">Admin</span>
+              </div>
+            )}
+            {adminNavItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={`sidebar-item ${
+                  isActive(item.path) ? "sidebar-item-active" : ""
+                }`}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <motion.span
+                  animate={{ opacity: collapsed ? 0 : 1, width: collapsed ? 0 : "auto" }}
+                  className="overflow-hidden whitespace-nowrap flex-1"
+                >
+                  {item.label}
+                </motion.span>
+              </NavLink>
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Bottom Navigation */}
