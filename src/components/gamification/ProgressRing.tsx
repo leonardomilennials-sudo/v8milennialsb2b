@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { LucideIcon } from "lucide-react";
+import { ReactNode } from "react";
 
 interface ProgressRingProps {
   progress: number;
@@ -9,6 +10,7 @@ interface ProgressRingProps {
   label?: string;
   value?: string;
   color?: "primary" | "success" | "warning" | "destructive";
+  children?: ReactNode;
 }
 
 const colorMap = {
@@ -26,6 +28,7 @@ export function ProgressRing({
   label,
   value,
   color = "primary",
+  children,
 }: ProgressRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -68,14 +71,20 @@ export function ProgressRing({
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {Icon && (
-            <div className={`p-2 rounded-full ${colors.bg} mb-1`}>
-              <Icon className={`w-5 h-5 ${colors.text}`} />
-            </div>
+          {children ? (
+            children
+          ) : (
+            <>
+              {Icon && (
+                <div className={`p-2 rounded-full ${colors.bg} mb-1`}>
+                  <Icon className={`w-5 h-5 ${colors.text}`} />
+                </div>
+              )}
+              <span className={`text-lg font-bold ${colors.text}`}>
+                {value || `${Math.round(progress)}%`}
+              </span>
+            </>
           )}
-          <span className={`text-lg font-bold ${colors.text}`}>
-            {value || `${Math.round(progress)}%`}
-          </span>
         </div>
       </div>
       {label && (
