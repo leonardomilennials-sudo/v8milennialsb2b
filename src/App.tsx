@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import PipeConfirmacao from "./pages/PipeConfirmacao";
 import PipePropostas from "./pages/PipePropostas";
+import PipeWhatsapp from "./pages/PipeWhatsapp";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import Equipe from "./pages/Equipe";
@@ -93,7 +94,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <LayoutWrapper>
-              <div className="p-8"><h1 className="text-2xl font-bold">Leads WhatsApp SDR</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+              <PipeWhatsapp />
             </LayoutWrapper>
           </ProtectedRoute>
         }

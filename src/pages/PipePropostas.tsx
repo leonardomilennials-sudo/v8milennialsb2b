@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, MoreHorizontal, Calendar, User, Building2, Star, DollarSign, Clock, Tag } from "lucide-react";
+import { Search, Filter, Plus, MoreHorizontal, Calendar, User, Building2, Star, DollarSign, Clock, Tag, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePipePropostas, statusColumns as propostaStatusColumns } from "@/hooks/usePipePropostas";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface Proposal {
   id: string;
@@ -19,170 +23,15 @@ interface Proposal {
   email?: string;
   phone?: string;
   rating: number;
-  closer: string;
-  productType: "mrr" | "projeto";
+  closer?: string;
+  closerId?: string;
+  productType: "mrr" | "projeto" | null;
   value: number;
-  contractDuration: number; // in months
+  contractDuration: number;
   tags: string[];
   lastContact?: string;
   segment?: string;
 }
-
-interface ProposalColumn {
-  id: string;
-  title: string;
-  color: string;
-  proposals: Proposal[];
-}
-
-const initialColumns: ProposalColumn[] = [
-  {
-    id: "marcar-compromisso",
-    title: "Marcar Compromisso",
-    color: "#F5C518",
-    proposals: [
-      {
-        id: "1",
-        name: "Ricardo Mendes",
-        company: "Distribuidora ABC",
-        rating: 4,
-        closer: "Lucas Silva",
-        productType: "mrr",
-        value: 8500,
-        contractDuration: 12,
-        tags: ["Distribuidora", "Alto potencial"],
-        lastContact: "Ontem",
-        segment: "Distribuidora",
-      },
-      {
-        id: "2",
-        name: "Fernanda Costa",
-        company: "Fábrica XYZ",
-        rating: 5,
-        closer: "Ana Rodrigues",
-        productType: "projeto",
-        value: 45000,
-        contractDuration: 6,
-        tags: ["Fábrica", "Urgente"],
-        lastContact: "Hoje",
-        segment: "Fábrica",
-      },
-    ],
-  },
-  {
-    id: "compromisso-marcado",
-    title: "Compromisso Marcado",
-    color: "#3B82F6",
-    proposals: [
-      {
-        id: "3",
-        name: "Paulo Oliveira",
-        company: "Indústria Tech",
-        rating: 4,
-        closer: "Lucas Silva",
-        productType: "mrr",
-        value: 12000,
-        contractDuration: 12,
-        tags: ["Fábrica", "Enterprise"],
-        lastContact: "15/01 às 14h",
-        segment: "Fábrica",
-      },
-    ],
-  },
-  {
-    id: "esfriou",
-    title: "Esfriou",
-    color: "#94A3B8",
-    proposals: [
-      {
-        id: "4",
-        name: "Marcos Santos",
-        company: "Comercial Delta",
-        rating: 2,
-        closer: "Ana Rodrigues",
-        productType: "projeto",
-        value: 25000,
-        contractDuration: 3,
-        tags: ["Distribuidora"],
-        lastContact: "Há 5 dias",
-        segment: "Distribuidora",
-      },
-    ],
-  },
-  {
-    id: "futuro",
-    title: "Futuro",
-    color: "#8B5CF6",
-    proposals: [
-      {
-        id: "5",
-        name: "Carla Pereira",
-        company: "Fábrica Omega",
-        rating: 3,
-        closer: "Lucas Silva",
-        productType: "mrr",
-        value: 6500,
-        contractDuration: 6,
-        tags: ["Fábrica", "Q2 2025"],
-        lastContact: "Retorno em Março",
-        segment: "Fábrica",
-      },
-    ],
-  },
-  {
-    id: "vendido",
-    title: "Vendido ✓",
-    color: "#22C55E",
-    proposals: [
-      {
-        id: "6",
-        name: "André Lima",
-        company: "Distribuidora Prime",
-        rating: 5,
-        closer: "Ana Rodrigues",
-        productType: "mrr",
-        value: 15000,
-        contractDuration: 12,
-        tags: ["Distribuidora", "Premium"],
-        lastContact: "Fechado 10/01",
-        segment: "Distribuidora",
-      },
-      {
-        id: "7",
-        name: "Julia Martins",
-        company: "Indústria Nova",
-        rating: 4,
-        closer: "Lucas Silva",
-        productType: "projeto",
-        value: 85000,
-        contractDuration: 6,
-        tags: ["Fábrica", "Projeto grande"],
-        lastContact: "Fechado 08/01",
-        segment: "Fábrica",
-      },
-    ],
-  },
-  {
-    id: "perdido",
-    title: "Perdido",
-    color: "#EF4444",
-    proposals: [
-      {
-        id: "8",
-        name: "Roberto Alves",
-        company: "Comércio Beta",
-        rating: 2,
-        closer: "Ana Rodrigues",
-        productType: "projeto",
-        value: 18000,
-        contractDuration: 3,
-        tags: ["Outro", "Reativação futura"],
-        lastContact: "Sem orçamento",
-        segment: "Outro",
-      },
-    ],
-  },
-];
 
 function ProposalCard({ proposal }: { proposal: Proposal }) {
   const formatCurrency = (value: number) => {
@@ -224,16 +73,18 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
 
       {/* Product Type & Value */}
       <div className="flex items-center gap-2 mb-3">
-        <Badge
-          variant="outline"
-          className={
-            proposal.productType === "mrr"
-              ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
-              : "bg-primary/10 text-primary border-primary/20"
-          }
-        >
-          {proposal.productType === "mrr" ? "MRR" : "Projeto"}
-        </Badge>
+        {proposal.productType && (
+          <Badge
+            variant="outline"
+            className={
+              proposal.productType === "mrr"
+                ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                : "bg-primary/10 text-primary border-primary/20"
+            }
+          >
+            {proposal.productType === "mrr" ? "MRR" : "Projeto"}
+          </Badge>
+        )}
         <div className="flex items-center gap-1 text-success font-semibold text-sm">
           <DollarSign className="w-3.5 h-3.5" />
           {formatCurrency(proposal.value)}
@@ -242,24 +93,28 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
       </div>
 
       {/* Contract Duration */}
-      <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
-        <Clock className="w-3.5 h-3.5" />
-        <span className="text-xs">Contrato: {proposal.contractDuration} meses</span>
-      </div>
+      {proposal.contractDuration > 0 && (
+        <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
+          <Clock className="w-3.5 h-3.5" />
+          <span className="text-xs">Contrato: {proposal.contractDuration} meses</span>
+        </div>
+      )}
 
       {/* Tags */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {proposal.tags.slice(0, 2).map((tag) => (
-          <Badge key={tag} variant="secondary" className="text-xs">
-            {tag}
-          </Badge>
-        ))}
-        {proposal.tags.length > 2 && (
-          <Badge variant="secondary" className="text-xs">
-            +{proposal.tags.length - 2}
-          </Badge>
-        )}
-      </div>
+      {proposal.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {proposal.tags.slice(0, 2).map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-xs">
+              {tag}
+            </Badge>
+          ))}
+          {proposal.tags.length > 2 && (
+            <Badge variant="secondary" className="text-xs">
+              +{proposal.tags.length - 2}
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Last Contact & Closer */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -269,10 +124,12 @@ function ProposalCard({ proposal }: { proposal: Proposal }) {
             <span className="text-xs text-muted-foreground">{proposal.lastContact}</span>
           </div>
         )}
-        <div className="flex items-center gap-1.5">
-          <User className="w-3 h-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">{proposal.closer}</span>
-        </div>
+        {proposal.closer && (
+          <div className="flex items-center gap-1.5">
+            <User className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">{proposal.closer}</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -282,28 +139,86 @@ export default function PipePropostas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCloser, setFilterCloser] = useState("all");
   const [filterProductType, setFilterProductType] = useState("all");
-  const [columns] = useState<ProposalColumn[]>(initialColumns);
+
+  const { data: pipeData, isLoading } = usePipePropostas();
+  const { data: teamMembers } = useTeamMembers();
+
+  const closers = useMemo(() => {
+    return teamMembers?.filter(m => m.role === "closer" && m.is_active) || [];
+  }, [teamMembers]);
+
+  // Transform pipe data to Proposal format
+  const transformToProposal = (item: any): Proposal => {
+    const lead = item.lead;
+    return {
+      id: item.id,
+      name: lead?.name || "Sem nome",
+      company: lead?.company || "Sem empresa",
+      email: lead?.email,
+      phone: lead?.phone,
+      rating: lead?.rating || 0,
+      closer: item.closer?.name || lead?.closer?.name,
+      closerId: item.closer_id,
+      productType: item.product_type,
+      value: item.sale_value || 0,
+      contractDuration: item.contract_duration || 0,
+      tags: lead?.lead_tags?.map((lt: any) => lt.tag?.name).filter(Boolean) || [],
+      lastContact: item.commitment_date 
+        ? format(new Date(item.commitment_date), "dd/MM", { locale: ptBR })
+        : undefined,
+      segment: lead?.segment,
+    };
+  };
+
+  // Organize data by status columns
+  const columns = useMemo(() => {
+    if (!pipeData) return propostaStatusColumns.map(col => ({ ...col, proposals: [] as Proposal[] }));
+
+    return propostaStatusColumns.map(col => {
+      const columnItems = pipeData
+        .filter(item => item.status === col.id)
+        .filter(item => {
+          const lead = item.lead;
+          
+          // Search filter
+          const matchesSearch = searchTerm === "" || 
+            lead?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            lead?.company?.toLowerCase().includes(searchTerm.toLowerCase());
+          
+          // Closer filter
+          const matchesCloser = filterCloser === "all" || item.closer_id === filterCloser;
+          
+          // Product type filter
+          const matchesType = filterProductType === "all" || item.product_type === filterProductType;
+          
+          return matchesSearch && matchesCloser && matchesType;
+        })
+        .map(transformToProposal);
+
+      return {
+        ...col,
+        proposals: columnItems,
+      };
+    });
+  }, [pipeData, searchTerm, filterCloser, filterProductType]);
 
   // Calculate totals
-  const totalValue = columns.reduce((acc, col) => {
-    return acc + col.proposals.reduce((sum, p) => sum + p.value, 0);
-  }, 0);
+  const stats = useMemo(() => {
+    if (!pipeData) return { total: 0, sold: 0, mrr: 0, projeto: 0 };
 
-  const soldValue = columns
-    .find((c) => c.id === "vendido")
-    ?.proposals.reduce((sum, p) => sum + p.value, 0) || 0;
+    const total = pipeData.reduce((sum, item) => sum + (item.sale_value || 0), 0);
+    const sold = pipeData
+      .filter(item => item.status === "vendido")
+      .reduce((sum, item) => sum + (item.sale_value || 0), 0);
+    const mrr = pipeData
+      .filter(item => item.product_type === "mrr")
+      .reduce((sum, item) => sum + (item.sale_value || 0), 0);
+    const projeto = pipeData
+      .filter(item => item.product_type === "projeto")
+      .reduce((sum, item) => sum + (item.sale_value || 0), 0);
 
-  const mrrValue = columns.reduce((acc, col) => {
-    return acc + col.proposals
-      .filter((p) => p.productType === "mrr")
-      .reduce((sum, p) => sum + p.value, 0);
-  }, 0);
-
-  const projetoValue = columns.reduce((acc, col) => {
-    return acc + col.proposals
-      .filter((p) => p.productType === "projeto")
-      .reduce((sum, p) => sum + p.value, 0);
-  }, 0);
+    return { total, sold, mrr, projeto };
+  }, [pipeData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -313,20 +228,13 @@ export default function PipePropostas() {
     }).format(value);
   };
 
-  // Filter proposals
-  const filteredColumns = columns.map((col) => ({
-    ...col,
-    proposals: col.proposals.filter((proposal) => {
-      const matchesSearch =
-        proposal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        proposal.company.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCloser =
-        filterCloser === "all" || proposal.closer === filterCloser;
-      const matchesType =
-        filterProductType === "all" || proposal.productType === filterProductType;
-      return matchesSearch && matchesCloser && matchesType;
-    }),
-  }));
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -352,7 +260,7 @@ export default function PipePropostas() {
           className="glass-card p-4"
         >
           <p className="text-xs text-muted-foreground mb-1">Pipeline Total</p>
-          <p className="text-xl font-bold">{formatCurrency(totalValue)}</p>
+          <p className="text-xl font-bold">{formatCurrency(stats.total)}</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -361,7 +269,7 @@ export default function PipePropostas() {
           className="glass-card p-4"
         >
           <p className="text-xs text-muted-foreground mb-1">Vendido</p>
-          <p className="text-xl font-bold text-success">{formatCurrency(soldValue)}</p>
+          <p className="text-xl font-bold text-success">{formatCurrency(stats.sold)}</p>
         </motion.div>
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -370,7 +278,7 @@ export default function PipePropostas() {
           className="glass-card p-4"
         >
           <p className="text-xs text-muted-foreground mb-1">MRR Total</p>
-          <p className="text-xl font-bold text-chart-5">{formatCurrency(mrrValue)}</p>
+          <p className="text-xl font-bold text-chart-5">{formatCurrency(stats.mrr)}</p>
           <p className="text-xs text-muted-foreground">/mês</p>
         </motion.div>
         <motion.div
@@ -380,7 +288,7 @@ export default function PipePropostas() {
           className="glass-card p-4"
         >
           <p className="text-xs text-muted-foreground mb-1">Projetos</p>
-          <p className="text-xl font-bold text-primary">{formatCurrency(projetoValue)}</p>
+          <p className="text-xl font-bold text-primary">{formatCurrency(stats.projeto)}</p>
         </motion.div>
       </div>
 
@@ -396,14 +304,15 @@ export default function PipePropostas() {
           />
         </div>
         <Select value={filterCloser} onValueChange={setFilterCloser}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[180px]">
             <User className="w-4 h-4 mr-2" />
             <SelectValue placeholder="Closer" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos Closers</SelectItem>
-            <SelectItem value="Lucas Silva">Lucas Silva</SelectItem>
-            <SelectItem value="Ana Rodrigues">Ana Rodrigues</SelectItem>
+            {closers.map(closer => (
+              <SelectItem key={closer.id} value={closer.id}>{closer.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={filterProductType} onValueChange={setFilterProductType}>
@@ -425,7 +334,7 @@ export default function PipePropostas() {
 
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {filteredColumns.map((column, colIndex) => (
+        {columns.map((column, colIndex) => (
           <motion.div
             key={column.id}
             initial={{ opacity: 0, y: 20 }}

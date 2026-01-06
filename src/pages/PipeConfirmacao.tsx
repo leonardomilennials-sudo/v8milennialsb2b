@@ -1,129 +1,120 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, Calendar } from "lucide-react";
+import { Search, Filter, Plus, Calendar, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { KanbanBoard } from "@/components/kanban/KanbanBoard";
+import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import type { Lead } from "@/components/kanban/KanbanCard";
+import { format, isToday, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-const mockLeads: Lead[] = [
-  {
-    id: "1",
-    name: "Carlos Oliveira",
-    company: "TechFab Indústria",
-    email: "carlos@techfab.com",
-    meetingDate: "08 Jan, 14:00",
-    rating: 4,
-    origin: "calendly",
-    sdr: "Lucas M.",
-    closer: "Maria S.",
-    tags: ["Fábrica", "Alto Faturamento"],
-    revenue: "R$ 2M+",
-    segment: "Metalúrgica",
-  },
-  {
-    id: "2",
-    name: "Fernanda Lima",
-    company: "Distribuidora Norte",
-    email: "fernanda@distnorte.com",
-    meetingDate: "08 Jan, 15:30",
-    rating: 5,
-    origin: "whatsapp",
-    sdr: "Julia F.",
-    closer: "João S.",
-    tags: ["Distribuidora", "Urgente"],
-    revenue: "R$ 5M+",
-    segment: "Alimentos",
-  },
-  {
-    id: "3",
-    name: "Roberto Mendes",
-    company: "Fab Metal SA",
-    meetingDate: "09 Jan, 10:00",
-    rating: 3,
-    origin: "calendly",
-    sdr: "Rafael C.",
-    tags: ["Fábrica"],
-    segment: "Aço",
-  },
-  {
-    id: "4",
-    name: "Amanda Costa",
-    company: "Log Express",
-    meetingDate: "09 Jan, 11:00",
-    rating: 4,
-    origin: "outro",
-    sdr: "Lucas M.",
-    closer: "Ana C.",
-    tags: ["Distribuidora", "B2B"],
-  },
-  {
-    id: "5",
-    name: "Marcelo Santos",
-    company: "Indústria Premium",
-    meetingDate: "09 Jan, 14:00",
-    rating: 5,
-    origin: "calendly",
-    sdr: "Julia F.",
-    closer: "Maria S.",
-    tags: ["Fábrica", "Alto Faturamento", "Urgente"],
-    revenue: "R$ 10M+",
-  },
-];
-
-const columns = [
-  {
-    id: "reuniao-marcada",
-    title: "Reunião Marcada",
-    color: "#6366f1",
-    leads: mockLeads.slice(0, 2),
-  },
-  {
-    id: "confirmar-d3",
-    title: "Confirmar D-3",
-    color: "#f59e0b",
-    leads: [mockLeads[2]],
-  },
-  {
-    id: "confirmar-d1",
-    title: "Confirmar D-1",
-    color: "#f59e0b",
-    leads: [mockLeads[3]],
-  },
-  {
-    id: "pre-confirmada",
-    title: "Pré Confirmada",
-    color: "#10b981",
-    leads: [],
-  },
-  {
-    id: "confirmacao-no-dia",
-    title: "Confirmação | No dia",
-    color: "#3b82f6",
-    leads: [mockLeads[4]],
-  },
-  {
-    id: "confirmada-no-dia",
-    title: "Confirmada | No dia",
-    color: "#22c55e",
-    leads: [],
-  },
-  {
-    id: "compareceu",
-    title: "Compareceu ✓",
-    color: "#16a34a",
-    leads: [],
-  },
-  {
-    id: "perdido",
-    title: "Perdido ✗",
-    color: "#ef4444",
-    leads: [],
-  },
-];
+type OriginFilter = "all" | "calendly" | "whatsapp" | "today" | "week";
 
 export default function PipeConfirmacao() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
+  
+  const { data: pipeData, isLoading } = usePipeConfirmacao();
+
+  // Transform pipe data to Lead format for KanbanCard
+  const transformToLead = (item: any): Lead => {
+    const lead = item.lead;
+    return {
+      id: item.id,
+      name: lead?.name || "Sem nome",
+      company: lead?.company || "Sem empresa",
+      email: lead?.email,
+      phone: lead?.phone,
+      meetingDate: item.meeting_date 
+        ? format(new Date(item.meeting_date), "dd MMM, HH:mm", { locale: ptBR })
+        : undefined,
+      rating: lead?.rating || 0,
+      origin: lead?.origin || "outro",
+      sdr: item.sdr?.name || lead?.sdr?.name,
+      closer: item.closer?.name || lead?.closer?.name,
+      tags: lead?.lead_tags?.map((lt: any) => lt.tag?.name).filter(Boolean) || [],
+      revenue: lead?.faturamento ? `R$ ${(lead.faturamento / 1000000).toFixed(1)}M+` : undefined,
+      segment: lead?.segment,
+    };
+  };
+
+  // Filter and organize data by status columns
+  const columns = useMemo(() => {
+    if (!pipeData) return statusColumns.map(col => ({ ...col, leads: [] }));
+
+    const now = new Date();
+    const weekStart = startOfWeek(now, { locale: ptBR });
+    const weekEnd = endOfWeek(now, { locale: ptBR });
+
+    return statusColumns.map(col => {
+      const columnItems = pipeData
+        .filter(item => item.status === col.id)
+        .filter(item => {
+          const lead = item.lead;
+          
+          // Search filter
+          const matchesSearch = searchQuery === "" || 
+            lead?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            lead?.company?.toLowerCase().includes(searchQuery.toLowerCase());
+          
+          // Origin filter
+          let matchesOrigin = true;
+          if (originFilter === "calendly") {
+            matchesOrigin = lead?.origin === "calendly";
+          } else if (originFilter === "whatsapp") {
+            matchesOrigin = lead?.origin === "whatsapp";
+          } else if (originFilter === "today" && item.meeting_date) {
+            matchesOrigin = isToday(new Date(item.meeting_date));
+          } else if (originFilter === "week" && item.meeting_date) {
+            matchesOrigin = isWithinInterval(new Date(item.meeting_date), { start: weekStart, end: weekEnd });
+          }
+          
+          return matchesSearch && matchesOrigin;
+        })
+        .map(transformToLead);
+
+      return {
+        ...col,
+        leads: columnItems,
+      };
+    });
+  }, [pipeData, searchQuery, originFilter]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    if (!pipeData) return { today: 0, confirmed: 0, pending: 0, rate: 0 };
+
+    const todayMeetings = pipeData.filter(item => 
+      item.meeting_date && isToday(new Date(item.meeting_date))
+    );
+    
+    const confirmed = pipeData.filter(item => 
+      ["confirmada_no_dia", "compareceu"].includes(item.status)
+    ).length;
+    
+    const pending = pipeData.filter(item => 
+      ["reuniao_marcada", "confirmar_d3", "confirmar_d1", "pre_confirmada", "confirmacao_no_dia"].includes(item.status)
+    ).length;
+    
+    const total = pipeData.length;
+    const rate = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+
+    return {
+      today: todayMeetings.length,
+      confirmed,
+      pending,
+      rate,
+    };
+  }, [pipeData]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -167,19 +158,39 @@ export default function PipeConfirmacao() {
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="secondary" size="sm">
+          <Button 
+            variant={originFilter === "all" ? "secondary" : "ghost"} 
+            size="sm"
+            onClick={() => setOriginFilter("all")}
+          >
             Todos
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant={originFilter === "calendly" ? "secondary" : "ghost"} 
+            size="sm"
+            onClick={() => setOriginFilter("calendly")}
+          >
             Calendly
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant={originFilter === "whatsapp" ? "secondary" : "ghost"} 
+            size="sm"
+            onClick={() => setOriginFilter("whatsapp")}
+          >
             WhatsApp
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant={originFilter === "today" ? "secondary" : "ghost"} 
+            size="sm"
+            onClick={() => setOriginFilter("today")}
+          >
             Hoje
           </Button>
-          <Button variant="ghost" size="sm">
+          <Button 
+            variant={originFilter === "week" ? "secondary" : "ghost"} 
+            size="sm"
+            onClick={() => setOriginFilter("week")}
+          >
             Esta Semana
           </Button>
         </div>
@@ -193,19 +204,19 @@ export default function PipeConfirmacao() {
       >
         <div className="bg-card rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Reuniões Hoje</p>
-          <p className="text-2xl font-bold mt-1">12</p>
+          <p className="text-2xl font-bold mt-1">{stats.today}</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Confirmadas</p>
-          <p className="text-2xl font-bold text-success mt-1">8</p>
+          <p className="text-2xl font-bold text-success mt-1">{stats.confirmed}</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Pendentes</p>
-          <p className="text-2xl font-bold text-warning mt-1">3</p>
+          <p className="text-2xl font-bold text-warning mt-1">{stats.pending}</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Taxa Confirmação</p>
-          <p className="text-2xl font-bold text-primary mt-1">67%</p>
+          <p className="text-2xl font-bold text-primary mt-1">{stats.rate}%</p>
         </div>
       </motion.div>
 
