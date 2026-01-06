@@ -1,24 +1,127 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, Calendar, Loader2 } from "lucide-react";
+import { Search, Filter, Plus, Calendar, Loader2, Star, Building2, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { KanbanBoard } from "@/components/kanban/KanbanBoard";
-import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
-import type { Lead } from "@/components/kanban/KanbanCard";
+import { Badge } from "@/components/ui/badge";
+import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
+import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
+import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
 
 type OriginFilter = "all" | "calendly" | "whatsapp" | "today" | "week";
+
+interface ConfirmacaoCard extends DraggableItem {
+  name: string;
+  company: string;
+  email?: string;
+  phone?: string;
+  meetingDate?: string;
+  rating: number;
+  origin: "calendly" | "whatsapp" | "outro";
+  sdr?: string;
+  closer?: string;
+  tags: string[];
+  leadId: string;
+}
+
+const originColors = {
+  calendly: "bg-chart-5/10 text-chart-5 border-chart-5/20",
+  whatsapp: "bg-success/10 text-success border-success/20",
+  outro: "bg-muted text-muted-foreground border-border",
+};
+
+const originLabels = {
+  calendly: "Calendly",
+  whatsapp: "WhatsApp",
+  outro: "Outro",
+};
+
+function ConfirmacaoCardComponent({ card }: { card: ConfirmacaoCard }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      className="kanban-card group cursor-pointer"
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+            {card.name}
+          </h4>
+          <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
+            <Building2 className="w-3 h-3" />
+            <span className="text-xs truncate">{card.company}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 ml-2">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-3 h-3 ${
+                i < card.rating
+                  ? "text-primary fill-primary"
+                  : "text-muted-foreground/30"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {card.meetingDate && (
+        <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="text-xs">{card.meetingDate}</span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <Badge variant="outline" className={originColors[card.origin]}>
+          {originLabels[card.origin]}
+        </Badge>
+        {card.tags.slice(0, 2).map((tag) => (
+          <Badge key={tag} variant="secondary" className="text-xs">
+            {tag}
+          </Badge>
+        ))}
+        {card.tags.length > 2 && (
+          <Badge variant="secondary" className="text-xs">
+            +{card.tags.length - 2}
+          </Badge>
+        )}
+      </div>
+
+      {(card.sdr || card.closer) && (
+        <div className="flex items-center gap-3 pt-2 border-t border-border">
+          {card.sdr && (
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">SDR: {card.sdr}</span>
+            </div>
+          )}
+          {card.closer && (
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Closer: {card.closer}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 export default function PipeConfirmacao() {
   const [searchQuery, setSearchQuery] = useState("");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   
   const { data: pipeData, isLoading } = usePipeConfirmacao();
+  const updatePipeConfirmacao = useUpdatePipeConfirmacao();
+  const createPipeProposta = useCreatePipeProposta();
 
-  // Transform pipe data to Lead format for KanbanCard
-  const transformToLead = (item: any): Lead => {
+  // Transform pipe data to Card format
+  const transformToCard = (item: any): ConfirmacaoCard => {
     const lead = item.lead;
     return {
       id: item.id,
@@ -34,14 +137,13 @@ export default function PipeConfirmacao() {
       sdr: item.sdr?.name || lead?.sdr?.name,
       closer: item.closer?.name || lead?.closer?.name,
       tags: lead?.lead_tags?.map((lt: any) => lt.tag?.name).filter(Boolean) || [],
-      revenue: lead?.faturamento ? `R$ ${(lead.faturamento / 1000000).toFixed(1)}M+` : undefined,
-      segment: lead?.segment,
+      leadId: item.lead_id,
     };
   };
 
   // Filter and organize data by status columns
-  const columns = useMemo(() => {
-    if (!pipeData) return statusColumns.map(col => ({ ...col, leads: [] }));
+  const columns = useMemo((): KanbanColumn<ConfirmacaoCard>[] => {
+    if (!pipeData) return statusColumns.map(col => ({ ...col, items: [] }));
 
     const now = new Date();
     const weekStart = startOfWeek(now, { locale: ptBR });
@@ -72,11 +174,11 @@ export default function PipeConfirmacao() {
           
           return matchesSearch && matchesOrigin;
         })
-        .map(transformToLead);
+        .map(transformToCard);
 
       return {
         ...col,
-        leads: columnItems,
+        items: columnItems,
       };
     });
   }, [pipeData, searchQuery, originFilter]);
@@ -108,6 +210,34 @@ export default function PipeConfirmacao() {
     };
   }, [pipeData]);
 
+  // Handle status change from drag-and-drop
+  const handleStatusChange = async (itemId: string, newStatus: string) => {
+    const item = pipeData?.find(p => p.id === itemId);
+    if (!item) return;
+
+    try {
+      await updatePipeConfirmacao.mutateAsync({ 
+        id: itemId, 
+        status: newStatus as PipeConfirmacaoStatus 
+      });
+
+      // If moved to "compareceu", automatically create entry in pipe_propostas
+      if (newStatus === "compareceu") {
+        await createPipeProposta.mutateAsync({
+          lead_id: item.lead_id,
+          closer_id: item.closer_id,
+          status: "marcar_compromisso",
+        });
+        toast.success("Lead movido para Gestão de Propostas automaticamente!");
+      } else {
+        toast.success("Status atualizado com sucesso!");
+      }
+    } catch (error) {
+      toast.error("Erro ao atualizar status");
+      console.error(error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -130,7 +260,7 @@ export default function PipeConfirmacao() {
             Confirmação de Reunião
           </motion.h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie o comparecimento das reuniões agendadas
+            Arraste os cards para alterar o status • Compareceu → move para Propostas
           </p>
         </div>
 
@@ -220,8 +350,12 @@ export default function PipeConfirmacao() {
         </div>
       </motion.div>
 
-      {/* Kanban Board */}
-      <KanbanBoard columns={columns} />
+      {/* Kanban Board with Drag-and-Drop */}
+      <DraggableKanbanBoard
+        columns={columns}
+        onStatusChange={handleStatusChange}
+        renderCard={(card) => <ConfirmacaoCardComponent card={card} />}
+      />
     </div>
   );
 }
