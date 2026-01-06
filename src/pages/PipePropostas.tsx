@@ -14,6 +14,8 @@ import {
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipePropostas, statusColumns as propostaStatusColumns, useUpdatePipeProposta, PipePropostasStatus } from "@/hooks/usePipePropostas";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { LeadModal } from "@/components/leads/LeadModal";
+import { PropostaModal } from "@/components/leads/PropostaModal";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -140,8 +142,12 @@ export default function PipePropostas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCloser, setFilterCloser] = useState("all");
   const [filterProductType, setFilterProductType] = useState("all");
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [isPropostaModalOpen, setIsPropostaModalOpen] = useState(false);
+  const [selectedProposta, setSelectedProposta] = useState<any>(null);
+  const [editingLead, setEditingLead] = useState<any>(null);
 
-  const { data: pipeData, isLoading } = usePipePropostas();
+  const { data: pipeData, isLoading, refetch } = usePipePropostas();
   const { data: teamMembers } = useTeamMembers();
   const updatePipeProposta = useUpdatePipeProposta();
 
@@ -286,7 +292,7 @@ export default function PipePropostas() {
             Arraste os cards para alterar o status • Vendido → registra data de fechamento
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
           <Plus className="w-4 h-4" />
           Nova Proposta
         </Button>
@@ -376,9 +382,43 @@ export default function PipePropostas() {
       <DraggableKanbanBoard
         columns={columns}
         onStatusChange={handleStatusChange}
-        renderCard={(card) => <ProposalCardComponent proposal={card} />}
+        renderCard={(card) => (
+          <div onClick={() => {
+            const item = pipeData?.find(p => p.id === card.id);
+            if (item) {
+              setSelectedProposta(item);
+              setIsPropostaModalOpen(true);
+            }
+          }}>
+            <ProposalCardComponent proposal={card} />
+          </div>
+        )}
         renderColumnFooter={renderColumnFooter}
       />
+
+      {/* Lead Modal for creating new leads */}
+      <LeadModal
+        open={isLeadModalOpen}
+        onOpenChange={setIsLeadModalOpen}
+        lead={editingLead}
+        onSuccess={() => {
+          refetch();
+          setEditingLead(null);
+        }}
+      />
+
+      {/* Proposta Modal for editing proposals */}
+      {selectedProposta && (
+        <PropostaModal
+          open={isPropostaModalOpen}
+          onOpenChange={setIsPropostaModalOpen}
+          proposta={selectedProposta}
+          onSuccess={() => {
+            refetch();
+            setSelectedProposta(null);
+          }}
+        />
+      )}
     </div>
   );
 }

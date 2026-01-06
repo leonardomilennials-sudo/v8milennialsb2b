@@ -12,9 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
-import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
+import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, useCreatePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
 import { usePipeConfirmacao, useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useCreateLead } from "@/hooks/useLeads";
+import { LeadModal } from "@/components/leads/LeadModal";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -109,11 +111,15 @@ function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
 export default function PipeWhatsapp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSdr, setFilterSdr] = useState("all");
+  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<any>(null);
 
-  const { data: pipeData, isLoading } = usePipeWhatsapp();
+  const { data: pipeData, isLoading, refetch } = usePipeWhatsapp();
   const { data: teamMembers } = useTeamMembers();
   const updatePipeWhatsapp = useUpdatePipeWhatsapp();
   const createPipeConfirmacao = useCreatePipeConfirmacao();
+  const createPipeWhatsapp = useCreatePipeWhatsapp();
+  const createLead = useCreateLead();
 
   const sdrs = useMemo(() => {
     return teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
@@ -241,7 +247,7 @@ export default function PipeWhatsapp() {
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </Button>
-          <Button size="sm" className="gradient-gold">
+          <Button size="sm" className="gradient-gold" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Lead
           </Button>
@@ -301,7 +307,28 @@ export default function PipeWhatsapp() {
       <DraggableKanbanBoard
         columns={columns}
         onStatusChange={handleStatusChange}
-        renderCard={(card) => <WhatsappCardComponent card={card} />}
+        renderCard={(card) => (
+          <div onClick={() => {
+            const item = pipeData?.find(p => p.id === card.id);
+            if (item?.lead) {
+              setEditingLead(item.lead);
+              setIsLeadModalOpen(true);
+            }
+          }}>
+            <WhatsappCardComponent card={card} />
+          </div>
+        )}
+      />
+
+      {/* Lead Modal */}
+      <LeadModal
+        open={isLeadModalOpen}
+        onOpenChange={setIsLeadModalOpen}
+        lead={editingLead}
+        onSuccess={() => {
+          refetch();
+          setEditingLead(null);
+        }}
       />
     </div>
   );
