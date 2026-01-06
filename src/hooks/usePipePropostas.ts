@@ -14,7 +14,7 @@ export type PipePropostasStatus =
   | "vendido"
   | "perdido";
 
-export const proposalStatusColumns: { id: PipePropostasStatus; title: string; color: string }[] = [
+export const statusColumns: { id: PipePropostasStatus; title: string; color: string }[] = [
   { id: "marcar_compromisso", title: "Marcar Compromisso", color: "#F5C518" },
   { id: "compromisso_marcado", title: "Compromisso Marcado", color: "#3B82F6" },
   { id: "esfriou", title: "Esfriou", color: "#94A3B8" },
