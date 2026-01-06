@@ -14,6 +14,7 @@ import PipePropostas from "./pages/PipePropostas";
 import PipeWhatsapp from "./pages/PipeWhatsapp";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
+import GestaoMetas from "./pages/GestaoMetas";
 import Equipe from "./pages/Equipe";
 import Premiacoes from "./pages/Premiacoes";
 import Comissoes from "./pages/Comissoes";
@@ -89,6 +90,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <LayoutWrapper>
               <Metas />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/gestao-metas"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <GestaoMetas />
             </LayoutWrapper>
           </ProtectedRoute>
         }
