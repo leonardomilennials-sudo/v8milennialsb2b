@@ -2,19 +2,152 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
-import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
 import PipeConfirmacao from "./pages/PipeConfirmacao";
 import PipePropostas from "./pages/PipePropostas";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import NotFound from "./pages/NotFound";
+
 const queryClient = new QueryClient();
 
 // Wrapper for pages that need the main layout
 function LayoutWrapper({ children }: { children: React.ReactNode }) {
   return <MainLayout>{children}</MainLayout>;
+}
+
+// Auth route that redirects to dashboard if already logged in
+function AuthRoute() {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  if (user) return <Navigate to="/" replace />;
+  
+  return <Auth />;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/auth" element={<AuthRoute />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Dashboard />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pipe-confirmacao"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <PipeConfirmacao />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pipe-propostas"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <PipePropostas />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/ranking"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Ranking />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/metas"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Metas />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pipe-whatsapp"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Leads WhatsApp SDR</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/leads"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Base de Leads</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/premiacoes"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Premiações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/comissoes"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Comissões</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/equipe"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Equipe</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/configuracoes"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <div className="p-8"><h1 className="text-2xl font-bold">Configurações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
 }
 
 const App = () => (
@@ -23,91 +156,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route
-            path="/pipe-confirmacao"
-            element={
-              <LayoutWrapper>
-                <PipeConfirmacao />
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/ranking"
-            element={
-              <LayoutWrapper>
-                <Ranking />
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/metas"
-            element={
-              <LayoutWrapper>
-                <Metas />
-              </LayoutWrapper>
-            }
-          />
-          {/* Placeholder routes for other pages */}
-          <Route
-            path="/pipe-propostas"
-            element={
-              <LayoutWrapper>
-                <PipePropostas />
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/pipe-whatsapp"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Leads WhatsApp SDR</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/leads"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Base de Leads</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/premiacoes"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Premiações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/comissoes"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Comissões</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/equipe"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Equipe</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route
-            path="/configuracoes"
-            element={
-              <LayoutWrapper>
-                <div className="p-8"><h1 className="text-2xl font-bold">Configurações</h1><p className="text-muted-foreground mt-2">Em desenvolvimento...</p></div>
-              </LayoutWrapper>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
