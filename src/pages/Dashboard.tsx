@@ -13,11 +13,14 @@ import {
 } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
-import { RankingPreview } from "@/components/dashboard/RankingPreview";
 import { FunnelChart } from "@/components/dashboard/FunnelChart";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
 import { ConversionChart } from "@/components/dashboard/ConversionChart";
+import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
+import { TopPerformers } from "@/components/dashboard/TopPerformers";
+import { SalesBreakdown } from "@/components/dashboard/SalesBreakdown";
+import { QuickStats } from "@/components/dashboard/QuickStats";
 import { useDashboardMetrics, useFunnelData, useRankingData, useConversionRates } from "@/hooks/useDashboardMetrics";
 import { useTeamGoals } from "@/hooks/useGoals";
 import { useAuth } from "@/contexts/AuthContext";
@@ -124,6 +127,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <QuickStats className="hidden lg:flex" />
           <span className="text-sm text-muted-foreground">
             {format(now, "MMMM yyyy", { locale: ptBR })}
           </span>
@@ -262,7 +266,7 @@ export default function Dashboard() {
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <FunnelChart 
           title="Funil de Vendas" 
           steps={funnelSteps.length > 0 ? funnelSteps : [
@@ -272,11 +276,12 @@ export default function Dashboard() {
             { label: "Vendas", value: metrics?.novosClientes || 0, color: "bg-success" },
           ]} 
         />
-        <RankingPreview 
-          title="Top Vendedores" 
-          users={topClosers.length > 0 ? topClosers : []} 
-        />
+        <SalesBreakdown />
+        <TopPerformers />
       </div>
+
+      {/* Weekly Performance */}
+      <WeeklyChart />
 
       {/* Conversion Charts */}
       <Card>
