@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRealtimeSubscription } from "./useRealtimeSubscription";
 
 export interface FollowUp {
   id: string;
@@ -48,6 +49,8 @@ export function useFollowUps(filters?: {
   showCompleted?: boolean;
   dateFilter?: "today" | "overdue" | "upcoming" | "all";
 }) {
+  useRealtimeSubscription("follow_ups", ["follow_ups"]);
+  
   return useQuery({
     queryKey: ["follow_ups", filters],
     queryFn: async () => {
