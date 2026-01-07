@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { triggerFollowUpAutomation } from "./useAutoFollowUp";
+import { useRealtimeSubscription } from "./useRealtimeSubscription";
 
 export type PipeConfirmacao = Tables<"pipe_confirmacao">;
 export type PipeConfirmacaoInsert = TablesInsert<"pipe_confirmacao">;
@@ -31,6 +32,8 @@ export const statusColumns: { id: PipeConfirmacaoStatus; title: string; color: s
 ];
 
 export function usePipeConfirmacao() {
+  useRealtimeSubscription("pipe_confirmacao", ["pipe_confirmacao", "follow_ups"]);
+  
   return useQuery({
     queryKey: ["pipe_confirmacao"],
     queryFn: async () => {

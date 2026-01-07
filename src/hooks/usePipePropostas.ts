@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { triggerFollowUpAutomation } from "./useAutoFollowUp";
+import { useRealtimeSubscription } from "./useRealtimeSubscription";
 
 export type PipeProposta = Tables<"pipe_propostas">;
 export type PipePropostaInsert = TablesInsert<"pipe_propostas">;
@@ -25,6 +26,8 @@ export const statusColumns: { id: PipePropostasStatus; title: string; color: str
 ];
 
 export function usePipePropostas() {
+  useRealtimeSubscription("pipe_propostas", ["pipe_propostas", "follow_ups", "recent_activity"]);
+  
   return useQuery({
     queryKey: ["pipe_propostas"],
     queryFn: async () => {

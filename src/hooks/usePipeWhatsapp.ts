@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { triggerFollowUpAutomation } from "./useAutoFollowUp";
+import { useRealtimeSubscription } from "./useRealtimeSubscription";
 
 export type PipeWhatsapp = Tables<"pipe_whatsapp">;
 export type PipeWhatsappInsert = TablesInsert<"pipe_whatsapp">;
@@ -18,6 +19,8 @@ export const statusColumns: { id: PipeWhatsappStatus; title: string; color: stri
 ];
 
 export function usePipeWhatsapp() {
+  useRealtimeSubscription("pipe_whatsapp", ["pipe_whatsapp", "follow_ups"]);
+  
   return useQuery({
     queryKey: ["pipe_whatsapp"],
     queryFn: async () => {

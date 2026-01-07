@@ -1,12 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { useRealtimeSubscription } from "./useRealtimeSubscription";
 
 export type Lead = Tables<"leads">;
 export type LeadInsert = TablesInsert<"leads">;
 export type LeadUpdate = TablesUpdate<"leads">;
 
 export function useLeads() {
+  useRealtimeSubscription("leads", ["leads", "pipe_whatsapp", "pipe_confirmacao", "pipe_propostas"]);
+  
   return useQuery({
     queryKey: ["leads"],
     queryFn: async () => {
