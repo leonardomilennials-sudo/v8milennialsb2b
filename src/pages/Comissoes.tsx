@@ -5,12 +5,12 @@ import {
   TrendingUp,
   Target,
   Users,
-  ChevronDown,
   Check,
   AlertCircle,
   Wallet,
   PiggyBank,
   Percent,
+  Lock,
 } from "lucide-react";
 import {
   Select,
@@ -23,8 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { useCommissions, useCommissionSummary, calculateOTEBonus } from "@/hooks/useCommissions";
+import { useTeamMembers, useCurrentTeamMember } from "@/hooks/useTeamMembers";
+import { useCommissions, useCommissionSummary } from "@/hooks/useCommissions";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const months = [
@@ -182,31 +183,54 @@ export default function Comissoes() {
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
 
+  const { isAdmin, isLoading: isLoadingAdmin } = useIsAdmin();
+  const { data: currentMember, isLoading: isLoadingCurrentMember } = useCurrentTeamMember();
   const { data: teamMembers = [], isLoading: isLoadingMembers } = useTeamMembers();
   const { data: commissions = [], isLoading: isLoadingCommissions } = useCommissions(selectedMonth, selectedYear);
 
-  const closers = useMemo(() => 
-    teamMembers.filter(m => m.role === "closer" && m.is_active),
-    [teamMembers]
-  );
+  // Filter members based on admin status
+  const visibleClosers = useMemo(() => {
+    const allClosers = teamMembers.filter(m => m.role === "closer" && m.is_active);
+    if (isAdmin) return allClosers;
+    if (currentMember?.role === "closer") {
+      return allClosers.filter(m => m.id === currentMember.id);
+    }
+    return [];
+  }, [teamMembers, isAdmin, currentMember]);
 
-  const sdrs = useMemo(() => 
-    teamMembers.filter(m => m.role === "sdr" && m.is_active),
-    [teamMembers]
-  );
+  const visibleSdrs = useMemo(() => {
+    const allSdrs = teamMembers.filter(m => m.role === "sdr" && m.is_active);
+    if (isAdmin) return allSdrs;
+    if (currentMember?.role === "sdr") {
+      return allSdrs.filter(m => m.id === currentMember.id);
+    }
+    return [];
+  }, [teamMembers, isAdmin, currentMember]);
 
-  // Summary stats
+  // Determine which tab to show based on user role
+  const defaultTab = useMemo(() => {
+    if (isAdmin) return "closers";
+    if (currentMember?.role === "sdr") return "sdrs";
+    return "closers";
+  }, [isAdmin, currentMember]);
+
+  // Summary stats (only for admins)
   const totalPaidCommissions = useMemo(() => 
-    commissions.filter(c => c.paid).reduce((sum, c) => sum + Number(c.amount || 0), 0),
-    [commissions]
+    isAdmin ? commissions.filter(c => c.paid).reduce((sum, c) => sum + Number(c.amount || 0), 0) : 0,
+    [commissions, isAdmin]
   );
 
   const totalPendingCommissions = useMemo(() => 
-    commissions.filter(c => !c.paid).reduce((sum, c) => sum + Number(c.amount || 0), 0),
-    [commissions]
+    isAdmin ? commissions.filter(c => !c.paid).reduce((sum, c) => sum + Number(c.amount || 0), 0) : 0,
+    [commissions, isAdmin]
   );
 
   const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - i);
+
+  const isLoading = isLoadingAdmin || isLoadingCurrentMember || isLoadingMembers;
+
+  // Check if user has no team member record
+  const hasNoAccess = !isAdmin && !currentMember && !isLoading;
 
   return (
     <div className="space-y-6">
@@ -290,116 +314,137 @@ export default function Comissoes() {
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-4"
-        >
-          <p className="text-xs text-muted-foreground mb-1">Total Closers</p>
-          <p className="text-xl font-bold">{closers.length}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="glass-card p-4"
-        >
-          <p className="text-xs text-muted-foreground mb-1">Total SDRs</p>
-          <p className="text-xl font-bold">{sdrs.length}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-card p-4"
-        >
-          <p className="text-xs text-muted-foreground mb-1">Comissões Pagas</p>
-          <p className="text-xl font-bold text-success">{formatCurrency(totalPaidCommissions)}</p>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="glass-card p-4"
-        >
-          <p className="text-xs text-muted-foreground mb-1">Comissões Pendentes</p>
-          <p className="text-xl font-bold text-chart-5">{formatCurrency(totalPendingCommissions)}</p>
-        </motion.div>
-      </div>
+      {/* Stats Cards - Only for admins */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-4"
+          >
+            <p className="text-xs text-muted-foreground mb-1">Total Closers</p>
+            <p className="text-xl font-bold">{visibleClosers.length}</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className="glass-card p-4"
+          >
+            <p className="text-xs text-muted-foreground mb-1">Total SDRs</p>
+            <p className="text-xl font-bold">{visibleSdrs.length}</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card p-4"
+          >
+            <p className="text-xs text-muted-foreground mb-1">Comissões Pagas</p>
+            <p className="text-xl font-bold text-success">{formatCurrency(totalPaidCommissions)}</p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card p-4"
+          >
+            <p className="text-xs text-muted-foreground mb-1">Comissões Pendentes</p>
+            <p className="text-xl font-bold text-chart-5">{formatCurrency(totalPendingCommissions)}</p>
+          </motion.div>
+        </div>
+      )}
+
+      {/* No access message */}
+      {hasNoAccess && (
+        <Card className="glass-card border-destructive/30">
+          <CardContent className="py-12 text-center">
+            <Lock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Acesso Restrito</p>
+            <p className="text-muted-foreground">
+              Você não possui um registro de membro da equipe associado à sua conta.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Commission Cards by Role */}
-      <Tabs defaultValue="closers" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="closers" className="gap-2">
-            <Users className="w-4 h-4" />
-            Closers ({closers.length})
-          </TabsTrigger>
-          <TabsTrigger value="sdrs" className="gap-2">
-            <Users className="w-4 h-4" />
-            SDRs ({sdrs.length})
-          </TabsTrigger>
-        </TabsList>
+      {!hasNoAccess && (
+        <Tabs defaultValue={defaultTab} className="w-full">
+          <TabsList className={`grid w-full max-w-md ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {(isAdmin || currentMember?.role === "closer") && (
+              <TabsTrigger value="closers" className="gap-2">
+                <Users className="w-4 h-4" />
+                {isAdmin ? `Closers (${visibleClosers.length})` : "Minha Comissão"}
+              </TabsTrigger>
+            )}
+            {(isAdmin || currentMember?.role === "sdr") && (
+              <TabsTrigger value="sdrs" className="gap-2">
+                <Users className="w-4 h-4" />
+                {isAdmin ? `SDRs (${visibleSdrs.length})` : "Minha Comissão"}
+              </TabsTrigger>
+            )}
+          </TabsList>
 
-        <TabsContent value="closers" className="mt-4">
-          {isLoadingMembers ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-[300px]" />
-              ))}
-            </div>
-          ) : closers.length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Nenhum closer cadastrado
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {closers.map(member => (
-                <MemberCommissionCard
-                  key={member.id}
-                  memberId={member.id}
-                  memberName={member.name}
-                  memberRole={member.role}
-                  month={selectedMonth}
-                  year={selectedYear}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
+          <TabsContent value="closers" className="mt-4">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-[300px]" />
+                ))}
+              </div>
+            ) : visibleClosers.length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {isAdmin ? "Nenhum closer cadastrado" : "Sem dados de comissão"}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleClosers.map(member => (
+                  <MemberCommissionCard
+                    key={member.id}
+                    memberId={member.id}
+                    memberName={member.name}
+                    memberRole={member.role}
+                    month={selectedMonth}
+                    year={selectedYear}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        <TabsContent value="sdrs" className="mt-4">
-          {isLoadingMembers ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-[300px]" />
-              ))}
-            </div>
-          ) : sdrs.length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="py-8 text-center text-muted-foreground">
-                Nenhum SDR cadastrado
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sdrs.map(member => (
-                <MemberCommissionCard
-                  key={member.id}
-                  memberId={member.id}
-                  memberName={member.name}
-                  memberRole={member.role}
-                  month={selectedMonth}
-                  year={selectedYear}
-                />
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="sdrs" className="mt-4">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => (
+                  <Skeleton key={i} className="h-[300px]" />
+                ))}
+              </div>
+            ) : visibleSdrs.length === 0 ? (
+              <Card className="glass-card">
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {isAdmin ? "Nenhum SDR cadastrado" : "Sem dados de comissão"}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleSdrs.map(member => (
+                  <MemberCommissionCard
+                    key={member.id}
+                    memberId={member.id}
+                    memberName={member.name}
+                    memberRole={member.role}
+                    month={selectedMonth}
+                    year={selectedYear}
+                  />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 }

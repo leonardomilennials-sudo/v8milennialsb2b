@@ -1,10 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 export type TeamMember = Tables<"team_members">;
 export type TeamMemberInsert = TablesInsert<"team_members">;
 export type TeamMemberUpdate = TablesUpdate<"team_members">;
+
+// Hook to get the current user's team member record
+export function useCurrentTeamMember() {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ["team_members", "current", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data as TeamMember | null;
+    },
+    enabled: !!user?.id,
+  });
+}
 
 export function useTeamMembers() {
   return useQuery({
