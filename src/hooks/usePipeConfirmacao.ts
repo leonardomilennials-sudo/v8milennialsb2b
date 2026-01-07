@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { triggerFollowUpAutomation } from "./useAutoFollowUp";
 
 export type PipeConfirmacao = Tables<"pipe_confirmacao">;
 export type PipeConfirmacaoInsert = TablesInsert<"pipe_confirmacao">;
@@ -64,10 +65,21 @@ export function useCreatePipeConfirmacao() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation for the initial status
+      await triggerFollowUpAutomation({
+        leadId: data.lead_id,
+        assignedTo: data.sdr_id || data.closer_id,
+        pipeType: "confirmacao",
+        stage: data.status,
+        sourcePipeId: data.id,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }
@@ -76,7 +88,7 @@ export function useUpdatePipeConfirmacao() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: PipeConfirmacaoUpdate & { id: string }) => {
+    mutationFn: async ({ id, leadId, assignedTo, ...updates }: PipeConfirmacaoUpdate & { id: string; leadId?: string; assignedTo?: string | null }) => {
       const { data, error } = await supabase
         .from("pipe_confirmacao")
         .update(updates)
@@ -85,10 +97,23 @@ export function useUpdatePipeConfirmacao() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation if status changed
+      if (updates.status && leadId) {
+        await triggerFollowUpAutomation({
+          leadId: leadId,
+          assignedTo: assignedTo || data.sdr_id || data.closer_id,
+          pipeType: "confirmacao",
+          stage: updates.status,
+          sourcePipeId: data.id,
+        });
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { triggerFollowUpAutomation } from "./useAutoFollowUp";
 
 export type PipeWhatsapp = Tables<"pipe_whatsapp">;
 export type PipeWhatsappInsert = TablesInsert<"pipe_whatsapp">;
@@ -51,10 +52,21 @@ export function useCreatePipeWhatsapp() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation for the initial status
+      await triggerFollowUpAutomation({
+        leadId: data.lead_id,
+        assignedTo: data.sdr_id,
+        pipeType: "whatsapp",
+        stage: data.status,
+        sourcePipeId: data.id,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_whatsapp"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }
@@ -63,7 +75,7 @@ export function useUpdatePipeWhatsapp() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: PipeWhatsappUpdate & { id: string }) => {
+    mutationFn: async ({ id, leadId, sdrId, ...updates }: PipeWhatsappUpdate & { id: string; leadId?: string; sdrId?: string | null }) => {
       const { data, error } = await supabase
         .from("pipe_whatsapp")
         .update(updates)
@@ -72,10 +84,23 @@ export function useUpdatePipeWhatsapp() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation if status changed
+      if (updates.status && leadId) {
+        await triggerFollowUpAutomation({
+          leadId: leadId,
+          assignedTo: sdrId || data.sdr_id,
+          pipeType: "whatsapp",
+          stage: updates.status,
+          sourcePipeId: data.id,
+        });
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_whatsapp"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }
