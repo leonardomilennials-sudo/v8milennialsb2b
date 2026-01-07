@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
         company,
         origin,
         segment,
-        faturamento: faturamento ? Number(faturamento) : null,
+        faturamento: faturamento || null,
         urgency,
         notes,
         sdr_id,

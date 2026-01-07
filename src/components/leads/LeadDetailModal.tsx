@@ -368,7 +368,7 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onEdit }: LeadDeta
                       {lead.faturamento && (
                         <div className="p-3 bg-muted rounded-lg">
                           <p className="text-xs text-muted-foreground mb-1">Faturamento</p>
-                          <p className="font-medium text-sm">{formatCurrency(lead.faturamento)}</p>
+                          <p className="font-medium text-sm">{lead.faturamento}</p>
                         </div>
                       )}
                       {lead.urgency && (

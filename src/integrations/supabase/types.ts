@@ -333,7 +333,7 @@ export type Database = {
           company: string | null
           created_at: string
           email: string | null
-          faturamento: number | null
+          faturamento: string | null
           id: string
           name: string
           notes: string | null
@@ -355,7 +355,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
-          faturamento?: number | null
+          faturamento?: string | null
           id?: string
           name: string
           notes?: string | null
@@ -377,7 +377,7 @@ export type Database = {
           company?: string | null
           created_at?: string
           email?: string | null
-          faturamento?: number | null
+          faturamento?: string | null
           id?: string
           name?: string
           notes?: string | null
