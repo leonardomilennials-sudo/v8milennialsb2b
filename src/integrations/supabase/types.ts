@@ -744,6 +744,7 @@ export type Database = {
         | "pre_confirmada"
         | "confirmacao_no_dia"
         | "confirmada_no_dia"
+        | "remarcar"
         | "compareceu"
         | "perdido"
       pipe_propostas_status:
@@ -891,6 +892,7 @@ export const Constants = {
         "pre_confirmada",
         "confirmacao_no_dia",
         "confirmada_no_dia",
+        "remarcar",
         "compareceu",
         "perdido",
       ],
