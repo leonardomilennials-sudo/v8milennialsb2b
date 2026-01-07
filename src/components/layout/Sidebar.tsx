@@ -22,6 +22,7 @@ import logoDark from "@/assets/logo-light.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
+import { AlertsDropdown } from "@/components/notifications/AlertsDropdown";
 
 interface NavItem {
   label: string;
@@ -99,16 +100,19 @@ export function Sidebar() {
         >
           <img src={logoDark} alt="Millennials B2B" className="h-8" />
         </motion.div>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
-        >
-          {collapsed ? (
-            <ChevronRight className="w-5 h-5 text-sidebar-foreground" />
-          ) : (
-            <ChevronLeft className="w-5 h-5 text-sidebar-foreground" />
-          )}
-        </button>
+        <div className="flex items-center gap-1">
+          {!collapsed && <AlertsDropdown />}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-5 h-5 text-sidebar-foreground" />
+            ) : (
+              <ChevronLeft className="w-5 h-5 text-sidebar-foreground" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Main Navigation */}
