@@ -225,7 +225,9 @@ export default function PipeConfirmacao() {
     try {
       await updatePipeConfirmacao.mutateAsync({ 
         id: itemId, 
-        status: newStatus as PipeConfirmacaoStatus 
+        status: newStatus as PipeConfirmacaoStatus,
+        leadId: item.lead_id,
+        assignedTo: item.sdr_id || item.closer_id,
       });
 
       // If moved to "compareceu", automatically create entry in pipe_propostas

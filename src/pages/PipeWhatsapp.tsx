@@ -195,7 +195,9 @@ export default function PipeWhatsapp() {
     try {
       await updatePipeWhatsapp.mutateAsync({ 
         id: itemId, 
-        status: newStatus as PipeWhatsappStatus 
+        status: newStatus as PipeWhatsappStatus,
+        leadId: item.lead_id,
+        sdrId: item.sdr_id,
       });
 
       // If moved to "compareceu", automatically create entry in pipe_confirmacao

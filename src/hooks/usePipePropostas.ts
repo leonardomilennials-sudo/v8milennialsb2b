@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { triggerFollowUpAutomation } from "./useAutoFollowUp";
 
 export type PipeProposta = Tables<"pipe_propostas">;
 export type PipePropostaInsert = TablesInsert<"pipe_propostas">;
@@ -59,12 +60,23 @@ export function useCreatePipeProposta() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation for the initial status
+      await triggerFollowUpAutomation({
+        leadId: data.lead_id,
+        assignedTo: data.closer_id,
+        pipeType: "propostas",
+        stage: data.status,
+        sourcePipeId: data.id,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["recent_activity"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }
@@ -73,7 +85,7 @@ export function useUpdatePipeProposta() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: PipePropostaUpdate & { id: string }) => {
+    mutationFn: async ({ id, leadId, closerId, ...updates }: PipePropostaUpdate & { id: string; leadId?: string; closerId?: string | null }) => {
       const { data, error } = await supabase
         .from("pipe_propostas")
         .update(updates)
@@ -82,12 +94,25 @@ export function useUpdatePipeProposta() {
         .single();
       
       if (error) throw error;
+
+      // Trigger automation if status changed
+      if (updates.status && leadId) {
+        await triggerFollowUpAutomation({
+          leadId: leadId,
+          assignedTo: closerId || data.closer_id,
+          pipeType: "propostas",
+          stage: updates.status,
+          sourcePipeId: data.id,
+        });
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["recent_activity"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
     },
   });
 }

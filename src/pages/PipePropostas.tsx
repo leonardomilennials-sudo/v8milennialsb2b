@@ -304,10 +304,15 @@ export default function PipePropostas() {
 
   // Handle status change from drag-and-drop
   const handleStatusChange = async (itemId: string, newStatus: string) => {
+    const item = pipeData?.find(p => p.id === itemId);
+    if (!item) return;
+
     try {
       const updates: any = { 
         id: itemId, 
-        status: newStatus as PipePropostasStatus 
+        status: newStatus as PipePropostasStatus,
+        leadId: item.lead_id,
+        closerId: item.closer_id,
       };
 
       // If moved to "vendido" or "perdido", set closed_at date
