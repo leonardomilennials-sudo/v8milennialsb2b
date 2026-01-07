@@ -32,6 +32,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { label: "Follow Ups", icon: TrendingUp, path: "/follow-ups" },
   { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
   { label: "WhatsApp SDR", icon: MessageSquare, path: "/pipe-whatsapp" },

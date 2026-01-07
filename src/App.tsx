@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import PipeConfirmacao from "./pages/PipeConfirmacao";
 import PipePropostas from "./pages/PipePropostas";
 import PipeWhatsapp from "./pages/PipeWhatsapp";
+import PipeFollowUps from "./pages/PipeFollowUps";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import GestaoMetas from "./pages/GestaoMetas";
@@ -110,6 +111,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <LayoutWrapper>
               <PipeWhatsapp />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/follow-ups"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <PipeFollowUps />
             </LayoutWrapper>
           </ProtectedRoute>
         }
