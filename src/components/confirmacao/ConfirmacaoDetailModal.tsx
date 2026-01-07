@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,16 +26,17 @@ import {
   Edit3,
   Save,
   X,
-  MapPin,
   TrendingUp,
   Users,
   FileText,
-  Loader2
+  Loader2,
+  Plus
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useUpdatePipeConfirmacao, PipeConfirmacaoStatus, statusColumns } from "@/hooks/usePipeConfirmacao";
+import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
 import { toast } from "sonner";
 
 interface ConfirmacaoDetailModalProps {
@@ -75,17 +76,30 @@ function getMeetingUrgency(meetingDate: Date | null) {
 
 export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: ConfirmacaoDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedNotes, setEditedNotes] = useState(item?.notes || "");
-  const [editedStatus, setEditedStatus] = useState<PipeConfirmacaoStatus>(item?.status || "reuniao_marcada");
-  const [editedDate, setEditedDate] = useState<Date | undefined>(
-    item?.meeting_date ? new Date(item.meeting_date) : undefined
-  );
-  const [editedTime, setEditedTime] = useState(
-    item?.meeting_date ? format(new Date(item.meeting_date), "HH:mm") : "10:00"
-  );
+  const [editedNotes, setEditedNotes] = useState("");
+  const [editedStatus, setEditedStatus] = useState<PipeConfirmacaoStatus>("reuniao_marcada");
+  const [editedDate, setEditedDate] = useState<Date | undefined>();
+  const [editedTime, setEditedTime] = useState("10:00");
   const [isSaving, setIsSaving] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
+  const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(item?.lead_id);
+  const createLeadHistory = useCreateLeadHistory();
+
+  // Sync state with item when it changes
+  useEffect(() => {
+    if (item) {
+      setEditedNotes(item.notes || "");
+      setEditedStatus(item.status || "reuniao_marcada");
+      setEditedDate(item.meeting_date ? new Date(item.meeting_date) : undefined);
+      setEditedTime(item.meeting_date ? format(new Date(item.meeting_date), "HH:mm") : "10:00");
+      setIsEditing(false);
+      setNewNote("");
+      setIsAddingNote(false);
+    }
+  }, [item]);
 
   if (!item) return null;
 
@@ -113,6 +127,24 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
         updates.meeting_date = meetingDateTime.toISOString();
       }
 
+      // Add history entry for the update
+      if (editedNotes !== item.notes) {
+        await createLeadHistory.mutateAsync({
+          lead_id: item.lead_id,
+          action: "Observação atualizada",
+          description: editedNotes || "Observação removida",
+        });
+      }
+
+      if (editedStatus !== item.status) {
+        const newStatusLabel = statusColumns.find(s => s.id === editedStatus)?.title;
+        await createLeadHistory.mutateAsync({
+          lead_id: item.lead_id,
+          action: "Status alterado",
+          description: `Status alterado para "${newStatusLabel}"`,
+        });
+      }
+
       await updatePipeConfirmacao.mutateAsync(updates);
       toast.success("Reunião atualizada com sucesso!");
       setIsEditing(false);
@@ -124,8 +156,49 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
     }
   };
 
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    
+    setIsAddingNote(true);
+    try {
+      await createLeadHistory.mutateAsync({
+        lead_id: item.lead_id,
+        action: "Nota adicionada",
+        description: newNote,
+      });
+      
+      // Also update the pipe_confirmacao notes
+      const updatedNotes = item.notes 
+        ? `${item.notes}\n\n[${format(new Date(), "dd/MM/yyyy HH:mm")}] ${newNote}`
+        : newNote;
+      
+      await updatePipeConfirmacao.mutateAsync({
+        id: item.id,
+        notes: updatedNotes,
+        leadId: item.lead_id,
+        assignedTo: item.sdr_id || item.closer_id,
+      });
+
+      toast.success("Nota adicionada!");
+      setNewNote("");
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao adicionar nota");
+    } finally {
+      setIsAddingNote(false);
+    }
+  };
+
   const handleQuickStatusChange = async (newStatus: PipeConfirmacaoStatus) => {
     try {
+      const newStatusLabel = statusColumns.find(s => s.id === newStatus)?.title;
+      
+      await createLeadHistory.mutateAsync({
+        lead_id: item.lead_id,
+        action: "Status alterado",
+        description: `Status alterado para "${newStatusLabel}"`,
+      });
+
       await updatePipeConfirmacao.mutateAsync({
         id: item.id,
         status: newStatus,
@@ -139,11 +212,16 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
     }
   };
 
-  // Mock timeline data - in production would come from lead_history
-  const timelineEvents = [
-    { date: item.created_at, action: "Reunião criada", type: "create" },
-    ...(item.status !== "reuniao_marcada" ? [{ date: item.updated_at, action: `Status alterado para ${currentStatus?.title}`, type: "status" }] : []),
-  ];
+  // Combine real history with pipe events
+  const allEvents = [
+    { date: item.created_at, action: "Reunião criada", type: "create", description: null },
+    ...(leadHistory || []).map(h => ({
+      date: h.created_at,
+      action: h.action,
+      type: h.action.includes("Status") ? "status" : "note",
+      description: h.description,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -205,14 +283,12 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
               className={cn(
                 "rounded-xl border p-4 min-w-[180px] text-center",
                 urgency.urgency === "overdue" && "border-destructive/50 bg-destructive/5",
-                urgency.urgency === "today" && "border-warning/50 bg-warning/5 animate-pulse",
+                urgency.urgency === "today" && "border-warning/50 bg-warning/5",
                 urgency.urgency === "tomorrow" && "border-orange-500/50 bg-orange-500/5",
                 urgency.urgency === "soon" && "border-yellow-500/50 bg-yellow-500/5",
                 urgency.urgency === "normal" && "border-border bg-card",
                 urgency.urgency === "none" && "border-border bg-muted/50"
               )}
-              animate={urgency.urgency === "today" ? { scale: [1, 1.02, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 2 }}
             >
               <CalendarIcon className={cn("w-6 h-6 mx-auto mb-2", urgency.color)} />
               {meetingDate ? (
@@ -244,6 +320,11 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
               <TabsTrigger value="history" className="data-[state=active]:bg-primary/10">
                 <History className="w-4 h-4 mr-2" />
                 Histórico
+                {leadHistory && leadHistory.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {leadHistory.length}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -309,32 +390,21 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                 </div>
               </div>
 
-              {/* Edit Mode */}
-              <AnimatePresence>
-                {isEditing ? (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <Edit3 className="w-4 h-4 text-primary" />
-                        Modo de Edição
-                      </h3>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-                          <X className="w-4 h-4 mr-1" />
-                          Cancelar
-                        </Button>
-                        <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                          {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
-                          Salvar
-                        </Button>
-                      </div>
-                    </div>
+              {/* Notes Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    Observações
+                  </h3>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                    <Edit3 className="w-4 h-4 mr-1" />
+                    {isEditing ? "Cancelar" : "Editar"}
+                  </Button>
+                </div>
 
+                {isEditing ? (
+                  <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Status</Label>
@@ -359,7 +429,7 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                               {editedDate ? format(editedDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar"}
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                          <PopoverContent className="w-auto p-0" align="start">
                             <Calendar mode="single" selected={editedDate} onSelect={setEditedDate} locale={ptBR} />
                           </PopoverContent>
                         </Popover>
@@ -377,34 +447,52 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                         value={editedNotes}
                         onChange={(e) => setEditedNotes(e.target.value)}
                         placeholder="Observações sobre a reunião..."
-                        rows={3}
+                        rows={4}
                       />
                     </div>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-primary" />
-                        Observações
-                      </h3>
-                      <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                        <Edit3 className="w-4 h-4 mr-1" />
-                        Editar
+
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleSave} disabled={isSaving}>
+                        {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                        Salvar
                       </Button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                     <div className="p-4 rounded-lg bg-muted/50 min-h-[80px]">
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {item.notes || "Nenhuma observação registrada."}
                       </p>
                     </div>
-                  </motion.div>
+
+                    {/* Quick Add Note */}
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        placeholder="Adicionar uma nota rápida..."
+                        rows={2}
+                        className="flex-1"
+                      />
+                      <Button 
+                        onClick={handleAddNote} 
+                        disabled={!newNote.trim() || isAddingNote}
+                        className="self-end"
+                      >
+                        {isAddingNote ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </div>
 
               {/* Tags */}
               {lead?.lead_tags?.length > 0 && (
@@ -482,38 +570,52 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
               <div className="space-y-4">
                 <h3 className="font-semibold">Linha do Tempo</h3>
                 
-                <div className="relative">
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-                  
-                  {timelineEvents.map((event, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      className="relative pl-10 pb-6"
-                    >
-                      <div className={cn(
-                        "absolute left-2 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center",
-                        event.type === "create" && "bg-primary",
-                        event.type === "status" && "bg-chart-2",
-                        event.type === "note" && "bg-chart-3"
-                      )}>
-                        {event.type === "create" && <CalendarIcon className="w-3 h-3 text-primary-foreground" />}
-                        {event.type === "status" && <CheckCircle2 className="w-3 h-3 text-white" />}
-                        {event.type === "note" && <MessageSquare className="w-3 h-3 text-white" />}
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-sm font-medium">{event.action}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(event.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          <span className="mx-2">•</span>
-                          {formatDistanceToNow(new Date(event.date), { addSuffix: true, locale: ptBR })}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : allEvents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum histórico encontrado</p>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+                    
+                    {allEvents.map((event, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        className="relative pl-10 pb-6"
+                      >
+                        <div className={cn(
+                          "absolute left-2 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center",
+                          event.type === "create" && "bg-primary",
+                          event.type === "status" && "bg-chart-2",
+                          event.type === "note" && "bg-chart-3"
+                        )}>
+                          {event.type === "create" && <CalendarIcon className="w-3 h-3 text-primary-foreground" />}
+                          {event.type === "status" && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          {event.type === "note" && <MessageSquare className="w-3 h-3 text-white" />}
+                        </div>
+                        <div className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-sm font-medium">{event.action}</p>
+                          {event.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {format(new Date(event.date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            <span className="mx-2">•</span>
+                            {formatDistanceToNow(new Date(event.date), { addSuffix: true, locale: ptBR })}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </div>
             </TabsContent>
           </div>

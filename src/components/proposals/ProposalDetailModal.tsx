@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar, Clock, DollarSign, Package, User, Building2, 
   Star, Phone, Mail, Tag, History, FileText, TrendingUp, 
-  ArrowRight, CheckCircle2, XCircle, AlertCircle 
+  ArrowRight, CheckCircle2, XCircle, AlertCircle, MessageSquare,
+  Loader2, Plus
 } from "lucide-react";
 import {
   Dialog,
@@ -28,8 +29,9 @@ import {
 } from "@/components/ui/select";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useUpdatePipeProposta, PipePropostasStatus, statusColumns } from "@/hooks/usePipePropostas";
+import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -75,13 +77,15 @@ export function ProposalDetailModal({
       : "",
     notes: proposta?.notes || "",
   });
+  const [newNote, setNewNote] = useState("");
+  const [isAddingNote, setIsAddingNote] = useState(false);
 
   const { data: teamMembers = [] } = useTeamMembers();
   const updateProposta = useUpdatePipeProposta();
+  const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(proposta?.lead_id);
+  const createLeadHistory = useCreateLeadHistory();
 
   const closers = teamMembers.filter(m => m.role === "closer" && m.is_active);
-
-  // Update form when proposta changes
   useEffect(() => {
     if (proposta) {
       setFormData({
@@ -115,6 +119,24 @@ export function ProposalDetailModal({
     }
 
     try {
+      // Add history entries for significant changes
+      if (formData.status !== proposta.status) {
+        const newStatusLabel = statusColumns.find(s => s.id === formData.status)?.title;
+        await createLeadHistory.mutateAsync({
+          lead_id: proposta.lead_id,
+          action: "Status da proposta alterado",
+          description: `Status alterado para "${newStatusLabel}"`,
+        });
+      }
+
+      if (formData.notes !== proposta.notes && formData.notes) {
+        await createLeadHistory.mutateAsync({
+          lead_id: proposta.lead_id,
+          action: "Observação da proposta atualizada",
+          description: formData.notes,
+        });
+      }
+
       await updateProposta.mutateAsync({
         id: proposta.id,
         status: formData.status as PipePropostasStatus,
@@ -139,6 +161,38 @@ export function ProposalDetailModal({
     } catch (error) {
       toast.error("Erro ao atualizar proposta");
       console.error(error);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) return;
+    
+    setIsAddingNote(true);
+    try {
+      await createLeadHistory.mutateAsync({
+        lead_id: proposta.lead_id,
+        action: "Nota adicionada na proposta",
+        description: newNote,
+      });
+      
+      // Also update the proposta notes
+      const updatedNotes = formData.notes 
+        ? `${formData.notes}\n\n[${format(new Date(), "dd/MM/yyyy HH:mm")}] ${newNote}`
+        : newNote;
+      
+      await updateProposta.mutateAsync({
+        id: proposta.id,
+        notes: updatedNotes,
+      });
+
+      setFormData({ ...formData, notes: updatedNotes });
+      toast.success("Nota adicionada!");
+      setNewNote("");
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao adicionar nota");
+    } finally {
+      setIsAddingNote(false);
     }
   };
 
@@ -369,6 +423,31 @@ export function ProposalDetailModal({
                   rows={3}
                 />
               </div>
+
+              {/* Quick Add Note */}
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Adicionar nota rápida</Label>
+                <div className="flex gap-2">
+                  <Textarea
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Adicionar uma nota ao histórico..."
+                    rows={2}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleAddNote} 
+                    disabled={!newNote.trim() || isAddingNote}
+                    className="self-end"
+                  >
+                    {isAddingNote ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="lead" className="m-0 space-y-4">
@@ -501,68 +580,120 @@ export function ProposalDetailModal({
             </TabsContent>
 
             <TabsContent value="history" className="m-0 space-y-4">
-              {/* Timeline */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Package className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Proposta criada</p>
-                    <p className="text-xs text-muted-foreground">
-                      {proposta?.created_at && format(new Date(proposta.created_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                    </p>
-                  </div>
-                </div>
-
-                {proposta?.commitment_date && (
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-chart-5/10 flex items-center justify-center flex-shrink-0">
-                      <Calendar className="w-4 h-4 text-chart-5" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Compromisso agendado</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(proposta.commitment_date), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Linha do Tempo</h3>
+                {leadHistory && leadHistory.length > 0 && (
+                  <Badge variant="secondary">{leadHistory.length + 1} eventos</Badge>
                 )}
-
-                {proposta?.closed_at && (
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                      proposta.status === "vendido" ? "bg-success/10" : "bg-destructive/10"
-                    )}>
-                      {proposta.status === "vendido" 
-                        ? <CheckCircle2 className="w-4 h-4 text-success" />
-                        : <XCircle className="w-4 h-4 text-destructive" />
-                      }
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        {proposta.status === "vendido" ? "Venda fechada" : "Proposta perdida"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(proposta.closed_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                    <History className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Última atualização</p>
-                    <p className="text-xs text-muted-foreground">
-                      {proposta?.updated_at && format(new Date(proposta.updated_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                    </p>
-                  </div>
-                </div>
               </div>
+
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
+                  
+                  {/* Proposta criada */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="relative pl-10 pb-4"
+                  >
+                    <div className="absolute left-2 w-5 h-5 rounded-full border-2 border-background bg-primary flex items-center justify-center">
+                      <Package className="w-3 h-3 text-primary-foreground" />
+                    </div>
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-sm font-medium">Proposta criada</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {proposta?.created_at && format(new Date(proposta.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        <span className="mx-2">•</span>
+                        {proposta?.created_at && formatDistanceToNow(new Date(proposta.created_at), { addSuffix: true, locale: ptBR })}
+                      </p>
+                    </div>
+                  </motion.div>
+
+                  {/* Lead history events */}
+                  {leadHistory?.slice().reverse().map((event, idx) => (
+                    <motion.div
+                      key={event.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: (idx + 1) * 0.05 }}
+                      className="relative pl-10 pb-4"
+                    >
+                      <div className={cn(
+                        "absolute left-2 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center",
+                        event.action.includes("Status") ? "bg-chart-2" : "bg-chart-3"
+                      )}>
+                        {event.action.includes("Status") ? (
+                          <CheckCircle2 className="w-3 h-3 text-white" />
+                        ) : (
+                          <MessageSquare className="w-3 h-3 text-white" />
+                        )}
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-sm font-medium">{event.action}</p>
+                        {event.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{event.description}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {format(new Date(event.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          <span className="mx-2">•</span>
+                          {formatDistanceToNow(new Date(event.created_at), { addSuffix: true, locale: ptBR })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+
+                  {/* Compromisso agendado */}
+                  {proposta?.commitment_date && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="relative pl-10 pb-4"
+                    >
+                      <div className="absolute left-2 w-5 h-5 rounded-full border-2 border-background bg-chart-5 flex items-center justify-center">
+                        <Calendar className="w-3 h-3 text-white" />
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-sm font-medium">Compromisso agendado</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(proposta.commitment_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Venda fechada / Perdida */}
+                  {proposta?.closed_at && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="relative pl-10 pb-4"
+                    >
+                      <div className={cn(
+                        "absolute left-2 w-5 h-5 rounded-full border-2 border-background flex items-center justify-center",
+                        proposta.status === "vendido" ? "bg-success" : "bg-destructive"
+                      )}>
+                        {proposta.status === "vendido" 
+                          ? <CheckCircle2 className="w-3 h-3 text-white" />
+                          : <XCircle className="w-3 h-3 text-white" />
+                        }
+                      </div>
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-sm font-medium">
+                          {proposta.status === "vendido" ? "🎉 Venda fechada!" : "Proposta perdida"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(proposta.closed_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              )}
             </TabsContent>
           </ScrollArea>
         </Tabs>
