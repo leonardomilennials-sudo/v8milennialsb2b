@@ -63,6 +63,8 @@ export function useCreatePipeProposta() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["recent_activity"] });
     },
   });
 }
@@ -81,6 +83,26 @@ export function useUpdatePipeProposta() {
       
       if (error) throw error;
       return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["recent_activity"] });
+    },
+  });
+}
+
+export function useDeletePipeProposta() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("pipe_propostas")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
