@@ -1,0 +1,281 @@
+import { motion } from "framer-motion";
+import { 
+  Star, 
+  Building2, 
+  Calendar, 
+  User, 
+  Clock,
+  Phone,
+  Mail,
+  AlertTriangle,
+  CheckCircle2,
+  MapPin
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { format, isToday, isTomorrow, isPast, differenceInHours, differenceInDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+interface ConfirmacaoCardProps {
+  card: {
+    id: string;
+    name: string;
+    company: string;
+    email?: string;
+    phone?: string;
+    meetingDate?: string;
+    meetingDateTime?: Date;
+    rating: number;
+    origin: "calendly" | "whatsapp" | "meta_ads" | "outro";
+    sdr?: string;
+    closer?: string;
+    tags: string[];
+    leadId: string;
+    faturamento?: number;
+    segment?: string;
+    status?: string;
+  };
+  onClick?: () => void;
+  variant?: "default" | "compact" | "detailed";
+}
+
+const originConfig = {
+  calendly: { label: "Calendly", color: "bg-purple-500/10 text-purple-500 border-purple-500/30", icon: "📅" },
+  whatsapp: { label: "WhatsApp", color: "bg-green-500/10 text-green-500 border-green-500/30", icon: "💬" },
+  meta_ads: { label: "Meta Ads", color: "bg-blue-500/10 text-blue-500 border-blue-500/30", icon: "📱" },
+  outro: { label: "Outro", color: "bg-muted text-muted-foreground border-border", icon: "📋" },
+};
+
+function getMeetingIndicator(meetingDate: Date | null, status?: string) {
+  if (!meetingDate) return null;
+  
+  if (["compareceu", "perdido"].includes(status || "")) return null;
+  
+  const now = new Date();
+  const hours = differenceInHours(meetingDate, now);
+  const days = differenceInDays(meetingDate, now);
+  
+  if (isPast(meetingDate) && !isToday(meetingDate)) {
+    return { 
+      type: "overdue", 
+      label: "Atrasada", 
+      className: "bg-destructive/20 text-destructive border-destructive/30 animate-pulse" 
+    };
+  }
+  
+  if (isToday(meetingDate)) {
+    if (hours <= 2 && hours > 0) {
+      return { 
+        type: "imminent", 
+        label: `Em ${hours}h`, 
+        className: "bg-destructive/20 text-destructive border-destructive/30 animate-pulse" 
+      };
+    }
+    return { 
+      type: "today", 
+      label: "Hoje", 
+      className: "bg-warning/20 text-warning border-warning/30" 
+    };
+  }
+  
+  if (isTomorrow(meetingDate)) {
+    return { 
+      type: "tomorrow", 
+      label: "Amanhã", 
+      className: "bg-orange-500/20 text-orange-500 border-orange-500/30" 
+    };
+  }
+  
+  if (days <= 3) {
+    return { 
+      type: "soon", 
+      label: `D-${days}`, 
+      className: "bg-yellow-500/20 text-yellow-500 border-yellow-500/30" 
+    };
+  }
+  
+  return null;
+}
+
+export function ConfirmacaoCard({ card, onClick, variant = "default" }: ConfirmacaoCardProps) {
+  const origin = originConfig[card.origin] || originConfig.outro;
+  const meetingDate = card.meetingDateTime || (card.meetingDate ? new Date(card.meetingDate) : null);
+  const indicator = getMeetingIndicator(meetingDate, card.status);
+
+  if (variant === "compact") {
+    return (
+      <motion.div
+        whileHover={{ scale: 1.02 }}
+        className="p-3 rounded-lg border border-border bg-card cursor-pointer hover:shadow-md transition-all"
+        onClick={onClick}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-lg">{origin.icon}</span>
+            <span className="font-medium text-sm truncate">{card.name}</span>
+          </div>
+          {indicator && (
+            <Badge variant="outline" className={cn("text-xs shrink-0", indicator.className)}>
+              {indicator.label}
+            </Badge>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      whileHover={{ scale: 1.02, y: -2 }}
+      className={cn(
+        "kanban-card group cursor-pointer relative overflow-hidden",
+        indicator?.type === "overdue" && "ring-1 ring-destructive/50",
+        indicator?.type === "imminent" && "ring-2 ring-destructive/50 shadow-lg shadow-destructive/10",
+        indicator?.type === "today" && "ring-1 ring-warning/50"
+      )}
+      onClick={onClick}
+    >
+      {/* Urgent indicator strip */}
+      {indicator?.type === "imminent" && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-destructive via-destructive/80 to-destructive animate-pulse" />
+      )}
+      {indicator?.type === "overdue" && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-destructive" />
+      )}
+      {indicator?.type === "today" && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-warning" />
+      )}
+
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+              {card.name}
+            </h4>
+            {indicator && (
+              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5 shrink-0", indicator.className)}>
+                {indicator.type === "imminent" && <AlertTriangle className="w-3 h-3 mr-1" />}
+                {indicator.label}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
+            <Building2 className="w-3 h-3" />
+            <span className="text-xs truncate">{card.company || "Sem empresa"}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-0.5 ml-2">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={cn(
+                "w-3 h-3",
+                i < card.rating
+                  ? "text-primary fill-primary"
+                  : "text-muted-foreground/30"
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Meeting Date */}
+      {meetingDate && (
+        <div className={cn(
+          "flex items-center gap-2 text-muted-foreground mb-3 p-2 rounded-lg",
+          indicator?.type === "today" && "bg-warning/10",
+          indicator?.type === "imminent" && "bg-destructive/10",
+          indicator?.type === "overdue" && "bg-destructive/10",
+          !indicator && "bg-muted/50"
+        )}>
+          <Calendar className={cn(
+            "w-4 h-4",
+            indicator?.type === "today" && "text-warning",
+            indicator?.type === "imminent" && "text-destructive",
+            indicator?.type === "overdue" && "text-destructive"
+          )} />
+          <span className="text-xs font-medium">
+            {format(meetingDate, "dd MMM, HH:mm", { locale: ptBR })}
+          </span>
+          {isToday(meetingDate) && (
+            <Clock className="w-3 h-3 ml-auto text-warning" />
+          )}
+        </div>
+      )}
+
+      {/* Badges */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <Badge variant="outline" className={cn("text-xs", origin.color)}>
+          <span className="mr-1">{origin.icon}</span>
+          {origin.label}
+        </Badge>
+        {card.segment && (
+          <Badge variant="secondary" className="text-xs">
+            {card.segment}
+          </Badge>
+        )}
+        {card.tags.slice(0, 2).map((tag) => (
+          <Badge key={tag} variant="secondary" className="text-xs">
+            {tag}
+          </Badge>
+        ))}
+        {card.tags.length > 2 && (
+          <Badge variant="secondary" className="text-xs">
+            +{card.tags.length - 2}
+          </Badge>
+        )}
+      </div>
+
+      {/* Faturamento */}
+      {card.faturamento && (
+        <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+          <span>Faturamento:</span>
+          <span className="font-medium text-foreground">
+            R$ {card.faturamento.toLocaleString("pt-BR")}
+          </span>
+        </div>
+      )}
+
+      {/* Contact Info (on hover) */}
+      {variant === "detailed" && (card.phone || card.email) && (
+        <div className="space-y-1 mb-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          {card.phone && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Phone className="w-3 h-3" />
+              <span>{card.phone}</span>
+            </div>
+          )}
+          {card.email && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Mail className="w-3 h-3" />
+              <span className="truncate">{card.email}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Responsáveis */}
+      {(card.sdr || card.closer) && (
+        <div className="flex items-center gap-3 pt-2 border-t border-border">
+          {card.sdr && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-chart-2/20 flex items-center justify-center">
+                <span className="text-[8px] font-bold text-chart-2">S</span>
+              </div>
+              <span className="text-xs text-muted-foreground truncate max-w-[60px]">{card.sdr}</span>
+            </div>
+          )}
+          {card.closer && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-5 h-5 rounded-full bg-chart-5/20 flex items-center justify-center">
+                <span className="text-[8px] font-bold text-chart-5">C</span>
+              </div>
+              <span className="text-xs text-muted-foreground truncate max-w-[60px]">{card.closer}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
