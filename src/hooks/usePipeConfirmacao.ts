@@ -14,6 +14,7 @@ export type PipeConfirmacaoStatus =
   | "pre_confirmada"
   | "confirmacao_no_dia"
   | "confirmada_no_dia"
+  | "remarcar"
   | "compareceu"
   | "perdido";
 
@@ -24,6 +25,7 @@ export const statusColumns: { id: PipeConfirmacaoStatus; title: string; color: s
   { id: "pre_confirmada", title: "Pré Confirmada", color: "#10b981" },
   { id: "confirmacao_no_dia", title: "Confirmação | No dia", color: "#3b82f6" },
   { id: "confirmada_no_dia", title: "Confirmada | No dia", color: "#22c55e" },
+  { id: "remarcar", title: "Remarcar 📅", color: "#f97316" },
   { id: "compareceu", title: "Compareceu ✓", color: "#16a34a" },
   { id: "perdido", title: "Perdido ✗", color: "#ef4444" },
 ];

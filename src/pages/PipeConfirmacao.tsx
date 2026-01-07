@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
-import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus, useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
+import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
-import { useCreateLead } from "@/hooks/useLeads";
 import { LeadModal } from "@/components/leads/LeadModal";
+import { AddMeetingModal } from "@/components/confirmacao/AddMeetingModal";
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -119,13 +119,12 @@ export default function PipeConfirmacao() {
   const [searchQuery, setSearchQuery] = useState("");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   
   const { data: pipeData, isLoading, refetch } = usePipeConfirmacao();
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
   const createPipeProposta = useCreatePipeProposta();
-  const createPipeConfirmacao = useCreatePipeConfirmacao();
-  const createLead = useCreateLead();
 
   // Transform pipe data to Card format
   const transformToCard = (item: any): ConfirmacaoCard => {
@@ -278,7 +277,7 @@ export default function PipeConfirmacao() {
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </Button>
-          <Button size="sm" className="gradient-gold" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
+          <Button size="sm" className="gradient-gold" onClick={() => setIsMeetingModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Reunião
           </Button>
@@ -386,6 +385,13 @@ export default function PipeConfirmacao() {
           refetch();
           setEditingLead(null);
         }}
+      />
+
+      {/* Add Meeting Modal */}
+      <AddMeetingModal
+        open={isMeetingModalOpen}
+        onOpenChange={setIsMeetingModalOpen}
+        onSuccess={refetch}
       />
     </div>
   );
