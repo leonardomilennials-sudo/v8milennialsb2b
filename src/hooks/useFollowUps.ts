@@ -241,6 +241,46 @@ export function useDeleteFollowUp() {
   });
 }
 
+export function useCreateFollowUpAutomation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (automation: {
+      pipe_type: "whatsapp" | "confirmacao" | "propostas";
+      stage: string;
+      title_template: string;
+      description_template?: string;
+      days_offset?: number;
+      priority?: "low" | "normal" | "high" | "urgent";
+      is_active?: boolean;
+    }) => {
+      const { data, error } = await supabase
+        .from("follow_up_automations")
+        .insert(automation)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow_up_automations"] });
+      toast({
+        title: "Automação criada",
+        description: "Nova automação configurada com sucesso!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao criar automação",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export function useUpdateFollowUpAutomation() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -267,6 +307,36 @@ export function useUpdateFollowUpAutomation() {
     onError: (error) => {
       toast({
         title: "Erro ao atualizar automação",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+export function useDeleteFollowUpAutomation() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("follow_up_automations")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["follow_up_automations"] });
+      toast({
+        title: "Automação excluída",
+        description: "Automação removida com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao excluir automação",
         description: error.message,
         variant: "destructive",
       });
