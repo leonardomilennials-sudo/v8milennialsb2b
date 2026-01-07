@@ -49,7 +49,7 @@ interface FormData {
   origin: string;
   rating: number;
   segment: string;
-  faturamento: number | null;
+  faturamento: string;
   urgency: string;
   notes: string;
   sdr_id: string | null;
@@ -97,7 +97,7 @@ export function LeadModal({
     origin: lead?.origin || "outro",
     rating: lead?.rating || 5,
     segment: lead?.segment || "",
-    faturamento: lead?.faturamento || null,
+    faturamento: lead?.faturamento || "",
     urgency: lead?.urgency || "",
     notes: lead?.notes || "",
     sdr_id: lead?.sdr_id || defaultSdrId || null,
@@ -153,7 +153,7 @@ export function LeadModal({
         origin: lead?.origin || "outro",
         rating: lead?.rating || 5,
         segment: lead?.segment || "",
-        faturamento: lead?.faturamento || null,
+        faturamento: lead?.faturamento || "",
         urgency: lead?.urgency || "",
         notes: lead?.notes || "",
         sdr_id: lead?.sdr_id || defaultSdrId || null,
@@ -312,13 +312,12 @@ export function LeadModal({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="faturamento">Faturamento (R$)</Label>
+                <Label htmlFor="faturamento">Faturamento</Label>
                 <Input
                   id="faturamento"
-                  type="number"
-                  value={formData.faturamento || ""}
-                  onChange={(e) => setFormData({ ...formData, faturamento: e.target.value ? Number(e.target.value) : null })}
-                  placeholder="100000"
+                  value={formData.faturamento}
+                  onChange={(e) => setFormData({ ...formData, faturamento: e.target.value })}
+                  placeholder="Ex: R$ 100.000, Acima de 1M..."
                 />
               </div>
             </div>

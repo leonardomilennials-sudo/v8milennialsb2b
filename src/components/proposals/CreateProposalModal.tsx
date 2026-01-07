@@ -223,7 +223,7 @@ export function CreateProposalModal({
                             <div className="flex items-center gap-3 mt-2">
                               {lead.faturamento && (
                                 <Badge variant="outline" className="text-xs">
-                                  {formatCurrency(lead.faturamento)}
+                                  {lead.faturamento}
                                 </Badge>
                               )}
                               {lead.segment && (
