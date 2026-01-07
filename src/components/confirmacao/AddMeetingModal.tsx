@@ -116,13 +116,13 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
               <SelectTrigger>
                 <SelectValue placeholder={leadsLoading ? "Carregando..." : "Selecione um lead"} />
               </SelectTrigger>
-              <SelectContent>
-                {leads?.map((lead) => (
-                  <SelectItem key={lead.id} value={lead.id}>
-                    {lead.name} {lead.company && `- ${lead.company}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+                <SelectContent>
+                  {leads?.filter(lead => lead.id).map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.name} {lead.company && `- ${lead.company}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
             </Select>
           </div>
 
@@ -186,13 +186,13 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>SDR Responsável</Label>
-              <Select value={sdrId} onValueChange={setSdrId}>
+              <Select value={sdrId || "none"} onValueChange={(v) => setSdrId(v === "none" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder={membersLoading ? "Carregando..." : "Selecione"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {sdrs.map((sdr) => (
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {sdrs.filter(sdr => sdr.id).map((sdr) => (
                     <SelectItem key={sdr.id} value={sdr.id}>
                       {sdr.name}
                     </SelectItem>
@@ -203,13 +203,13 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
 
             <div className="space-y-2">
               <Label>Closer Responsável</Label>
-              <Select value={closerId} onValueChange={setCloserId}>
+              <Select value={closerId || "none"} onValueChange={(v) => setCloserId(v === "none" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder={membersLoading ? "Carregando..." : "Selecione"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
-                  {closers.map((closer) => (
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {closers.filter(closer => closer.id).map((closer) => (
                     <SelectItem key={closer.id} value={closer.id}>
                       {closer.name}
                     </SelectItem>
