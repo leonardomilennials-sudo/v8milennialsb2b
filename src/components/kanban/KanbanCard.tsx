@@ -1,5 +1,6 @@
 import { Calendar, Star, User, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ScheduleFollowUpButton } from "@/components/followups/ScheduleFollowUpButton";
 
 export interface Lead {
   id: string;
@@ -11,10 +12,15 @@ export interface Lead {
   rating: number;
   origin: "calendly" | "whatsapp" | "outro";
   sdr?: string;
+  sdrId?: string;
   closer?: string;
+  closerId?: string;
   tags: string[];
   revenue?: string;
   segment?: string;
+  leadId?: string; // Original lead ID from DB
+  sourcePipe?: "whatsapp" | "confirmacao" | "propostas";
+  sourcePipeId?: string;
 }
 
 interface KanbanCardProps {
@@ -50,17 +56,28 @@ export function KanbanCard({ lead, onClick }: KanbanCardProps) {
             <span className="text-xs truncate">{lead.company}</span>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 ml-2">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              className={`w-3 h-3 ${
-                i < lead.rating
-                  ? "text-primary fill-primary"
-                  : "text-muted-foreground/30"
-              }`}
+        <div className="flex items-center gap-1 ml-2">
+          {lead.leadId && (
+            <ScheduleFollowUpButton
+              leadId={lead.leadId}
+              leadName={lead.name}
+              sourcePipe={lead.sourcePipe}
+              sourcePipeId={lead.sourcePipeId}
+              defaultAssignedTo={lead.sdrId || lead.closerId}
             />
-          ))}
+          )}
+          <div className="flex items-center gap-0.5">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`w-3 h-3 ${
+                  i < lead.rating
+                    ? "text-primary fill-primary"
+                    : "text-muted-foreground/30"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

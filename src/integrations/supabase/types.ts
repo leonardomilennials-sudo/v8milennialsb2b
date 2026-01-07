@@ -107,6 +107,108 @@ export type Database = {
           },
         ]
       }
+      follow_up_automations: {
+        Row: {
+          created_at: string
+          days_offset: number
+          description_template: string | null
+          id: string
+          is_active: boolean | null
+          pipe_type: string
+          priority: string
+          stage: string
+          title_template: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_offset?: number
+          description_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          pipe_type: string
+          priority?: string
+          stage: string
+          title_template: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_offset?: number
+          description_template?: string | null
+          id?: string
+          is_active?: boolean | null
+          pipe_type?: string
+          priority?: string
+          stage?: string
+          title_template?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      follow_ups: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string
+          id: string
+          is_automated: boolean | null
+          lead_id: string
+          priority: string
+          source_pipe: string | null
+          source_pipe_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date: string
+          id?: string
+          is_automated?: boolean | null
+          lead_id: string
+          priority?: string
+          source_pipe?: string | null
+          source_pipe_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string
+          id?: string
+          is_automated?: boolean | null
+          lead_id?: string
+          priority?: string
+          source_pipe?: string | null
+          source_pipe_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "follow_ups_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "follow_ups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           created_at: string
