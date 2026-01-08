@@ -1,1 +1,7 @@
 project_id = "twoghutcvlfgemadaeez"
+
+[functions.webhook-new-lead]
+verify_jwt = false
+
+[functions.webhook-confirmacao]
+verify_jwt = false
