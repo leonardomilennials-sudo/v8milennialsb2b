@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,7 @@ interface AddMeetingModalProps {
 }
 
 export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingModalProps) {
+  const [email, setEmail] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState<string>("");
   const [meetingDate, setMeetingDate] = useState<Date | undefined>();
   const [meetingTime, setMeetingTime] = useState("10:00");
@@ -39,9 +40,25 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
   const sdrs = teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
   const closers = teamMembers?.filter(m => m.role === "closer" && m.is_active) || [];
 
+  // Find lead by email
+  const foundLeadByEmail = useMemo(() => {
+    if (!email.trim() || !leads) return null;
+    return leads.find(lead => 
+      lead.email?.toLowerCase().trim() === email.toLowerCase().trim()
+    ) || null;
+  }, [email, leads]);
+
+  // Auto-select lead when found by email
+  useEffect(() => {
+    if (foundLeadByEmail) {
+      setSelectedLeadId(foundLeadByEmail.id);
+    }
+  }, [foundLeadByEmail]);
+
   // Reset form when modal closes
   useEffect(() => {
     if (!open) {
+      setEmail("");
       setSelectedLeadId("");
       setMeetingDate(undefined);
       setMeetingTime("10:00");
@@ -109,11 +126,51 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
+          {/* Email Search */}
+          <div className="space-y-2">
+            <Label>Email do Lead</Label>
+            <div className="relative">
+              <Input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Digite o email para buscar lead existente..."
+                className={cn(
+                  foundLeadByEmail && "border-green-500 pr-10"
+                )}
+              />
+              {email.trim() && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {foundLeadByEmail ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              )}
+            </div>
+            {email.trim() && (
+              <p className={cn(
+                "text-xs",
+                foundLeadByEmail ? "text-green-600" : "text-muted-foreground"
+              )}>
+                {foundLeadByEmail 
+                  ? `Lead encontrado: ${foundLeadByEmail.name}${foundLeadByEmail.company ? ` - ${foundLeadByEmail.company}` : ""}`
+                  : "Nenhum lead encontrado com este email. Selecione manualmente abaixo."
+                }
+              </p>
+            )}
+          </div>
+
           {/* Lead Selection */}
           <div className="space-y-2">
             <Label>Lead *</Label>
-            <Select value={selectedLeadId} onValueChange={setSelectedLeadId}>
-              <SelectTrigger>
+            <Select 
+              value={selectedLeadId} 
+              onValueChange={setSelectedLeadId}
+              disabled={!!foundLeadByEmail}
+            >
+              <SelectTrigger className={cn(foundLeadByEmail && "bg-muted")}>
                 <SelectValue placeholder={leadsLoading ? "Carregando..." : "Selecione um lead"} />
               </SelectTrigger>
                 <SelectContent>
@@ -124,6 +181,11 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
                   ))}
                 </SelectContent>
             </Select>
+            {foundLeadByEmail && (
+              <p className="text-xs text-muted-foreground">
+                Lead vinculado automaticamente pelo email
+              </p>
+            )}
           </div>
 
           {/* Meeting Date & Time */}
