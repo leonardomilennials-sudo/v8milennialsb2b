@@ -4,7 +4,7 @@ import {
   Calendar, Clock, DollarSign, Package, User, Building2, 
   Star, Phone, Mail, Tag, History, FileText, TrendingUp, 
   ArrowRight, CheckCircle2, XCircle, AlertCircle, MessageSquare,
-  Loader2, Plus
+  Loader2, Plus, Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -28,9 +28,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { useUpdatePipeProposta, PipePropostasStatus, statusColumns } from "@/hooks/usePipePropostas";
+import { useUpdatePipeProposta, useDeletePipeProposta, PipePropostasStatus, statusColumns } from "@/hooks/usePipePropostas";
 import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
+import { useDeleteLead } from "@/hooks/useLeads";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -82,6 +94,8 @@ export function ProposalDetailModal({
 
   const { data: teamMembers = [] } = useTeamMembers();
   const updateProposta = useUpdatePipeProposta();
+  const deleteProposta = useDeletePipeProposta();
+  const deleteLead = useDeleteLead();
   const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(proposta?.lead_id);
   const createLeadHistory = useCreateLeadHistory();
 
@@ -193,6 +207,30 @@ export function ProposalDetailModal({
       toast.error("Erro ao adicionar nota");
     } finally {
       setIsAddingNote(false);
+    }
+  };
+
+  const handleDeleteProposta = async () => {
+    try {
+      await deleteProposta.mutateAsync(proposta.id);
+      toast.success("Proposta excluída!");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao excluir proposta");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    try {
+      await deleteLead.mutateAsync(proposta.lead_id);
+      toast.success("Lead e proposta excluídos!");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao excluir lead");
+      console.error(error);
     }
   };
 
@@ -699,20 +737,78 @@ export function ProposalDetailModal({
         </Tabs>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 pt-4 border-t mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={updateProposta.isPending}
-            className={cn(
-              formData.status === "vendido" && proposta?.status !== "vendido" && "bg-success hover:bg-success/90"
-            )}
-          >
-            {updateProposta.isPending ? "Salvando..." : 
-             formData.status === "vendido" && proposta?.status !== "vendido" ? "Fechar Venda 🎉" : "Salvar Alterações"}
-          </Button>
+        <div className="flex justify-between gap-2 pt-4 border-t mt-4">
+          <div className="flex gap-2">
+            {/* Excluir apenas proposta */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir Proposta
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir proposta?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Isso irá remover apenas a proposta. O lead continuará no sistema.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteProposta}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteProposta.isPending ? "Excluindo..." : "Excluir Proposta"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Excluir lead e proposta */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Excluir Lead
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir lead e todas as propostas?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Isso irá remover permanentemente o lead "{lead?.name}" e TODOS os dados associados (propostas, follow-ups, histórico, etc).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteLead}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleteLead.isPending ? "Excluindo..." : "Excluir Lead"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={updateProposta.isPending}
+              className={cn(
+                formData.status === "vendido" && proposta?.status !== "vendido" && "bg-success hover:bg-success/90"
+              )}
+            >
+              {updateProposta.isPending ? "Salvando..." : 
+               formData.status === "vendido" && proposta?.status !== "vendido" ? "Fechar Venda 🎉" : "Salvar Alterações"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
