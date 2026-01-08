@@ -73,3 +73,34 @@ export function useUpdateLead() {
     },
   });
 }
+
+export function useDeleteLead() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // First delete related records
+      await supabase.from("lead_tags").delete().eq("lead_id", id);
+      await supabase.from("lead_history").delete().eq("lead_id", id);
+      await supabase.from("follow_ups").delete().eq("lead_id", id);
+      await supabase.from("pipe_whatsapp").delete().eq("lead_id", id);
+      await supabase.from("pipe_confirmacao").delete().eq("lead_id", id);
+      await supabase.from("pipe_propostas").delete().eq("lead_id", id);
+      
+      // Then delete the lead
+      const { error } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["pipe_whatsapp"] });
+      queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
+      queryClient.invalidateQueries({ queryKey: ["pipe_propostas"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
+    },
+  });
+}
