@@ -17,17 +17,21 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     
+    // Valid origin enum values
+    const validOrigins = ["calendly", "whatsapp", "meta_ads", "outro"];
+    
     // Expected fields from n8n
     const {
       name,
       email,
       phone,
       company,
-      origin = "outro",
+      origin: rawOrigin,
       segment,
       faturamento,
       urgency,
       notes,
+      rating,
       sdr_id,
       utm_source,
       utm_medium,
@@ -35,6 +39,11 @@ Deno.serve(async (req) => {
       utm_term,
       utm_content,
     } = body;
+
+    // Normalize origin - if invalid, default to "outro"
+    const origin = validOrigins.includes(rawOrigin) ? rawOrigin : "outro";
+    
+    console.log("Received lead data:", { name, email, phone, origin, rawOrigin, rating });
 
     if (!name) {
       return new Response(
@@ -56,6 +65,7 @@ Deno.serve(async (req) => {
         faturamento: faturamento || null,
         urgency,
         notes,
+        rating: rating ? parseInt(String(rating), 10) : 0,
         sdr_id,
         utm_source,
         utm_medium,
