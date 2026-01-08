@@ -164,6 +164,7 @@ export default function PipePropostas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCloser, setFilterCloser] = useState("all");
   const [filterProductType, setFilterProductType] = useState("all");
+  const [filterPriority, setFilterPriority] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<any>(null);
@@ -222,7 +223,18 @@ export default function PipePropostas() {
           // Product type filter
           const matchesType = filterProductType === "all" || item.product_type === filterProductType;
           
-          return matchesSearch && matchesCloser && matchesType;
+          // Priority filter based on lead rating
+          const rating = lead?.rating || 0;
+          let matchesPriority = true;
+          if (filterPriority === "high") {
+            matchesPriority = rating >= 8;
+          } else if (filterPriority === "medium") {
+            matchesPriority = rating >= 5 && rating < 8;
+          } else if (filterPriority === "low") {
+            matchesPriority = rating < 5;
+          }
+          
+          return matchesSearch && matchesCloser && matchesType && matchesPriority;
         })
         .map(transformToCard);
 
@@ -231,7 +243,7 @@ export default function PipePropostas() {
         items: columnItems,
       };
     });
-  }, [pipeData, searchTerm, filterCloser, filterProductType]);
+  }, [pipeData, searchTerm, filterCloser, filterProductType, filterPriority]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -500,6 +512,33 @@ export default function PipePropostas() {
                   <SelectItem value="all">Todos Tipos</SelectItem>
                   <SelectItem value="mrr">MRR</SelectItem>
                   <SelectItem value="projeto">Projeto</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-[180px]">
+                  <Star className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Prioridade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas Prioridades</SelectItem>
+                  <SelectItem value="high">
+                    <div className="flex items-center gap-2">
+                      <span className="text-chart-5">★★★</span>
+                      Alta (8-10)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="medium">
+                    <div className="flex items-center gap-2">
+                      <span className="text-chart-5">★★</span>
+                      Média (5-7)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="low">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">★</span>
+                      Baixa (0-4)
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
