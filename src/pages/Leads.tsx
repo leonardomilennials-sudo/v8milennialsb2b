@@ -108,6 +108,7 @@ interface LeadFormData {
   notes: string;
   sdr_id: string | null;
   closer_id: string | null;
+  compromisso_date: string;
 }
 
 const initialFormData: LeadFormData = {
@@ -123,6 +124,7 @@ const initialFormData: LeadFormData = {
   notes: "",
   sdr_id: null,
   closer_id: null,
+  compromisso_date: "",
 };
 
 function StarRating({ rating, onRate, readonly = false }: { rating: number; onRate?: (r: number) => void; readonly?: boolean }) {
@@ -215,6 +217,7 @@ export default function Leads() {
         notes: lead.notes || "",
         sdr_id: lead.sdr_id,
         closer_id: lead.closer_id,
+        compromisso_date: lead.compromisso_date ? lead.compromisso_date.slice(0, 16) : "",
       });
     } else {
       setEditingLead(null);
@@ -236,6 +239,7 @@ export default function Leads() {
         faturamento: formData.faturamento || null,
         sdr_id: formData.sdr_id || null,
         closer_id: formData.closer_id || null,
+        compromisso_date: formData.compromisso_date ? new Date(formData.compromisso_date).toISOString() : null,
       };
 
       if (editingLead) {
@@ -613,14 +617,25 @@ export default function Leads() {
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="urgency">Urgência</Label>
-              <Input
-                id="urgency"
-                value={formData.urgency}
-                onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
-                placeholder="Ex: Alta, Média, Baixa..."
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="compromisso_date">Compromisso Marcado</Label>
+                <Input
+                  id="compromisso_date"
+                  type="datetime-local"
+                  value={formData.compromisso_date}
+                  onChange={(e) => setFormData({ ...formData, compromisso_date: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="urgency">Urgência</Label>
+                <Input
+                  id="urgency"
+                  value={formData.urgency}
+                  onChange={(e) => setFormData({ ...formData, urgency: e.target.value })}
+                  placeholder="Ex: Alta, Média, Baixa..."
+                />
+              </div>
             </div>
 
             <div className="grid gap-2">
