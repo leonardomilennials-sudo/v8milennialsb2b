@@ -34,6 +34,7 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useDeleteLead } from "@/hooks/useLeads";
 import { useUserRole } from "@/hooks/useUserRole";
 import { LeadModal } from "@/components/leads/LeadModal";
+import { CreateOpportunityModal } from "@/components/kanban/CreateOpportunityModal";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -188,9 +189,9 @@ export default function PipeWhatsapp() {
   const [filterSdr, setFilterSdr] = useState("all");
   const [filterOrigin, setFilterOrigin] = useState("all");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [isOpportunityModalOpen, setIsOpportunityModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; pipeId: string; leadId: string } | null>(null);
-
   const { data: pipeData, isLoading, refetch } = usePipeWhatsapp();
   const { data: teamMembers } = useTeamMembers();
   const { data: userRole } = useUserRole();
@@ -377,9 +378,13 @@ export default function PipeWhatsapp() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button size="sm" className="gradient-gold" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
+          <Button size="sm" variant="outline" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Lead
+          </Button>
+          <Button size="sm" className="gradient-gold" onClick={() => setIsOpportunityModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Nova Oportunidade
           </Button>
         </div>
       </div>
@@ -470,6 +475,13 @@ export default function PipeWhatsapp() {
             />
           </div>
         )}
+      />
+
+      {/* Create Opportunity Modal */}
+      <CreateOpportunityModal
+        open={isOpportunityModalOpen}
+        onOpenChange={setIsOpportunityModalOpen}
+        onSuccess={() => refetch()}
       />
 
       {/* Lead Modal */}
