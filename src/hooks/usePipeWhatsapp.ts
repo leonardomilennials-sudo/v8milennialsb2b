@@ -107,3 +107,22 @@ export function useUpdatePipeWhatsapp() {
     },
   });
 }
+
+export function useDeletePipeWhatsapp() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("pipe_whatsapp")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipe_whatsapp"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
+    },
+  });
+}
