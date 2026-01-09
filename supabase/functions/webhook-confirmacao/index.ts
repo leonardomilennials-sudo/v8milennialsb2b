@@ -70,6 +70,7 @@ Deno.serve(async (req) => {
         rating: rating ? parseInt(String(rating), 10) : 0,
         sdr_id,
         closer_id,
+        meeting_date: meeting_date || null,
         utm_source,
         utm_medium,
         utm_campaign,

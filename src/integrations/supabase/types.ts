@@ -335,6 +335,7 @@ export type Database = {
           email: string | null
           faturamento: string | null
           id: string
+          meeting_date: string | null
           name: string
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
@@ -357,6 +358,7 @@ export type Database = {
           email?: string | null
           faturamento?: string | null
           id?: string
+          meeting_date?: string | null
           name: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
@@ -379,6 +381,7 @@ export type Database = {
           email?: string | null
           faturamento?: string | null
           id?: string
+          meeting_date?: string | null
           name?: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]

@@ -351,6 +351,7 @@ export default function Leads() {
               <TableHead>Contato</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Rating</TableHead>
+              <TableHead>Horário da Reunião</TableHead>
               <TableHead>SDR</TableHead>
               <TableHead>Closer</TableHead>
               <TableHead>Criado em</TableHead>
@@ -361,14 +362,14 @@ export default function Leads() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={8}>
+                  <TableCell colSpan={9}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Nenhum lead encontrado
                 </TableCell>
               </TableRow>
@@ -409,6 +410,16 @@ export default function Leads() {
                   </TableCell>
                   <TableCell>
                     <StarRating rating={lead.rating || 0} readonly />
+                  </TableCell>
+                  <TableCell>
+                    {lead.meeting_date ? (
+                      <span className="text-xs flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-primary" />
+                        {format(new Date(lead.meeting_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">-</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {lead.sdr?.name ? (
