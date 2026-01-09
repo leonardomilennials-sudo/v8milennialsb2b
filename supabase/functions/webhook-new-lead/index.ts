@@ -86,7 +86,45 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 2. Create entry in pipe_whatsapp with status "novo"
+    // 2. Route lead based on whether compromisso_date is filled
+    if (lead.compromisso_date) {
+      // Lead has compromisso_date - create in pipe_confirmacao with reuniao_marcada
+      const { error: pipeConfirmacaoError } = await supabase
+        .from("pipe_confirmacao")
+        .insert({
+          lead_id: lead.id,
+          status: "reuniao_marcada",
+          sdr_id: sdr_id || null,
+          meeting_date: lead.compromisso_date,
+        });
+
+      if (pipeConfirmacaoError) {
+        console.error("Error creating pipe_confirmacao:", pipeConfirmacaoError);
+        return new Response(
+          JSON.stringify({ error: "Erro ao criar entrada no pipe confirmação", details: pipeConfirmacaoError.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Create history entry for confirmacao
+      await supabase.from("lead_history").insert({
+        lead_id: lead.id,
+        action: "Lead criado via integração",
+        description: `Lead ${name} adicionado automaticamente no pipe de confirmação com reunião marcada para ${lead.compromisso_date}`,
+      });
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Lead criado com sucesso no pipe de confirmação",
+          lead_id: lead.id,
+          pipe: "confirmacao"
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Lead without compromisso_date - create in pipe_whatsapp with status "novo"
     const { error: pipeError } = await supabase
       .from("pipe_whatsapp")
       .insert({
@@ -114,7 +152,8 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: "Lead criado com sucesso",
-        lead_id: lead.id 
+        lead_id: lead.id,
+        pipe: "whatsapp"
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
