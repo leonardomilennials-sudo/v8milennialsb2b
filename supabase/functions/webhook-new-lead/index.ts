@@ -34,6 +34,7 @@ Deno.serve(async (req) => {
       rating,
       sdr_id,
       meeting_date,
+      compromisso_date,
       utm_source,
       utm_medium,
       utm_campaign,
@@ -41,10 +42,10 @@ Deno.serve(async (req) => {
       utm_content,
     } = body;
 
-    // Normalize origin - if invalid, default to "outro"
-    const origin = validOrigins.includes(rawOrigin) ? rawOrigin : "outro";
+    // If compromisso_date is filled, set origin to "calendly", otherwise normalize origin
+    const origin = compromisso_date ? "calendly" : (validOrigins.includes(rawOrigin) ? rawOrigin : "outro");
     
-    console.log("Received lead data:", { name, email, phone, origin, rawOrigin, rating });
+    console.log("Received lead data:", { name, email, phone, origin, rawOrigin, compromisso_date, rating });
 
     if (!name) {
       return new Response(
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
         notes,
         rating: rating ? parseInt(String(rating), 10) : 0,
         sdr_id,
-        meeting_date: meeting_date || null,
+        compromisso_date: compromisso_date || null,
         utm_source,
         utm_medium,
         utm_campaign,
