@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe } from "lucide-react";
+import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +11,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
-import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, useCreatePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
+import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, useDeletePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
 import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useDeleteLead } from "@/hooks/useLeads";
+import { useUserRole } from "@/hooks/useUserRole";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -51,15 +69,44 @@ interface WhatsappCard extends DraggableItem {
   origin?: string;
 }
 
-function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
+interface WhatsappCardComponentProps {
+  card: WhatsappCard;
+  onDelete: (pipeId: string, leadId: string) => void;
+  isAdmin: boolean;
+}
+
+function WhatsappCardComponent({ card, onDelete, isAdmin }: WhatsappCardComponentProps) {
   const originInfo = originLabels[card.origin || "outro"] || originLabels.outro;
 
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
-      className="kanban-card group cursor-pointer"
+      className="kanban-card group cursor-pointer relative"
     >
-      <div className="flex items-start justify-between mb-3">
+      {/* Actions Menu */}
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-6 w-6">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              className="text-destructive focus:text-destructive"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(card.id, card.leadId);
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              {isAdmin ? "Excluir do Funil + Lead" : "Remover do Funil"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="flex items-start justify-between mb-3 pr-6">
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
             {card.name}
@@ -69,7 +116,7 @@ function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
             <span className="text-xs truncate">{card.company}</span>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 ml-2">
+        <div className="flex items-center gap-0.5">
           {[...Array(5)].map((_, i) => (
             <Star
               key={i}
@@ -142,12 +189,17 @@ export default function PipeWhatsapp() {
   const [filterOrigin, setFilterOrigin] = useState("all");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; pipeId: string; leadId: string } | null>(null);
 
   const { data: pipeData, isLoading, refetch } = usePipeWhatsapp();
   const { data: teamMembers } = useTeamMembers();
+  const { data: userRole } = useUserRole();
   const updatePipeWhatsapp = useUpdatePipeWhatsapp();
+  const deletePipeWhatsapp = useDeletePipeWhatsapp();
+  const deleteLead = useDeleteLead();
   const createPipeConfirmacao = useCreatePipeConfirmacao();
-  const createPipeWhatsapp = useCreatePipeWhatsapp();
+
+  const isAdmin = userRole?.role === "admin";
 
   const sdrs = useMemo(() => {
     return teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
@@ -267,6 +319,37 @@ export default function PipeWhatsapp() {
     }
   };
 
+  // Handle delete
+  const handleDelete = async () => {
+    if (!deleteDialog) return;
+
+    try {
+      // Always remove from pipe
+      await deletePipeWhatsapp.mutateAsync(deleteDialog.pipeId);
+      
+      // If admin, also delete the lead
+      if (isAdmin) {
+        await deleteLead.mutateAsync(deleteDialog.leadId);
+        toast.success("Lead e oportunidade excluídos com sucesso!");
+      } else {
+        toast.success("Oportunidade removida do funil!");
+      }
+      
+      setDeleteDialog(null);
+    } catch (error: any) {
+      if (error.message?.includes("row-level security")) {
+        toast.error("Você não tem permissão para excluir leads. Apenas a oportunidade foi removida.");
+      } else {
+        toast.error("Erro ao excluir");
+      }
+      console.error(error);
+    }
+  };
+
+  const handleOpenDeleteDialog = (pipeId: string, leadId: string) => {
+    setDeleteDialog({ open: true, pipeId, leadId });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -380,7 +463,11 @@ export default function PipeWhatsapp() {
               setIsLeadModalOpen(true);
             }
           }}>
-            <WhatsappCardComponent card={card} />
+            <WhatsappCardComponent 
+              card={card} 
+              onDelete={handleOpenDeleteDialog}
+              isAdmin={isAdmin}
+            />
           </div>
         )}
       />
@@ -395,6 +482,30 @@ export default function PipeWhatsapp() {
           setEditingLead(null);
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialog?.open} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              {isAdmin 
+                ? "Você irá excluir esta oportunidade do funil E o lead associado. Esta ação não pode ser desfeita."
+                : "Você irá remover esta oportunidade do funil. O lead será mantido no sistema."
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isAdmin ? "Excluir Lead e Oportunidade" : "Remover do Funil"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
