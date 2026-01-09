@@ -24,11 +24,16 @@ import { useCreateLead, useUpdateLead } from "@/hooks/useLeads";
 import { toast } from "sonner";
 
 const originLabels: Record<string, string> = {
-  site: "Site",
+  remarketing: "Remarketing",
+  base_clientes: "Base de clientes",
+  parceiro: "Parceiro",
   indicacao: "Indicação",
-  outbound: "Outbound",
-  evento: "Evento",
-  redes_sociais: "Redes Sociais",
+  calendly: "Calendly",
+  quiz: "Quiz",
+  site: "Site",
+  organico: "Orgânico",
+  whatsapp: "WhatsApp",
+  meta_ads: "Meta Ads",
   outro: "Outro",
 };
 
