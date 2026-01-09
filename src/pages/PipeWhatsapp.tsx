@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, Plus, MessageCircle, User, Building2, Star, Phone, Loader2 } from "lucide-react";
+import { Search, Filter, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +13,27 @@ import {
 } from "@/components/ui/select";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, useCreatePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
-import { usePipeConfirmacao, useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
+import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { useCreateLead } from "@/hooks/useLeads";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+
+// Origin labels and colors mapping
+const originLabels: Record<string, { label: string; color: string }> = {
+  calendly: { label: "Calendly", color: "bg-blue-500" },
+  whatsapp: { label: "WhatsApp", color: "bg-green-500" },
+  meta_ads: { label: "Meta Ads", color: "bg-purple-500" },
+  remarketing: { label: "Remarketing", color: "bg-orange-500" },
+  base_clientes: { label: "Base Clientes", color: "bg-cyan-500" },
+  parceiro: { label: "Parceiro", color: "bg-pink-500" },
+  indicacao: { label: "Indicação", color: "bg-yellow-500" },
+  quiz: { label: "Quiz", color: "bg-indigo-500" },
+  site: { label: "Site", color: "bg-teal-500" },
+  organico: { label: "Orgânico", color: "bg-lime-500" },
+  outro: { label: "Outro", color: "bg-gray-500" },
+};
 
 interface WhatsappCard extends DraggableItem {
   name: string;
@@ -34,9 +48,12 @@ interface WhatsappCard extends DraggableItem {
   segment?: string;
   leadId: string;
   closerId?: string;
+  origin?: string;
 }
 
 function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
+  const originInfo = originLabels[card.origin || "outro"] || originLabels.outro;
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
@@ -64,6 +81,17 @@ function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
             />
           ))}
         </div>
+      </div>
+
+      {/* Origin Badge */}
+      <div className="mb-3">
+        <Badge 
+          variant="outline" 
+          className={`text-xs text-white border-0 ${originInfo.color}`}
+        >
+          <Globe className="w-3 h-3 mr-1" />
+          {originInfo.label}
+        </Badge>
       </div>
 
       {/* Phone */}
@@ -111,6 +139,7 @@ function WhatsappCardComponent({ card }: { card: WhatsappCard }) {
 export default function PipeWhatsapp() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSdr, setFilterSdr] = useState("all");
+  const [filterOrigin, setFilterOrigin] = useState("all");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
 
@@ -119,11 +148,22 @@ export default function PipeWhatsapp() {
   const updatePipeWhatsapp = useUpdatePipeWhatsapp();
   const createPipeConfirmacao = useCreatePipeConfirmacao();
   const createPipeWhatsapp = useCreatePipeWhatsapp();
-  const createLead = useCreateLead();
 
   const sdrs = useMemo(() => {
     return teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
   }, [teamMembers]);
+
+  // Get unique origins from pipe data
+  const availableOrigins = useMemo(() => {
+    if (!pipeData) return [];
+    const origins = new Set<string>();
+    pipeData.forEach(item => {
+      if (item.lead?.origin) {
+        origins.add(item.lead.origin);
+      }
+    });
+    return Array.from(origins);
+  }, [pipeData]);
 
   // Transform pipe data to WhatsappCard format
   const transformToCard = (item: any): WhatsappCard => {
@@ -142,7 +182,27 @@ export default function PipeWhatsapp() {
       segment: lead?.segment,
       leadId: item.lead_id,
       closerId: lead?.closer_id,
+      origin: lead?.origin,
     };
+  };
+
+  // Filter function for items
+  const filterItems = (item: any) => {
+    const lead = item.lead;
+    
+    // Search filter
+    const matchesSearch = searchTerm === "" || 
+      lead?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead?.phone?.includes(searchTerm);
+    
+    // SDR filter
+    const matchesSdr = filterSdr === "all" || item.sdr_id === filterSdr;
+    
+    // Origin filter
+    const matchesOrigin = filterOrigin === "all" || lead?.origin === filterOrigin;
+    
+    return matchesSearch && matchesSdr && matchesOrigin;
   };
 
   // Organize data by status columns
@@ -152,20 +212,7 @@ export default function PipeWhatsapp() {
     return statusColumns.map(col => {
       const columnItems = pipeData
         .filter(item => item.status === col.id)
-        .filter(item => {
-          const lead = item.lead;
-          
-          // Search filter
-          const matchesSearch = searchTerm === "" || 
-            lead?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            lead?.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            lead?.phone?.includes(searchTerm);
-          
-          // SDR filter
-          const matchesSdr = filterSdr === "all" || item.sdr_id === filterSdr;
-          
-          return matchesSearch && matchesSdr;
-        })
+        .filter(filterItems)
         .map(transformToCard);
 
       return {
@@ -173,19 +220,21 @@ export default function PipeWhatsapp() {
         items: columnItems,
       };
     });
-  }, [pipeData, searchTerm, filterSdr]);
+  }, [pipeData, searchTerm, filterSdr, filterOrigin]);
 
-  // Calculate stats
+  // Calculate stats based on FILTERED data
   const stats = useMemo(() => {
     if (!pipeData) return { total: 0, emContato: 0, scheduled: 0, pending: 0 };
 
-    const total = pipeData.length;
-    const emContato = pipeData.filter(item => item.status === "em_contato").length;
-    const scheduled = pipeData.filter(item => item.status === "agendado").length;
-    const pending = pipeData.filter(item => item.status === "novo").length;
+    const filteredData = pipeData.filter(filterItems);
+    
+    const total = filteredData.length;
+    const emContato = filteredData.filter(item => item.status === "em_contato").length;
+    const scheduled = filteredData.filter(item => item.status === "agendado").length;
+    const pending = filteredData.filter(item => item.status === "novo").length;
 
     return { total, emContato, scheduled, pending };
-  }, [pipeData]);
+  }, [pipeData, searchTerm, filterSdr, filterOrigin]);
 
   // Handle status change from drag-and-drop
   const handleStatusChange = async (itemId: string, newStatus: string) => {
@@ -200,8 +249,8 @@ export default function PipeWhatsapp() {
         sdrId: item.sdr_id,
       });
 
-      // If moved to "compareceu", automatically create entry in pipe_confirmacao
-      if (newStatus === "compareceu") {
+      // If moved to "agendado", automatically create entry in pipe_confirmacao
+      if (newStatus === "agendado") {
         await createPipeConfirmacao.mutateAsync({
           lead_id: item.lead_id,
           sdr_id: item.sdr_id,
@@ -236,19 +285,15 @@ export default function PipeWhatsapp() {
             animate={{ opacity: 1, y: 0 }}
             className="text-2xl font-bold flex items-center gap-2"
           >
-            <MessageCircle className="w-6 h-6 text-success" />
-            Leads WhatsApp (SDR)
+            <Zap className="w-6 h-6 text-primary" />
+            Funil de Qualificação
           </motion.h1>
           <p className="text-muted-foreground mt-1">
-            Arraste os cards para alterar o status • Compareceu → move para Confirmação
+            Arraste os cards para alterar o status • Agendado → move para Confirmação
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-          </Button>
           <Button size="sm" className="gradient-gold" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Lead
@@ -256,7 +301,7 @@ export default function PipeWhatsapp() {
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* Stats Bar - Updated based on filters */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -291,6 +336,24 @@ export default function PipeWhatsapp() {
             className="pl-9"
           />
         </div>
+        
+        {/* Origin Filter */}
+        <Select value={filterOrigin} onValueChange={setFilterOrigin}>
+          <SelectTrigger className="w-[180px]">
+            <Globe className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas Origens</SelectItem>
+            {availableOrigins.map(origin => (
+              <SelectItem key={origin} value={origin}>
+                {originLabels[origin]?.label || origin}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* SDR Filter */}
         <Select value={filterSdr} onValueChange={setFilterSdr}>
           <SelectTrigger className="w-[180px]">
             <User className="w-4 h-4 mr-2" />

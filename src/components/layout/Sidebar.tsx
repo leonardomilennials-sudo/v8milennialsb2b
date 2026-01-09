@@ -36,7 +36,7 @@ const navItems: NavItem[] = [
   { label: "Follow Ups", icon: TrendingUp, path: "/follow-ups" },
   { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
-  { label: "WhatsApp SDR", icon: MessageSquare, path: "/pipe-whatsapp" },
+  { label: "Funil Qualificação", icon: MessageSquare, path: "/pipe-whatsapp" },
   { label: "Leads", icon: Users, path: "/leads" },
   { label: "Ranking", icon: Trophy, path: "/ranking" },
   { label: "Metas", icon: Target, path: "/metas" },
