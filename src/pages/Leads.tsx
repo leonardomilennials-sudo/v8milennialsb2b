@@ -50,7 +50,18 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLeads, useCreateLead, useUpdateLead } from "@/hooks/useLeads";
+import { useLeads, useCreateLead, useUpdateLead, useDeleteLead } from "@/hooks/useLeads";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -140,6 +151,9 @@ export default function Leads() {
   const { data: teamMembers = [] } = useTeamMembers();
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
+  const deleteLead = useDeleteLead();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [leadToDelete, setLeadToDelete] = useState<any>(null);
 
   const sdrs = teamMembers.filter(m => m.role === "sdr" && m.is_active);
   const closers = teamMembers.filter(m => m.role === "closer" && m.is_active);
@@ -431,6 +445,16 @@ export default function Leads() {
                           <Edit2 className="w-4 h-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setLeadToDelete(lead);
+                            setDeleteConfirmOpen(true);
+                          }}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -611,6 +635,37 @@ export default function Leads() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Lead</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o lead "{leadToDelete?.name}"? Esta ação irá remover também todas as reuniões, propostas e follow-ups associados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (leadToDelete) {
+                  try {
+                    await deleteLead.mutateAsync(leadToDelete.id);
+                    toast.success("Lead excluído com sucesso!");
+                    setLeadToDelete(null);
+                  } catch (error) {
+                    toast.error("Erro ao excluir lead");
+                  }
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
