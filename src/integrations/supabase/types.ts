@@ -331,11 +331,11 @@ export type Database = {
         Row: {
           closer_id: string | null
           company: string | null
+          compromisso_date: string | null
           created_at: string
           email: string | null
           faturamento: string | null
           id: string
-          meeting_date: string | null
           name: string
           notes: string | null
           origin: Database["public"]["Enums"]["lead_origin"]
@@ -354,11 +354,11 @@ export type Database = {
         Insert: {
           closer_id?: string | null
           company?: string | null
+          compromisso_date?: string | null
           created_at?: string
           email?: string | null
           faturamento?: string | null
           id?: string
-          meeting_date?: string | null
           name: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
@@ -377,11 +377,11 @@ export type Database = {
         Update: {
           closer_id?: string | null
           company?: string | null
+          compromisso_date?: string | null
           created_at?: string
           email?: string | null
           faturamento?: string | null
           id?: string
-          meeting_date?: string | null
           name?: string
           notes?: string | null
           origin?: Database["public"]["Enums"]["lead_origin"]
@@ -739,7 +739,18 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "sdr" | "closer"
-      lead_origin: "calendly" | "whatsapp" | "meta_ads" | "outro"
+      lead_origin:
+        | "calendly"
+        | "whatsapp"
+        | "meta_ads"
+        | "outro"
+        | "remarketing"
+        | "base_clientes"
+        | "parceiro"
+        | "indicacao"
+        | "quiz"
+        | "site"
+        | "organico"
       pipe_confirmacao_status:
         | "reuniao_marcada"
         | "confirmar_d3"
@@ -887,7 +898,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "sdr", "closer"],
-      lead_origin: ["calendly", "whatsapp", "meta_ads", "outro"],
+      lead_origin: [
+        "calendly",
+        "whatsapp",
+        "meta_ads",
+        "outro",
+        "remarketing",
+        "base_clientes",
+        "parceiro",
+        "indicacao",
+        "quiz",
+        "site",
+        "organico",
+      ],
       pipe_confirmacao_status: [
         "reuniao_marcada",
         "confirmar_d3",

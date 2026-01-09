@@ -68,20 +68,30 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 const originLabels: Record<string, string> = {
-  site: "Site",
+  remarketing: "Remarketing",
+  base_clientes: "Base de clientes",
+  parceiro: "Parceiro",
   indicacao: "Indicação",
-  outbound: "Outbound",
-  evento: "Evento",
-  redes_sociais: "Redes Sociais",
+  calendly: "Calendly",
+  quiz: "Quiz",
+  site: "Site",
+  organico: "Orgânico",
+  whatsapp: "WhatsApp",
+  meta_ads: "Meta Ads",
   outro: "Outro",
 };
 
 const originColors: Record<string, string> = {
-  site: "bg-chart-1/10 text-chart-1 border-chart-1/20",
-  indicacao: "bg-chart-2/10 text-chart-2 border-chart-2/20",
-  outbound: "bg-chart-3/10 text-chart-3 border-chart-3/20",
-  evento: "bg-chart-4/10 text-chart-4 border-chart-4/20",
-  redes_sociais: "bg-chart-5/10 text-chart-5 border-chart-5/20",
+  remarketing: "bg-chart-1/10 text-chart-1 border-chart-1/20",
+  base_clientes: "bg-chart-2/10 text-chart-2 border-chart-2/20",
+  parceiro: "bg-chart-3/10 text-chart-3 border-chart-3/20",
+  indicacao: "bg-chart-4/10 text-chart-4 border-chart-4/20",
+  calendly: "bg-chart-5/10 text-chart-5 border-chart-5/20",
+  quiz: "bg-primary/10 text-primary border-primary/20",
+  site: "bg-success/10 text-success border-success/20",
+  organico: "bg-warning/10 text-warning border-warning/20",
+  whatsapp: "bg-green-500/10 text-green-600 border-green-500/20",
+  meta_ads: "bg-blue-500/10 text-blue-600 border-blue-500/20",
   outro: "bg-muted text-muted-foreground border-muted",
 };
 
@@ -351,7 +361,6 @@ export default function Leads() {
               <TableHead>Contato</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>Rating</TableHead>
-              <TableHead>Horário da Reunião</TableHead>
               <TableHead>SDR</TableHead>
               <TableHead>Closer</TableHead>
               <TableHead>Criado em</TableHead>
@@ -362,14 +371,14 @@ export default function Leads() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell colSpan={9}>
+                  <TableCell colSpan={8}>
                     <Skeleton className="h-10 w-full" />
                   </TableCell>
                 </TableRow>
               ))
             ) : filteredLeads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Nenhum lead encontrado
                 </TableCell>
               </TableRow>
@@ -410,16 +419,6 @@ export default function Leads() {
                   </TableCell>
                   <TableCell>
                     <StarRating rating={lead.rating || 0} readonly />
-                  </TableCell>
-                  <TableCell>
-                    {lead.meeting_date ? (
-                      <span className="text-xs flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-primary" />
-                        {format(new Date(lead.meeting_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">-</span>
-                    )}
                   </TableCell>
                   <TableCell>
                     {lead.sdr?.name ? (
