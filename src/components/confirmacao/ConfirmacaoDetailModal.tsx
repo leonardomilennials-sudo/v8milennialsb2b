@@ -9,6 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Calendar as CalendarIcon, 
@@ -30,13 +40,15 @@ import {
   Users,
   FileText,
   Loader2,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { useUpdatePipeConfirmacao, PipeConfirmacaoStatus, statusColumns } from "@/hooks/usePipeConfirmacao";
+import { useUpdatePipeConfirmacao, useDeletePipeConfirmacao, PipeConfirmacaoStatus, statusColumns } from "@/hooks/usePipeConfirmacao";
 import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
+import { useDeleteLead } from "@/hooks/useLeads";
 import { toast } from "sonner";
 
 interface ConfirmacaoDetailModalProps {
@@ -83,8 +95,12 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const [isSaving, setIsSaving] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteLeadConfirmOpen, setDeleteLeadConfirmOpen] = useState(false);
 
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
+  const deletePipeConfirmacao = useDeletePipeConfirmacao();
+  const deleteLead = useDeleteLead();
   const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(item?.lead_id);
   const createLeadHistory = useCreateLeadHistory();
 
@@ -209,6 +225,28 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       onSuccess?.();
     } catch (error) {
       toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleDeleteMeeting = async () => {
+    try {
+      await deletePipeConfirmacao.mutateAsync(item.id);
+      toast.success("Reunião excluída com sucesso!");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao excluir reunião");
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    try {
+      await deleteLead.mutateAsync(item.lead_id);
+      toast.success("Lead excluído com sucesso!");
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao excluir lead");
     }
   };
 
@@ -620,7 +658,75 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
             </TabsContent>
           </div>
         </Tabs>
+
+        {/* Footer with delete actions */}
+        <div className="border-t border-border p-4 flex justify-between">
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(true)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Reunião
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteLeadConfirmOpen(true)}
+              className="text-destructive hover:text-destructive border-destructive/30"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Excluir Lead
+            </Button>
+          </div>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Fechar
+          </Button>
+        </div>
       </DialogContent>
+
+      {/* Delete Meeting Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Reunião</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta reunião marcada? O lead continuará existindo na base.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMeeting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Reunião
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Lead Confirmation */}
+      <AlertDialog open={deleteLeadConfirmOpen} onOpenChange={setDeleteLeadConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Lead</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o lead "{lead?.name}"? Esta ação irá remover também todas as reuniões, propostas e follow-ups associados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteLead}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir Lead
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -122,3 +122,22 @@ export function useUpdatePipeConfirmacao() {
     },
   });
 }
+
+export function useDeletePipeConfirmacao() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("pipe_confirmacao")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
+      queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
+    },
+  });
+}
