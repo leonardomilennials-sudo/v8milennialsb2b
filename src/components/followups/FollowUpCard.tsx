@@ -11,10 +11,12 @@ import {
   User,
   MessageSquare,
   Kanban,
+  MessageCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 import type { FollowUp } from "@/hooks/useFollowUps";
 
 interface FollowUpCardProps {
@@ -130,17 +132,30 @@ export function FollowUpCard({ followUp, onComplete, onClick }: FollowUpCardProp
             )}
           </div>
 
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              onComplete(followUp.id);
-            }}
-          >
-            <CheckCircle2 className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            {formatPhoneForWhatsApp(followUp.lead?.phone) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 w-8 p-0 text-[#25D366] hover:text-[#25D366] hover:bg-[#25D366]/10"
+                onClick={(e) => openWhatsApp(followUp.lead?.phone, e)}
+                title="Abrir WhatsApp"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onComplete(followUp.id);
+              }}
+            >
+              <CheckCircle2 className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </div>
 

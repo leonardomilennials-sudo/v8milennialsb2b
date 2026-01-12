@@ -51,32 +51,7 @@ interface ProposalCard extends DraggableItem {
   leadId?: string;
 }
 
-// Format phone number for WhatsApp: 55 + DDD (without 0) + number (add 9 if short)
-function formatPhoneForWhatsApp(phone: string | undefined): string | null {
-  if (!phone) return null;
-  
-  // Remove all non-numeric characters
-  let cleaned = phone.replace(/\D/g, '');
-  
-  // If already starts with 55, remove it to reprocess
-  if (cleaned.startsWith('55')) {
-    cleaned = cleaned.substring(2);
-  }
-  
-  // Remove leading 0 from DDD if present
-  if (cleaned.startsWith('0')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  // If number is too short (DDD + 8 digits = 10), add 9 after DDD
-  // DDD is 2 digits, so if total is 10, we need to add 9
-  if (cleaned.length === 10) {
-    cleaned = cleaned.substring(0, 2) + '9' + cleaned.substring(2);
-  }
-  
-  // Add country code
-  return '55' + cleaned;
-}
+import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 
 function ProposalCardComponent({ 
   proposal, 
@@ -94,13 +69,6 @@ function ProposalCardComponent({
   };
 
   const formattedPhone = formatPhoneForWhatsApp(proposal.phone);
-
-  const handleWhatsAppClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (formattedPhone) {
-      window.open(`https://wa.me/${formattedPhone}`, '_blank', 'noopener,noreferrer');
-    }
-  };
 
   return (
     <motion.div
@@ -207,7 +175,7 @@ function ProposalCardComponent({
         <div className="flex items-center gap-2">
           {formattedPhone && (
             <button
-              onClick={handleWhatsAppClick}
+              onClick={(e) => openWhatsApp(proposal.phone, e)}
               className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
               title="Abrir WhatsApp"
             >

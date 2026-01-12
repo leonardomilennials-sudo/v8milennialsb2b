@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target } from "lucide-react";
+import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ import { CreateOpportunityModal } from "@/components/kanban/CreateOpportunityMod
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 
 // Origin labels and colors mapping
 const originLabels: Record<string, { label: string; color: string }> = {
@@ -249,12 +250,23 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
             {formatDistanceToNow(new Date(card.createdAt), { addSuffix: true, locale: ptBR })}
           </span>
         </div>
-        {card.sdr && (
-          <div className="flex items-center gap-1.5">
-            <User className="w-3 h-3 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{card.sdr}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {formatPhoneForWhatsApp(card.phone) && (
+            <button
+              onClick={(e) => openWhatsApp(card.phone, e)}
+              className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
+              title="Abrir WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {card.sdr && (
+            <div className="flex items-center gap-1.5">
+              <User className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{card.sdr}</span>
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );
