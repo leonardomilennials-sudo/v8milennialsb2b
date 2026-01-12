@@ -9,10 +9,12 @@ import {
   Mail,
   AlertTriangle,
   CheckCircle2,
-  MapPin
+  MapPin,
+  MessageCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 import { format, isToday, isTomorrow, isPast, differenceInHours, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QuickAddDailyAction } from "./QuickAddDailyAction";
@@ -266,8 +268,8 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
       )}
 
       {/* Responsáveis */}
-      {(card.sdr || card.closer) && (
-        <div className="flex items-center gap-3 pt-2 border-t border-border">
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center gap-3">
           {card.sdr && (
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-full bg-chart-2/20 flex items-center justify-center">
@@ -285,7 +287,16 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
             </div>
           )}
         </div>
-      )}
+        {formatPhoneForWhatsApp(card.phone) && (
+          <button
+            onClick={(e) => openWhatsApp(card.phone, e)}
+            className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
+            title="Abrir WhatsApp"
+          >
+            <MessageCircle className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
     </motion.div>
   );
 }
