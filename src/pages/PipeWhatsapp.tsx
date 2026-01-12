@@ -181,7 +181,7 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
         </DropdownMenu>
       </div>
 
-      <div className="flex items-start justify-between mb-3 pr-6">
+      <div className="flex items-start justify-between mb-3 pr-16">
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
             {card.name}
@@ -191,18 +191,20 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
             <span className="text-xs truncate">{card.company}</span>
           </div>
         </div>
-        <div className="flex items-center gap-0.5">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              className={`w-3 h-3 ${
-                i < card.rating
-                  ? "text-primary fill-primary"
-                  : "text-muted-foreground/30"
-              }`}
-            />
-          ))}
-        </div>
+      </div>
+
+      {/* Rating stars - moved below name */}
+      <div className="flex items-center gap-0.5 mb-2">
+        {[...Array(5)].map((_, i) => (
+          <Star
+            key={i}
+            className={`w-3 h-3 ${
+              i < card.rating
+                ? "text-primary fill-primary"
+                : "text-muted-foreground/30"
+            }`}
+          />
+        ))}
       </div>
 
       {/* Origin Badge */}
