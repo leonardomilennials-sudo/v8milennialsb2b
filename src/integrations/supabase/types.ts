@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      acoes_do_dia: {
+        Row: {
+          completed_at: string | null
+          confirmacao_id: string | null
+          created_at: string
+          description: string | null
+          follow_up_id: string | null
+          id: string
+          is_completed: boolean | null
+          lead_id: string | null
+          position: number | null
+          proposta_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          confirmacao_id?: string | null
+          created_at?: string
+          description?: string | null
+          follow_up_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          lead_id?: string | null
+          position?: number | null
+          proposta_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          confirmacao_id?: string | null
+          created_at?: string
+          description?: string | null
+          follow_up_id?: string | null
+          id?: string
+          is_completed?: boolean | null
+          lead_id?: string | null
+          position?: number | null
+          proposta_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "acoes_do_dia_confirmacao_id_fkey"
+            columns: ["confirmacao_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_confirmacao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acoes_do_dia_follow_up_id_fkey"
+            columns: ["follow_up_id"]
+            isOneToOne: false
+            referencedRelation: "follow_ups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acoes_do_dia_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "acoes_do_dia_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       awards: {
         Row: {
           created_at: string
@@ -509,6 +583,7 @@ export type Database = {
       }
       pipe_propostas: {
         Row: {
+          calor: number | null
           closed_at: string | null
           closer_id: string | null
           commitment_date: string | null
@@ -523,6 +598,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          calor?: number | null
           closed_at?: string | null
           closer_id?: string | null
           commitment_date?: string | null
@@ -537,6 +613,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          calor?: number | null
           closed_at?: string | null
           closer_id?: string | null
           commitment_date?: string | null

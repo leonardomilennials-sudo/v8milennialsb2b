@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Filter, Plus, Calendar, User, Building2, Star, 
   DollarSign, Clock, Tag, Loader2, TrendingUp, Package,
-  ArrowUpRight, Percent, BarChart3, Target
+  ArrowUpRight, Percent, BarChart3, Target, Flame
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { CreateProposalModal } from "@/components/proposals/CreateProposalModal";
 import { ProposalDetailModal } from "@/components/proposals/ProposalDetailModal";
 import { FunnelChart } from "@/components/dashboard/FunnelChart";
+import { CalorSlider, CalorBadge } from "@/components/proposals/CalorSlider";
+import { QuickAddDailyAction } from "@/components/proposals/QuickAddDailyAction";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -33,6 +35,7 @@ interface ProposalCard extends DraggableItem {
   email?: string;
   phone?: string;
   rating: number;
+  calor: number;
   closer?: string;
   closerId?: string;
   productType: "mrr" | "projeto" | null;
@@ -42,9 +45,16 @@ interface ProposalCard extends DraggableItem {
   lastContact?: string;
   segment?: string;
   commitmentDate?: Date;
+  leadId?: string;
 }
 
-function ProposalCardComponent({ proposal }: { proposal: ProposalCard }) {
+function ProposalCardComponent({ 
+  proposal, 
+  onCalorChange 
+}: { 
+  proposal: ProposalCard; 
+  onCalorChange: (calor: number) => void;
+}) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -65,6 +75,18 @@ function ProposalCardComponent({ proposal }: { proposal: ProposalCard }) {
         isCommitmentSoon && "ring-2 ring-chart-5/50"
       )}
     >
+      {/* Quick Actions Row */}
+      <div className="flex items-center justify-between mb-2">
+        <CalorSlider 
+          value={proposal.calor} 
+          onChange={onCalorChange}
+        />
+        <QuickAddDailyAction 
+          propostaId={proposal.id} 
+          leadName={proposal.name}
+        />
+      </div>
+
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
@@ -165,6 +187,7 @@ export default function PipePropostas() {
   const [filterCloser, setFilterCloser] = useState("all");
   const [filterProductType, setFilterProductType] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [filterCalor, setFilterCalor] = useState("all");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<any>(null);
@@ -188,6 +211,7 @@ export default function PipePropostas() {
       email: lead?.email,
       phone: lead?.phone,
       rating: lead?.rating || 0,
+      calor: item.calor ?? 5,
       closer: item.closer?.name || lead?.closer?.name,
       closerId: item.closer_id,
       productType: item.product_type,
@@ -199,10 +223,11 @@ export default function PipePropostas() {
         : undefined,
       segment: lead?.segment,
       commitmentDate: item.commitment_date ? new Date(item.commitment_date) : undefined,
+      leadId: lead?.id,
     };
   };
 
-  // Organize data by status columns
+  // Organize data by status columns with calor sorting
   const columns = useMemo((): KanbanColumn<ProposalCard>[] => {
     if (!pipeData) return propostaStatusColumns.map(col => ({ ...col, items: [] }));
 
@@ -233,17 +258,30 @@ export default function PipePropostas() {
           } else if (filterPriority === "low") {
             matchesPriority = rating < 5;
           }
+
+          // Calor filter
+          const calor = item.calor ?? 5;
+          let matchesCalor = true;
+          if (filterCalor === "hot") {
+            matchesCalor = calor >= 7;
+          } else if (filterCalor === "warm") {
+            matchesCalor = calor >= 4 && calor < 7;
+          } else if (filterCalor === "cold") {
+            matchesCalor = calor < 4;
+          }
           
-          return matchesSearch && matchesCloser && matchesType && matchesPriority;
+          return matchesSearch && matchesCloser && matchesType && matchesPriority && matchesCalor;
         })
-        .map(transformToCard);
+        .map(transformToCard)
+        // Sort by calor (highest first)
+        .sort((a, b) => b.calor - a.calor);
 
       return {
         ...col,
         items: columnItems,
       };
     });
-  }, [pipeData, searchTerm, filterCloser, filterProductType, filterPriority]);
+  }, [pipeData, searchTerm, filterCloser, filterProductType, filterPriority, filterCalor]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -343,6 +381,25 @@ export default function PipePropostas() {
       }
     } catch (error) {
       toast.error("Erro ao atualizar status");
+      console.error(error);
+    }
+  };
+
+  // Handle calor change
+  const handleCalorChange = async (itemId: string, calor: number) => {
+    const item = pipeData?.find(p => p.id === itemId);
+    if (!item) return;
+
+    try {
+      await updatePipeProposta.mutateAsync({
+        id: itemId,
+        calor,
+        leadId: item.lead_id,
+        closerId: item.closer_id,
+      });
+      toast.success("Calor atualizado!");
+    } catch (error) {
+      toast.error("Erro ao atualizar calor");
       console.error(error);
     }
   };
@@ -481,8 +538,8 @@ export default function PipePropostas() {
             exit={{ opacity: 0, y: -20 }}
           >
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar proposta..."
@@ -492,7 +549,7 @@ export default function PipePropostas() {
                 />
               </div>
               <Select value={filterCloser} onValueChange={setFilterCloser}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <User className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Closer" />
                 </SelectTrigger>
@@ -504,7 +561,7 @@ export default function PipePropostas() {
                 </SelectContent>
               </Select>
               <Select value={filterProductType} onValueChange={setFilterProductType}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-[140px]">
                   <Tag className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Tipo" />
                 </SelectTrigger>
@@ -514,8 +571,35 @@ export default function PipePropostas() {
                   <SelectItem value="projeto">Projeto</SelectItem>
                 </SelectContent>
               </Select>
+              <Select value={filterCalor} onValueChange={setFilterCalor}>
+                <SelectTrigger className="w-[140px]">
+                  <Flame className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="Calor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="hot">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-3 h-3 text-destructive" />
+                      Quente (7-10)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="warm">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-3 h-3 text-chart-5" />
+                      Morno (4-6)
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="cold">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-3 h-3 text-muted-foreground" />
+                      Frio (0-3)
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[160px]">
                   <Star className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Prioridade" />
                 </SelectTrigger>
@@ -555,7 +639,10 @@ export default function PipePropostas() {
                     setIsDetailModalOpen(true);
                   }
                 }}>
-                  <ProposalCardComponent proposal={card} />
+                  <ProposalCardComponent 
+                    proposal={card} 
+                    onCalorChange={(calor) => handleCalorChange(card.id, calor)}
+                  />
                 </div>
               )}
               renderColumnFooter={renderColumnFooter}
