@@ -29,8 +29,9 @@ export function usePipeWhatsapp() {
         .select(`
           *,
           lead:leads(
-            id, name, company, email, phone, rating, origin, segment, faturamento,
+            id, name, company, email, phone, rating, origin, segment, faturamento, urgency, notes, compromisso_date,
             sdr:team_members!leads_sdr_id_fkey(id, name),
+            closer:team_members!leads_closer_id_fkey(id, name),
             lead_tags(tag:tags(id, name, color))
           ),
           sdr:team_members!pipe_whatsapp_sdr_id_fkey(id, name)

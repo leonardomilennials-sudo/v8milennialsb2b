@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target, MessageCircle } from "lucide-react";
+import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target, MessageCircle, Mail, Calendar, DollarSign, Clock, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +65,7 @@ interface WhatsappCard extends DraggableItem {
   name: string;
   company: string;
   phone?: string;
+  email?: string;
   rating: number;
   sdr?: string;
   sdrId?: string;
@@ -72,6 +73,9 @@ interface WhatsappCard extends DraggableItem {
   scheduledDate?: string;
   createdAt: string;
   segment?: string;
+  faturamento?: string;
+  urgency?: string;
+  compromissoDate?: string;
   leadId: string;
   closerId?: string;
   origin?: string;
@@ -107,6 +111,29 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
       setCustomTitle("");
       setPopoverOpen(false);
     }
+  };
+
+  // Format faturamento label
+  const formatFaturamento = (value?: string) => {
+    const labels: Record<string, string> = {
+      "ate-50k": "Até 50k",
+      "50k-100k": "50k - 100k",
+      "100k-500k": "100k - 500k",
+      "500k-1m": "500k - 1M",
+      "acima-1m": "Acima de 1M",
+    };
+    return labels[value || ""] || value;
+  };
+
+  // Format urgency label
+  const formatUrgency = (value?: string) => {
+    const labels: Record<string, { label: string; color: string }> = {
+      "imediato": { label: "Imediato", color: "text-red-500" },
+      "1-mes": { label: "1 mês", color: "text-orange-500" },
+      "2-3-meses": { label: "2-3 meses", color: "text-yellow-500" },
+      "6-meses": { label: "6+ meses", color: "text-muted-foreground" },
+    };
+    return labels[value || ""] || { label: value, color: "text-muted-foreground" };
   };
 
   return (
@@ -182,34 +209,35 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
         </DropdownMenu>
       </div>
 
-      <div className="flex items-start justify-between mb-3 pr-16">
+      {/* Header: Name, Company, Rating */}
+      <div className="flex items-start justify-between mb-2 pr-16">
         <div className="flex-1 min-w-0">
           <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
             {card.name}
           </h4>
-          <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
-            <Building2 className="w-3 h-3" />
-            <span className="text-xs truncate">{card.company}</span>
-          </div>
+          {card.company && (
+            <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
+              <Building2 className="w-3 h-3 flex-shrink-0" />
+              <span className="text-xs truncate">{card.company}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 ml-2">
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`w-3 h-3 ${
+                i < card.rating
+                  ? "text-primary fill-primary"
+                  : "text-muted-foreground/30"
+              }`}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Rating stars - moved below name */}
-      <div className="flex items-center gap-0.5 mb-2">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`w-3 h-3 ${
-              i < card.rating
-                ? "text-primary fill-primary"
-                : "text-muted-foreground/30"
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Origin Badge */}
-      <div className="mb-3">
+      {/* Origin & Urgency Badges */}
+      <div className="flex flex-wrap gap-1.5 mb-2">
         <Badge 
           variant="outline" 
           className={`text-xs text-white border-0 ${originInfo.color}`}
@@ -217,53 +245,98 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
           <Globe className="w-3 h-3 mr-1" />
           {originInfo.label}
         </Badge>
+        {card.urgency && (
+          <Badge variant="outline" className={`text-xs ${formatUrgency(card.urgency).color}`}>
+            <Clock className="w-3 h-3 mr-1" />
+            {formatUrgency(card.urgency).label}
+          </Badge>
+        )}
       </div>
 
-      {/* Phone */}
-      {card.phone && (
-        <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
-          <Phone className="w-3.5 h-3.5" />
-          <span className="text-xs">{card.phone}</span>
+      {/* Contact Info */}
+      <div className="space-y-1 mb-2">
+        {card.phone && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Phone className="w-3 h-3 flex-shrink-0" />
+            <span className="text-xs truncate">{card.phone}</span>
+          </div>
+        )}
+        {card.email && (
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Mail className="w-3 h-3 flex-shrink-0" />
+            <span className="text-xs truncate">{card.email}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Business Info: Segment & Faturamento */}
+      {(card.segment || card.faturamento) && (
+        <div className="flex flex-wrap gap-2 mb-2 text-xs text-muted-foreground">
+          {card.segment && (
+            <div className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3" />
+              <span className="capitalize">{card.segment}</span>
+            </div>
+          )}
+          {card.faturamento && (
+            <div className="flex items-center gap-1">
+              <DollarSign className="w-3 h-3" />
+              <span>{formatFaturamento(card.faturamento)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compromisso Date */}
+      {card.compromissoDate && (
+        <div className="flex items-center gap-1.5 text-primary mb-2">
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="text-xs font-medium">
+            {new Date(card.compromissoDate).toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
         </div>
       )}
 
       {/* Tags */}
       {card.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {card.tags.slice(0, 2).map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">
+        <div className="flex flex-wrap gap-1 mb-2">
+          {card.tags.slice(0, 3).map((tag) => (
+            <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
               {tag}
             </Badge>
           ))}
-          {card.tags.length > 2 && (
-            <Badge variant="secondary" className="text-xs">
-              +{card.tags.length - 2}
+          {card.tags.length > 3 && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              +{card.tags.length - 3}
             </Badge>
           )}
         </div>
       )}
 
-      {/* SDR & Time */}
+      {/* Footer: SDR & Time */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(card.createdAt), { addSuffix: true, locale: ptBR })}
-          </span>
-        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {formatDistanceToNow(new Date(card.createdAt), { addSuffix: true, locale: ptBR })}
+        </span>
         <div className="flex items-center gap-2">
           {formatPhoneForWhatsApp(card.phone) && (
             <button
               onClick={(e) => openWhatsApp(card.phone, e)}
-              className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
+              className="p-1 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
               title="Abrir WhatsApp"
             >
-              <MessageCircle className="w-3.5 h-3.5" />
+              <MessageCircle className="w-3 h-3" />
             </button>
           )}
           {card.sdr && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <User className="w-3 h-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">{card.sdr}</span>
+              <span className="text-[10px] text-muted-foreground">{card.sdr}</span>
             </div>
           )}
         </div>
@@ -313,8 +386,9 @@ export default function PipeWhatsapp() {
     return {
       id: item.id,
       name: lead?.name || "Sem nome",
-      company: lead?.company || "Sem empresa",
+      company: lead?.company || "",
       phone: lead?.phone,
+      email: lead?.email,
       rating: lead?.rating || 0,
       sdr: item.sdr?.name || lead?.sdr?.name,
       sdrId: item.sdr_id,
@@ -322,6 +396,9 @@ export default function PipeWhatsapp() {
       scheduledDate: item.scheduled_date,
       createdAt: item.created_at,
       segment: lead?.segment,
+      faturamento: lead?.faturamento,
+      urgency: lead?.urgency,
+      compromissoDate: lead?.compromisso_date,
       leadId: item.lead_id,
       closerId: lead?.closer_id,
       origin: lead?.origin,
