@@ -8,7 +8,8 @@ import {
   Users,
   Tag,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Flame
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 export type OriginFilter = "all" | "calendly" | "whatsapp" | "meta_ads" | "outro";
 export type TimeFilter = "all" | "today" | "tomorrow" | "week" | "overdue";
+export type UrgencyFilter = "all" | "imediato" | "1-mes" | "2-3-meses" | "6-meses";
 
 interface ConfirmacaoFiltersProps {
   searchQuery: string;
@@ -29,6 +31,8 @@ interface ConfirmacaoFiltersProps {
   onOriginFilterChange: (value: OriginFilter) => void;
   timeFilter: TimeFilter;
   onTimeFilterChange: (value: TimeFilter) => void;
+  urgencyFilter: UrgencyFilter;
+  onUrgencyFilterChange: (value: UrgencyFilter) => void;
   selectedStatuses: string[];
   onStatusesChange: (statuses: string[]) => void;
   statusOptions: { id: string; title: string; color: string }[];
@@ -50,6 +54,14 @@ const timeOptions: { value: TimeFilter; label: string; shortLabel: string }[] = 
   { value: "overdue", label: "Atrasadas", shortLabel: "Atrasadas" },
 ];
 
+const urgencyOptions: { value: UrgencyFilter; label: string; icon: string; color: string }[] = [
+  { value: "all", label: "Todas", icon: "🎯", color: "" },
+  { value: "imediato", label: "Imediato", icon: "🔥", color: "text-red-500" },
+  { value: "1-mes", label: "1 mês", icon: "⚡", color: "text-orange-500" },
+  { value: "2-3-meses", label: "2-3 meses", icon: "📅", color: "text-yellow-500" },
+  { value: "6-meses", label: "6+ meses", icon: "🕐", color: "text-muted-foreground" },
+];
+
 export function ConfirmacaoFilters({
   searchQuery,
   onSearchChange,
@@ -57,6 +69,8 @@ export function ConfirmacaoFilters({
   onOriginFilterChange,
   timeFilter,
   onTimeFilterChange,
+  urgencyFilter,
+  onUrgencyFilterChange,
   selectedStatuses,
   onStatusesChange,
   statusOptions,
@@ -66,6 +80,7 @@ export function ConfirmacaoFilters({
   const activeFiltersCount = 
     (originFilter !== "all" ? 1 : 0) + 
     (timeFilter !== "all" ? 1 : 0) + 
+    (urgencyFilter !== "all" ? 1 : 0) +
     (selectedStatuses.length > 0 && selectedStatuses.length < statusOptions.length ? 1 : 0);
 
   const handleStatusToggle = (statusId: string) => {
@@ -79,6 +94,7 @@ export function ConfirmacaoFilters({
   const handleClearFilters = () => {
     onOriginFilterChange("all");
     onTimeFilterChange("all");
+    onUrgencyFilterChange("all");
     onStatusesChange([]);
     onSearchChange("");
   };
@@ -185,6 +201,30 @@ export function ConfirmacaoFilters({
 
               <Separator />
 
+              {/* Urgency Filter */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Flame className="w-4 h-4" />
+                  Urgência
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {urgencyOptions.map((option) => (
+                    <Button
+                      key={option.value}
+                      variant={urgencyFilter === option.value ? "secondary" : "outline"}
+                      size="sm"
+                      className={cn("justify-start", option.color)}
+                      onClick={() => onUrgencyFilterChange(option.value)}
+                    >
+                      <span className="mr-2">{option.icon}</span>
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
               {/* Status Filter */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -245,6 +285,18 @@ export function ConfirmacaoFilters({
                 <button
                   className="ml-1 hover:bg-muted rounded-full p-0.5"
                   onClick={() => onOriginFilterChange("all")}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            )}
+            {urgencyFilter !== "all" && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+                {urgencyOptions.find(u => u.value === urgencyFilter)?.icon}{" "}
+                {urgencyOptions.find(u => u.value === urgencyFilter)?.label}
+                <button
+                  className="ml-1 hover:bg-muted rounded-full p-0.5"
+                  onClick={() => onUrgencyFilterChange("all")}
                 >
                   <X className="w-3 h-3" />
                 </button>
