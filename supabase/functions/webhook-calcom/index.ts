@@ -17,13 +17,13 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     
-    console.log("Calendly webhook received:", JSON.stringify(body));
+    console.log("Cal.com webhook received:", JSON.stringify(body));
 
-    // Calendly sends the event type in the root
-    const eventType = body.event;
+    // Cal.com sends the event type as triggerEvent or trigger
+    const eventType = body.triggerEvent || body.trigger;
     
-    // Only process invitee.created events (new meeting scheduled)
-    if (eventType !== "invitee.created") {
+    // Only process BOOKING_CREATED events (new meeting scheduled)
+    if (eventType !== "BOOKING_CREATED") {
       console.log("Ignoring event type:", eventType);
       return new Response(
         JSON.stringify({ success: true, message: "Event ignored" }),
@@ -40,35 +40,32 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Extract data from Calendly payload
-    const email = payload.email;
-    const name = payload.name;
-    const scheduledEvent = payload.scheduled_event;
-    const startTime = scheduledEvent?.start_time;
+    // Extract data from Cal.com payload
+    // Cal.com uses attendees array for guest info
+    const attendees = payload.attendees || [];
+    const firstAttendee = attendees[0] || {};
+    const responses = payload.responses || {};
     
-    // Extract phone from questions_and_answers if available
-    let phone = null;
-    const questionsAndAnswers = payload.questions_and_answers || [];
-    for (const qa of questionsAndAnswers) {
-      const question = qa.question?.toLowerCase() || "";
-      if (question.includes("telefone") || question.includes("phone") || question.includes("celular") || question.includes("whatsapp")) {
-        phone = qa.answer;
-        break;
-      }
-    }
+    // Get email and name from attendees or responses
+    const email = firstAttendee.email || responses.email;
+    const name = firstAttendee.name || responses.name || payload.title;
+    const startTime = payload.startTime;
+    
+    // Extract phone from responses if available
+    const phone = responses.phone || responses.telefone || responses.celular || responses.whatsapp || null;
 
     console.log("Extracted data:", { email, name, startTime, phone });
 
-    // Always create a new lead when someone books via Calendly
-    console.log("Creating new lead from Calendly booking");
+    // Always create a new lead when someone books via Cal.com
+    console.log("Creating new lead from Cal.com booking");
     
     const { data: newLead, error: createError } = await supabase
       .from("leads")
       .insert({
-        name: name || (email ? email.split("@")[0] : "Lead Calendly"),
+        name: name || (email ? email.split("@")[0] : "Lead Cal.com"),
         email,
         phone,
-        origin: "calendly",
+        origin: "calendly", // keeping same origin type for compatibility
         compromisso_date: startTime,
       })
       .select()
@@ -94,21 +91,21 @@ Deno.serve(async (req) => {
     // Create history entry
     await supabase.from("lead_history").insert({
       lead_id: newLead.id,
-      action: "Lead criado via Calendly",
-      description: `Lead ${name || email || "Calendly"} criado automaticamente com reunião agendada para ${startTime}`,
+      action: "Lead criado via Cal.com",
+      description: `Lead ${name || email || "Cal.com"} criado automaticamente com reunião agendada para ${startTime}`,
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Novo lead criado via Calendly",
+        message: "Novo lead criado via Cal.com",
         lead_id: newLead.id,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Calendly webhook error:", error);
+    console.error("Cal.com webhook error:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: "Erro interno", details: errorMessage }),
