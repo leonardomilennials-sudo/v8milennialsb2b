@@ -11,7 +11,7 @@ import { AddMeetingModal } from "@/components/confirmacao/AddMeetingModal";
 import { ConfirmacaoDetailModal } from "@/components/confirmacao/ConfirmacaoDetailModal";
 import { ConfirmacaoStats } from "@/components/confirmacao/ConfirmacaoStats";
 import { ConfirmacaoCard } from "@/components/confirmacao/ConfirmacaoCard";
-import { ConfirmacaoFilters, OriginFilter, TimeFilter } from "@/components/confirmacao/ConfirmacaoFilters";
+import { ConfirmacaoFilters, OriginFilter, TimeFilter, UrgencyFilter } from "@/components/confirmacao/ConfirmacaoFilters";
 import { MeetingTimeline } from "@/components/confirmacao/MeetingTimeline";
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,6 +41,7 @@ export default function PipeConfirmacao() {
   const [searchQuery, setSearchQuery] = useState("");
   const [originFilter, setOriginFilter] = useState<OriginFilter>("all");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
+  const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>("all");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -97,6 +98,8 @@ export default function PipeConfirmacao() {
           
           let matchesOrigin = originFilter === "all" || lead?.origin === originFilter;
           
+          let matchesUrgency = urgencyFilter === "all" || lead?.urgency === urgencyFilter;
+          
           let matchesTime = true;
           if (timeFilter === "today" && item.meeting_date) {
             matchesTime = isToday(new Date(item.meeting_date));
@@ -110,13 +113,13 @@ export default function PipeConfirmacao() {
 
           const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.status);
           
-          return matchesSearch && matchesOrigin && matchesTime && matchesStatus;
+          return matchesSearch && matchesOrigin && matchesUrgency && matchesTime && matchesStatus;
         })
         .map(transformToCard);
 
       return { ...col, items: columnItems };
     });
-  }, [pipeData, searchQuery, originFilter, timeFilter, selectedStatuses]);
+  }, [pipeData, searchQuery, originFilter, urgencyFilter, timeFilter, selectedStatuses]);
 
   const handleStatusChange = async (itemId: string, newStatus: string) => {
     const item = pipeData?.find(p => p.id === itemId);
@@ -214,6 +217,8 @@ export default function PipeConfirmacao() {
         onOriginFilterChange={setOriginFilter}
         timeFilter={timeFilter}
         onTimeFilterChange={setTimeFilter}
+        urgencyFilter={urgencyFilter}
+        onUrgencyFilterChange={setUrgencyFilter}
         selectedStatuses={selectedStatuses}
         onStatusesChange={setSelectedStatuses}
         statusOptions={statusColumns}
