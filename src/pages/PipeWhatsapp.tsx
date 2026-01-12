@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical } from "lucide-react";
+import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,12 +27,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipeWhatsapp, statusColumns, useUpdatePipeWhatsapp, useDeletePipeWhatsapp, PipeWhatsappStatus } from "@/hooks/usePipeWhatsapp";
 import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useDeleteLead } from "@/hooks/useLeads";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useCreateAcaoDoDia } from "@/hooks/useAcoesDoDia";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { CreateOpportunityModal } from "@/components/kanban/CreateOpportunityModal";
 import { formatDistanceToNow } from "date-fns";
@@ -74,10 +80,33 @@ interface WhatsappCardComponentProps {
   card: WhatsappCard;
   onDelete: (pipeId: string, leadId: string) => void;
   isAdmin: boolean;
+  onQuickAdd: (leadId: string, leadName: string, title: string) => void;
 }
 
-function WhatsappCardComponent({ card, onDelete, isAdmin }: WhatsappCardComponentProps) {
+function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: WhatsappCardComponentProps) {
   const originInfo = originLabels[card.origin || "outro"] || originLabels.outro;
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [customTitle, setCustomTitle] = useState("");
+
+  const quickActions = [
+    { label: "Ligar", icon: "📞" },
+    { label: "WhatsApp", icon: "💬" },
+    { label: "Confirmar interesse", icon: "✅" },
+    { label: "Agendar reunião", icon: "📅" },
+  ];
+
+  const handleQuickAdd = (title: string) => {
+    onQuickAdd(card.leadId, card.name, `${title} - ${card.name}`);
+    setPopoverOpen(false);
+  };
+
+  const handleCustomAdd = () => {
+    if (customTitle.trim()) {
+      onQuickAdd(card.leadId, card.name, customTitle);
+      setCustomTitle("");
+      setPopoverOpen(false);
+    }
+  };
 
   return (
     <motion.div
@@ -85,7 +114,52 @@ function WhatsappCardComponent({ card, onDelete, isAdmin }: WhatsappCardComponen
       className="kanban-card group cursor-pointer relative"
     >
       {/* Actions Menu */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        {/* Quick Add Button */}
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-6 w-6 text-primary hover:text-primary">
+              <Target className="h-4 w-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">
+                Ação rápida para {card.name}
+              </p>
+              
+              <div className="flex flex-wrap gap-2">
+                {quickActions.map((action) => (
+                  <Button
+                    key={action.label}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => handleQuickAdd(action.label)}
+                  >
+                    {action.icon} {action.label}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ação personalizada..."
+                  value={customTitle}
+                  onChange={(e) => setCustomTitle(e.target.value)}
+                  className="text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCustomAdd();
+                  }}
+                />
+                <Button size="sm" onClick={handleCustomAdd} disabled={!customTitle.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
             <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -199,6 +273,7 @@ export default function PipeWhatsapp() {
   const deletePipeWhatsapp = useDeletePipeWhatsapp();
   const deleteLead = useDeleteLead();
   const createPipeConfirmacao = useCreatePipeConfirmacao();
+  const createAcaoDoDia = useCreateAcaoDoDia();
 
   const isAdmin = userRole?.role === "admin";
 
@@ -472,6 +547,9 @@ export default function PipeWhatsapp() {
               card={card} 
               onDelete={handleOpenDeleteDialog}
               isAdmin={isAdmin}
+              onQuickAdd={(leadId, leadName, title) => {
+                createAcaoDoDia.mutate({ title, lead_id: leadId });
+              }}
             />
           </div>
         )}
