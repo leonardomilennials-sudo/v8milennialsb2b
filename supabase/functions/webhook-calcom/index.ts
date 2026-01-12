@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         name: name || (email ? email.split("@")[0] : "Lead Cal.com"),
         email,
         phone,
-        origin: "calendly", // keeping same origin type for compatibility
+        origin: "quiz",
         compromisso_date: startTime,
       })
       .select()
