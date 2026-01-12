@@ -14,6 +14,10 @@ import {
   Package,
   Calendar,
   MessageSquare,
+  Phone,
+  Copy,
+  Mail,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   useAcoesDoDia,
   useCreateAcaoDoDia,
@@ -91,8 +96,30 @@ export function AcoesDoDia() {
     setIsCreateOpen(false);
   };
 
+  // Get lead info from any linked item
+  const getLeadInfo = (acao: AcaoDoDia) => {
+    if (acao.lead) return acao.lead;
+    if (acao.proposta?.lead) return acao.proposta.lead;
+    if (acao.confirmacao?.lead) return acao.confirmacao.lead;
+    if (acao.follow_up?.lead) return acao.follow_up.lead;
+    return null;
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado para a área de transferência!");
+  };
+
+  const formatPhone = (phone: string) => {
+    // Clean the phone number
+    const cleaned = phone.replace(/\D/g, "");
+    // Format as WhatsApp link
+    return `https://wa.me/55${cleaned}`;
+  };
+
   const renderAcaoCard = (acao: AcaoDoDia) => {
     const isCompleted = acao.is_completed;
+    const leadInfo = getLeadInfo(acao);
 
     return (
       <motion.div
@@ -101,104 +128,146 @@ export function AcoesDoDia() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: -100 }}
         className={cn(
-          "group flex items-start gap-3 p-3 rounded-lg border transition-all",
+          "group flex flex-col gap-2 p-3 rounded-lg border transition-all",
           isCompleted
             ? "bg-muted/30 border-muted opacity-60"
             : "bg-card hover:border-primary/30"
         )}
       >
-        <div className="cursor-grab text-muted-foreground/50 hover:text-muted-foreground">
-          <GripVertical className="w-4 h-4" />
-        </div>
-
-        <button
-          onClick={() =>
-            isCompleted
-              ? uncompleteAcao.mutate(acao.id)
-              : completeAcao.mutate(acao.id)
-          }
-          className={cn(
-            "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
-            isCompleted
-              ? "bg-success border-success text-white"
-              : "border-muted-foreground/30 hover:border-success"
-          )}
-        >
-          {isCompleted && <CheckCircle2 className="w-3 h-3" />}
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <p
-            className={cn(
-              "text-sm font-medium",
-              isCompleted && "line-through text-muted-foreground"
-            )}
-          >
-            {acao.title}
-          </p>
-
-          {acao.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-              {acao.description}
-            </p>
-          )}
-
-          {/* Linked item */}
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {acao.proposta && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <Package className="w-3 h-3" />
-                {acao.proposta.lead?.name || "Proposta"}
-                {acao.proposta.sale_value && (
-                  <span className="text-success font-medium">
-                    {formatCurrency(acao.proposta.sale_value)}
-                  </span>
-                )}
-              </Badge>
-            )}
-
-            {acao.lead && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <Building2 className="w-3 h-3" />
-                {acao.lead.name}
-              </Badge>
-            )}
-
-            {acao.confirmacao && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <Calendar className="w-3 h-3" />
-                {acao.confirmacao.lead?.name || "Reunião"}
-              </Badge>
-            )}
-
-            {acao.follow_up && (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <MessageSquare className="w-3 h-3" />
-                {acao.follow_up.title}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {isCompleted && (
+        {/* WhatsApp and contact info at the top */}
+        {leadInfo?.phone && !isCompleted && (
+          <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Phone className="w-4 h-4 text-green-500 shrink-0" />
+              <span className="text-sm font-medium truncate">{leadInfo.phone}</span>
+            </div>
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7"
-              onClick={() => uncompleteAcao.mutate(acao.id)}
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={() => copyToClipboard(leadInfo.phone!)}
             >
-              <Undo2 className="w-3.5 h-3.5" />
+              <Copy className="w-3.5 h-3.5" />
             </Button>
-          )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={() => deleteAcao.mutate(acao.id)}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+              onClick={() => window.open(formatPhone(leadInfo.phone!), "_blank")}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
+
+        <div className="flex items-start gap-3">
+          <div className="cursor-grab text-muted-foreground/50 hover:text-muted-foreground">
+            <GripVertical className="w-4 h-4" />
+          </div>
+
+          <button
+            onClick={() =>
+              isCompleted
+                ? uncompleteAcao.mutate(acao.id)
+                : completeAcao.mutate(acao.id)
+            }
+            className={cn(
+              "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+              isCompleted
+                ? "bg-success border-success text-white"
+                : "border-muted-foreground/30 hover:border-success"
+            )}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+            {isCompleted && <CheckCircle2 className="w-3 h-3" />}
+          </button>
+
+          <div className="flex-1 min-w-0">
+            <p
+              className={cn(
+                "text-sm font-medium",
+                isCompleted && "line-through text-muted-foreground"
+              )}
+            >
+              {acao.title}
+            </p>
+
+            {acao.description && (
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                {acao.description}
+              </p>
+            )}
+
+            {/* Lead info */}
+            {leadInfo && (
+              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-muted-foreground">
+                {leadInfo.name && (
+                  <span className="font-medium text-foreground">{leadInfo.name}</span>
+                )}
+                {leadInfo.company && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    {leadInfo.company}
+                  </span>
+                )}
+                {leadInfo.email && (
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3 h-3" />
+                    <span className="truncate max-w-[120px]">{leadInfo.email}</span>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Linked item badges */}
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {acao.proposta && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Package className="w-3 h-3" />
+                  Proposta
+                  {acao.proposta.sale_value && (
+                    <span className="text-success font-medium">
+                      {formatCurrency(acao.proposta.sale_value)}
+                    </span>
+                  )}
+                </Badge>
+              )}
+
+              {acao.confirmacao && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Reunião
+                </Badge>
+              )}
+
+              {acao.follow_up && (
+                <Badge variant="secondary" className="text-xs gap-1">
+                  <MessageSquare className="w-3 h-3" />
+                  {acao.follow_up.title}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {isCompleted && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => uncompleteAcao.mutate(acao.id)}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-destructive hover:text-destructive"
+              onClick={() => deleteAcao.mutate(acao.id)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </motion.div>
     );

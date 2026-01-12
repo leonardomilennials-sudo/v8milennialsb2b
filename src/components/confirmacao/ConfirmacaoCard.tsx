@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { format, isToday, isTomorrow, isPast, differenceInHours, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { QuickAddDailyAction } from "./QuickAddDailyAction";
 
 interface ConfirmacaoCardProps {
   card: {
@@ -34,6 +35,7 @@ interface ConfirmacaoCardProps {
     faturamento?: number;
     segment?: string;
     status?: string;
+    confirmacaoId?: string;
   };
   onClick?: () => void;
   variant?: "default" | "compact" | "detailed";
@@ -165,18 +167,26 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
             <span className="text-xs truncate">{card.company || "Sem empresa"}</span>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 ml-2">
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              className={cn(
-                "w-3 h-3",
-                i < card.rating
-                  ? "text-primary fill-primary"
-                  : "text-muted-foreground/30"
-              )}
+        <div className="flex items-center gap-1 ml-2">
+          {card.confirmacaoId && (
+            <QuickAddDailyAction 
+              confirmacaoId={card.confirmacaoId} 
+              leadName={card.name} 
             />
-          ))}
+          )}
+          <div className="flex items-center gap-0.5">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={cn(
+                  "w-3 h-3",
+                  i < card.rating
+                    ? "text-primary fill-primary"
+                    : "text-muted-foreground/30"
+                )}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

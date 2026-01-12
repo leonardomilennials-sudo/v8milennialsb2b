@@ -19,12 +19,12 @@ export interface AcaoDoDia {
   // Joined data
   proposta?: {
     id: string;
-    lead?: { name: string; company: string | null };
+    lead?: { name: string; company: string | null; phone: string | null; email: string | null };
     sale_value: number | null;
   } | null;
-  lead?: { id: string; name: string; company: string | null } | null;
-  confirmacao?: { id: string; lead?: { name: string } } | null;
-  follow_up?: { id: string; title: string } | null;
+  lead?: { id: string; name: string; company: string | null; phone: string | null; email: string | null } | null;
+  confirmacao?: { id: string; lead?: { name: string; phone: string | null; email: string | null; company: string | null } } | null;
+  follow_up?: { id: string; title: string; lead?: { name: string; phone: string | null; email: string | null; company: string | null } } | null;
 }
 
 export interface CreateAcaoDoDiaInput {
@@ -51,14 +51,14 @@ export function useAcoesDoDia() {
           proposta:pipe_propostas(
             id,
             sale_value,
-            lead:leads(name, company)
+            lead:leads(name, company, phone, email)
           ),
-          lead:leads(id, name, company),
+          lead:leads(id, name, company, phone, email),
           confirmacao:pipe_confirmacao(
             id,
-            lead:leads(name)
+            lead:leads(name, phone, email, company)
           ),
-          follow_up:follow_ups(id, title)
+          follow_up:follow_ups(id, title, lead:leads(name, phone, email, company))
         `)
         .eq("user_id", user.id)
         .order("is_completed", { ascending: true })
