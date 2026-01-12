@@ -98,7 +98,7 @@ function ProposalCardComponent({
   const handleWhatsAppClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (formattedPhone) {
-      window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}`, '_blank');
+      window.open(`https://wa.me/${formattedPhone}`, '_blank', 'noopener,noreferrer');
     }
   };
 
