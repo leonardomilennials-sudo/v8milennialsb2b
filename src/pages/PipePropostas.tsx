@@ -24,6 +24,9 @@ import { ProposalDetailModal } from "@/components/proposals/ProposalDetailModal"
 import { FunnelChart } from "@/components/dashboard/FunnelChart";
 import { CalorSlider, CalorBadge } from "@/components/proposals/CalorSlider";
 import { QuickAddDailyAction } from "@/components/proposals/QuickAddDailyAction";
+import { CommitmentDateModal } from "@/components/proposals/CommitmentDateModal";
+import { DaysUntilMeeting } from "@/components/proposals/DaysUntilMeeting";
+import { CalorAnalyticsChart } from "@/components/proposals/CalorAnalyticsChart";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -63,17 +66,10 @@ function ProposalCardComponent({
     }).format(value);
   };
 
-  const isCommitmentSoon = proposal.commitmentDate && 
-    proposal.commitmentDate.getTime() - Date.now() < 24 * 60 * 60 * 1000 &&
-    proposal.commitmentDate.getTime() > Date.now();
-
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
-      className={cn(
-        "kanban-card group cursor-pointer",
-        isCommitmentSoon && "ring-2 ring-chart-5/50"
-      )}
+      className="kanban-card group cursor-pointer"
     >
       {/* Quick Actions Row */}
       <div className="flex items-center justify-between mb-2">
@@ -160,17 +156,18 @@ function ProposalCardComponent({
         </div>
       )}
 
-      {/* Last Contact & Closer */}
+      {/* Meeting Date & Days Until */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
-        {proposal.lastContact && (
-          <div className={cn(
-            "flex items-center gap-1.5",
-            isCommitmentSoon && "text-chart-5"
-          )}>
-            <Calendar className="w-3 h-3" />
-            <span className="text-xs">{proposal.lastContact}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {proposal.commitmentDate ? (
+            <DaysUntilMeeting commitmentDate={proposal.commitmentDate} compact />
+          ) : proposal.lastContact ? (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="w-3 h-3" />
+              <span className="text-xs">{proposal.lastContact}</span>
+            </div>
+          ) : null}
+        </div>
         {proposal.closer && (
           <div className="flex items-center gap-1.5">
             <User className="w-3 h-3 text-muted-foreground" />
@@ -192,6 +189,15 @@ export default function PipePropostas() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "analytics">("kanban");
+  
+  // State for commitment date modal
+  const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    itemId: string;
+    leadId: string;
+    closerId: string | null;
+    leadName: string;
+  } | null>(null);
 
   const { data: pipeData, isLoading, refetch } = usePipePropostas();
   const { data: teamMembers } = useTeamMembers();
@@ -344,6 +350,28 @@ export default function PipePropostas() {
     });
   }, [pipeData]);
 
+  // Calor data for analytics
+  const calorData = useMemo(() => {
+    if (!pipeData) return [];
+
+    const activeStatuses: PipePropostasStatus[] = ["marcar_compromisso", "compromisso_marcado", "esfriou", "futuro"];
+    const activeProposals = pipeData.filter(item => activeStatuses.includes(item.status));
+
+    // Group by calor level
+    const grouped: { [key: number]: { calor: number; value: number; count: number } } = {};
+    
+    activeProposals.forEach(item => {
+      const calor = item.calor ?? 5;
+      if (!grouped[calor]) {
+        grouped[calor] = { calor, value: 0, count: 0 };
+      }
+      grouped[calor].value += item.sale_value || 0;
+      grouped[calor].count += 1;
+    });
+
+    return Object.values(grouped);
+  }, [pipeData]);
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -357,13 +385,41 @@ export default function PipePropostas() {
     const item = pipeData?.find(p => p.id === itemId);
     if (!item) return;
 
+    // If moving to "compromisso_marcado", require date selection
+    if (newStatus === "compromisso_marcado") {
+      setPendingStatusChange({
+        itemId,
+        leadId: item.lead_id,
+        closerId: item.closer_id,
+        leadName: item.lead?.name || "Lead",
+      });
+      setIsDateModalOpen(true);
+      return;
+    }
+
+    await executeStatusChange(itemId, newStatus, item.lead_id, item.closer_id);
+  };
+
+  // Execute status change (called directly or after date modal)
+  const executeStatusChange = async (
+    itemId: string, 
+    newStatus: string, 
+    leadId: string, 
+    closerId: string | null,
+    commitmentDate?: Date
+  ) => {
     try {
       const updates: any = { 
         id: itemId, 
         status: newStatus as PipePropostasStatus,
-        leadId: item.lead_id,
-        closerId: item.closer_id,
+        leadId,
+        closerId,
       };
+
+      // If commitment date is provided, set it
+      if (commitmentDate) {
+        updates.commitment_date = commitmentDate.toISOString();
+      }
 
       // If moved to "vendido" or "perdido", set closed_at date
       if (newStatus === "vendido" || newStatus === "perdido") {
@@ -376,6 +432,8 @@ export default function PipePropostas() {
         toast.success("🎉 Venda fechada com sucesso!");
       } else if (newStatus === "perdido") {
         toast("Proposta marcada como perdida");
+      } else if (newStatus === "compromisso_marcado") {
+        toast.success("📅 Compromisso agendado!");
       } else {
         toast.success("Status atualizado!");
       }
@@ -383,6 +441,29 @@ export default function PipePropostas() {
       toast.error("Erro ao atualizar status");
       console.error(error);
     }
+  };
+
+  // Handle commitment date confirmation
+  const handleCommitmentDateConfirm = async (date: Date) => {
+    if (!pendingStatusChange) return;
+
+    await executeStatusChange(
+      pendingStatusChange.itemId,
+      "compromisso_marcado",
+      pendingStatusChange.leadId,
+      pendingStatusChange.closerId,
+      date
+    );
+
+    setIsDateModalOpen(false);
+    setPendingStatusChange(null);
+  };
+
+  // Handle commitment date cancel
+  const handleCommitmentDateCancel = () => {
+    setIsDateModalOpen(false);
+    setPendingStatusChange(null);
+    toast("Operação cancelada");
   };
 
   // Handle calor change
@@ -672,6 +753,15 @@ export default function PipePropostas() {
               />
             </div>
 
+            {/* Calor Analysis */}
+            <div className="glass-card p-6">
+              <h3 className="font-semibold mb-6 flex items-center gap-2">
+                <Flame className="w-5 h-5 text-destructive" />
+                Propostas por Calor
+              </h3>
+              <CalorAnalyticsChart data={calorData} />
+            </div>
+
             {/* By Closer */}
             <div className="glass-card p-6">
               <h3 className="font-semibold mb-6 flex items-center gap-2">
@@ -717,7 +807,7 @@ export default function PipePropostas() {
             </div>
 
             {/* Recent Sales */}
-            <div className="glass-card p-6 md:col-span-2">
+            <div className="glass-card p-6">
               <h3 className="font-semibold mb-6 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-success" />
                 Vendas Recentes
@@ -783,6 +873,15 @@ export default function PipePropostas() {
           }}
         />
       )}
+
+      {/* Commitment Date Modal */}
+      <CommitmentDateModal
+        open={isDateModalOpen}
+        onOpenChange={setIsDateModalOpen}
+        onConfirm={handleCommitmentDateConfirm}
+        onCancel={handleCommitmentDateCancel}
+        leadName={pendingStatusChange?.leadName || "Lead"}
+      />
     </div>
   );
 }
