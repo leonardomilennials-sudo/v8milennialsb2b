@@ -29,6 +29,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FollowUpCard } from "@/components/followups/FollowUpCard";
 import { AutomationSettings } from "@/components/followups/AutomationSettings";
+import { AcoesDoDia } from "@/components/followups/AcoesDoDia";
 import { useFollowUps, useCompleteFollowUp, type FollowUp } from "@/hooks/useFollowUps";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -134,6 +135,16 @@ export default function PipeFollowUps() {
           {userRole?.role === "admin" && <AutomationSettings />}
         </div>
       </div>
+
+      {/* Main Layout: Daily Actions + Follow Ups */}
+      <div className="grid lg:grid-cols-[320px_1fr] gap-6">
+        {/* Daily Actions Sidebar */}
+        <div className="order-2 lg:order-1">
+          <AcoesDoDia />
+        </div>
+
+        {/* Follow Ups Main Content */}
+        <div className="order-1 lg:order-2 space-y-6">
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -309,6 +320,8 @@ export default function PipeFollowUps() {
             ))}
           </AnimatePresence>
         )}
+        </div>
+        </div>
       </div>
     </div>
   );
