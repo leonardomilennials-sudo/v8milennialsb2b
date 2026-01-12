@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Star, Building, Phone, Mail, User, Tag } from "lucide-react";
 import {
   Dialog,
@@ -147,8 +147,8 @@ export function LeadModal({
     }
   };
 
-  // Reset form when lead changes
-  useState(() => {
+  // Reset form when lead changes or modal opens
+  useEffect(() => {
     if (open) {
       setFormData({
         name: lead?.name || "",
@@ -165,7 +165,7 @@ export function LeadModal({
         closer_id: lead?.closer_id || defaultCloserId || null,
       });
     }
-  });
+  }, [open, lead, defaultSdrId, defaultCloserId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
