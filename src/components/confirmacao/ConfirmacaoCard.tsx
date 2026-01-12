@@ -36,12 +36,20 @@ interface ConfirmacaoCardProps {
     leadId: string;
     faturamento?: number;
     segment?: string;
+    urgency?: string;
     status?: string;
     confirmacaoId?: string;
   };
   onClick?: () => void;
   variant?: "default" | "compact" | "detailed";
 }
+
+const urgencyConfig: Record<string, { label: string; color: string }> = {
+  "imediato": { label: "🔥 Imediato", color: "bg-red-500/10 text-red-500 border-red-500/30" },
+  "1-mes": { label: "⚡ 1 mês", color: "bg-orange-500/10 text-orange-500 border-orange-500/30" },
+  "2-3-meses": { label: "📅 2-3 meses", color: "bg-yellow-500/10 text-yellow-500 border-yellow-500/30" },
+  "6-meses": { label: "🕐 6+ meses", color: "bg-muted text-muted-foreground border-border" },
+};
 
 const originConfig = {
   calendly: { label: "Calendly", color: "bg-purple-500/10 text-purple-500 border-purple-500/30", icon: "📅" },
@@ -222,6 +230,11 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
           <span className="mr-1">{origin.icon}</span>
           {origin.label}
         </Badge>
+        {card.urgency && urgencyConfig[card.urgency] && (
+          <Badge variant="outline" className={cn("text-xs", urgencyConfig[card.urgency].color)}>
+            {urgencyConfig[card.urgency].label}
+          </Badge>
+        )}
         {card.segment && (
           <Badge variant="secondary" className="text-xs">
             {card.segment}

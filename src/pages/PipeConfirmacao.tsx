@@ -32,6 +32,7 @@ interface ConfirmacaoCardData extends DraggableItem {
   leadId: string;
   faturamento?: number;
   segment?: string;
+  urgency?: string;
   status?: string;
   confirmacaoId?: string;
 }
@@ -72,6 +73,7 @@ export default function PipeConfirmacao() {
       leadId: item.lead_id,
       faturamento: lead?.faturamento,
       segment: lead?.segment,
+      urgency: lead?.urgency,
       status: item.status,
       confirmacaoId: item.id,
     };
