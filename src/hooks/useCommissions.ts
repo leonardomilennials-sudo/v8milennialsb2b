@@ -150,13 +150,19 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
 
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+
       const { data: sales, error: salesError } = await supabase
         .from("pipe_propostas")
-        .select("sale_value, product_type")
+        .select("sale_value, product_type, closed_at, updated_at")
         .eq("closer_id", teamMemberId)
         .eq("status", "vendido")
-        .gte("closed_at", startDate.toISOString())
-        .lte("closed_at", endDate.toISOString());
+        // Nem sempre o closed_at está preenchido. Quando estiver null,
+        // usamos updated_at (momento que normalmente foi marcado como vendido).
+        .or(
+          `and(closed_at.gte.${startIso},closed_at.lte.${endIso}),and(updated_at.gte.${startIso},updated_at.lte.${endIso})`
+        );
 
       if (salesError) throw salesError;
 
@@ -245,7 +251,15 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
 
         if (vendasTarget > 0) {
           goalTarget = vendasTarget;
-          goalCurrent = salesCount;
+
+          // Heurística: se a meta de "vendas" for muito alta, ela normalmente
+          // está sendo usada como meta de faturamento (R$) e não quantidade.
+          // Ex: "10k em vendas".
+          if (vendasTarget >= 500) {
+            goalCurrent = totalMRR + totalProjeto;
+          } else {
+            goalCurrent = salesCount;
+          }
         } else if (clientesTarget > 0) {
           goalTarget = clientesTarget;
           goalCurrent = salesCount;
