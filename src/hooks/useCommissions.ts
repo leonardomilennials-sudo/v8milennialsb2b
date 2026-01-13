@@ -180,9 +180,9 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
         }
       });
 
-      // Calculate commissions
-      const commissionMRRPercent = Number(member.commission_mrr_percent) || 1;
-      const commissionProjetoPercent = Number(member.commission_projeto_percent) || 0.5;
+      // Calculate commissions - allow zero values
+      const commissionMRRPercent = member.commission_mrr_percent != null ? Number(member.commission_mrr_percent) : 1;
+      const commissionProjetoPercent = member.commission_projeto_percent != null ? Number(member.commission_projeto_percent) : 0.5;
       
       const commissionMRR = totalMRR * (commissionMRRPercent / 100);
       const commissionProjeto = totalProjeto * (commissionProjetoPercent / 100);
