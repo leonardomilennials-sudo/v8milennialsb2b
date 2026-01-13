@@ -39,14 +39,14 @@ function useSDRConfirmations(sdrId: string | undefined) {
       
       if (confError) throw confError;
       
-      // Buscar meta do SDR
+      // Buscar meta do SDR (tipo "reunioes" conforme cadastrado em Gestão de Metas)
       const { data: goal } = await supabase
         .from("goals")
         .select("target_value")
         .eq("team_member_id", sdrId)
         .eq("month", month)
         .eq("year", year)
-        .eq("type", "meetings")
+        .eq("type", "reunioes")
         .maybeSingle();
       
       return {
@@ -83,14 +83,14 @@ function useCloserSales(closerId: string | undefined) {
       
       if (salesError) throw salesError;
       
-      // Buscar meta do Closer
+      // Buscar meta do Closer (tipo "vendas" conforme cadastrado em Gestão de Metas)
       const { data: goal } = await supabase
         .from("goals")
         .select("target_value")
         .eq("team_member_id", closerId)
         .eq("month", month)
         .eq("year", year)
-        .eq("type", "clients")
+        .eq("type", "vendas")
         .maybeSingle();
       
       return {
@@ -205,7 +205,8 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   
   // Widget para Closer
   if (memberRole === "closer" && commissionSummary && closerSales) {
-    const percentage = commissionSummary.goalProgress;
+    // Usar porcentagem baseada nas vendas vs meta (closerSales), não commissionSummary.goalProgress
+    const percentage = closerSales.goal > 0 ? (closerSales.sales / closerSales.goal) * 100 : 0;
     const isOnTrack = percentage >= 70;
     
     return (
