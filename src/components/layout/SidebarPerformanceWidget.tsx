@@ -4,6 +4,7 @@ import { useCurrentTeamMember } from "@/hooks/useTeamMembers";
 import { useCommissionSummary } from "@/hooks/useCommissions";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { OraculoComercial } from "./OraculoComercial";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -77,7 +78,7 @@ function useSDRConfirmations(sdrId: string | undefined) {
   });
 }
 
-// Hook para buscar vendas do Closer no mês atual
+// Hook para buscar vendas do Closer no mês atual - SEMPRE em valor (R$)
 function useCloserSales(closerId: string | undefined) {
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -86,7 +87,7 @@ function useCloserSales(closerId: string | undefined) {
   return useQuery({
     queryKey: ["closer_sales_count", closerId, month, year],
     queryFn: async () => {
-      if (!closerId) return { sales: 0, goal: 0 };
+      if (!closerId) return { salesValue: 0, salesCount: 0, goal: 0, goalName: "" };
       
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -100,7 +101,6 @@ function useCloserSales(closerId: string | undefined) {
         .select("id, sale_value")
         .eq("closer_id", closerId)
         .eq("status", "vendido")
-        // closed_at às vezes vem null, então usamos updated_at como fallback
         .or(
           `and(closed_at.gte.${startIso},closed_at.lte.${endIso}),and(updated_at.gte.${startIso},updated_at.lte.${endIso})`
         );
@@ -139,16 +139,13 @@ function useCloserSales(closerId: string | undefined) {
             .maybeSingle();
 
       const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
-      const goal = Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10;
+      const goal = Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10000;
       const goalName = individualGoal?.name ?? teamGoal?.name ?? "Meta de vendas";
 
-      // Heurística: metas altas de "vendas" normalmente são meta de faturamento (R$)
-      const mode: "count" | "currency" = goal >= 500 ? "currency" : "count";
-
       return {
-        current: mode === "currency" ? salesValue : salesCount,
+        salesValue,
+        salesCount,
         goal,
-        mode,
         goalName,
       };
     },
@@ -209,7 +206,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
     const isOnTrack = percentage >= 50;
     
     return (
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border space-y-2">
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -256,26 +253,25 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
             </>
           )}
         </motion.div>
+
+        {/* Oráculo Comercial para SDR */}
+        <OraculoComercial
+          role="sdr"
+          metrics={{
+            confirmados: sdrData.confirmed,
+            metaReuniao: sdrData.goal,
+            percentualMeta: percentage,
+          }}
+          collapsed={collapsed}
+        />
       </div>
     );
   }
   
-  // Widget para Closer
+  // Widget para Closer - SEMPRE em valor (R$)
   if (memberRole === "closer" && commissionSummary && closerSales) {
-    const percentage = closerSales.goal > 0 ? (closerSales.current / closerSales.goal) * 100 : 0;
+    const percentage = closerSales.goal > 0 ? (closerSales.salesValue / closerSales.goal) * 100 : 0;
     const isOnTrack = percentage >= 70;
-
-    const currentLabel =
-      closerSales.mode === "currency"
-        ? formatCurrency(closerSales.current)
-        : String(closerSales.current);
-
-    const goalLabel =
-      closerSales.mode === "currency"
-        ? formatCurrency(closerSales.goal)
-        : String(closerSales.goal);
-
-    const title = closerSales.mode === "currency" ? "Faturamento" : "Vendas";
 
     return (
       <div className="p-3 border-t border-sidebar-border space-y-2">
@@ -314,7 +310,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
           )}
         </motion.div>
 
-        {/* Meta */}
+        {/* Meta - sempre em R$ */}
         {!collapsed && (
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
@@ -328,13 +324,13 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
           >
             <div className="flex items-center gap-2 mb-1">
               <Target className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-              <span className="text-xs font-medium text-sidebar-foreground/70">{title}</span>
+              <span className="text-xs font-medium text-sidebar-foreground/70">Faturamento</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className={`text-lg font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
-                {currentLabel}
+                {formatCurrency(closerSales.salesValue)}
               </span>
-              <span className="text-sm text-sidebar-foreground/50">/ {goalLabel}</span>
+              <span className="text-sm text-sidebar-foreground/50">/ {formatCurrency(closerSales.goal)}</span>
             </div>
             {/* Progress bar */}
             <div className="mt-2 h-1.5 bg-sidebar-border rounded-full overflow-hidden">
@@ -351,6 +347,18 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
             </p>
           </motion.div>
         )}
+
+        {/* Oráculo Comercial para Closer */}
+        <OraculoComercial
+          role="closer"
+          metrics={{
+            faturamento: closerSales.salesValue,
+            metaVendas: closerSales.goal,
+            numeroVendas: closerSales.salesCount,
+            percentualMetaCloser: percentage,
+          }}
+          collapsed={collapsed}
+        />
       </div>
     );
   }
