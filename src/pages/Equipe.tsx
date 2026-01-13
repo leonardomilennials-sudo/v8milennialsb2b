@@ -115,8 +115,10 @@ export default function Equipe() {
         role: member.role as TeamRole,
         ote_base: Number(member.ote_base) || 0,
         ote_bonus: Number(member.ote_bonus) || 0,
-        commission_mrr_percent: Number(member.commission_mrr_percent) || 1.0,
-        commission_projeto_percent: Number(member.commission_projeto_percent) || 0.5,
+        commission_mrr_percent:
+          member.commission_mrr_percent != null ? Number(member.commission_mrr_percent) : 1.0,
+        commission_projeto_percent:
+          member.commission_projeto_percent != null ? Number(member.commission_projeto_percent) : 0.5,
         is_active: member.is_active,
         user_id: member.user_id || null,
       });
