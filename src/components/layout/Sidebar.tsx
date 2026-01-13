@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { AlertsDropdown } from "@/components/notifications/AlertsDropdown";
+import { SidebarPerformanceWidget } from "./SidebarPerformanceWidget";
 
 interface NavItem {
   label: string;
@@ -168,6 +169,9 @@ export function Sidebar() {
           </>
         )}
       </nav>
+
+      {/* Performance Widget */}
+      <SidebarPerformanceWidget collapsed={collapsed} />
 
       {/* Bottom Navigation */}
       <div className="p-3 border-t border-sidebar-border space-y-1">
