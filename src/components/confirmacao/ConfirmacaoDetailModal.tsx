@@ -41,7 +41,8 @@ import {
   FileText,
   Loader2,
   Plus,
-  Trash2
+  Trash2,
+  Pencil
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -49,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { useUpdatePipeConfirmacao, useDeletePipeConfirmacao, PipeConfirmacaoStatus, statusColumns } from "@/hooks/usePipeConfirmacao";
 import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
 import { useDeleteLead } from "@/hooks/useLeads";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { toast } from "sonner";
 
 interface ConfirmacaoDetailModalProps {
@@ -92,6 +94,8 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const [editedStatus, setEditedStatus] = useState<PipeConfirmacaoStatus>("reuniao_marcada");
   const [editedDate, setEditedDate] = useState<Date | undefined>();
   const [editedTime, setEditedTime] = useState("10:00");
+  const [editedSdrId, setEditedSdrId] = useState<string | null>(null);
+  const [editedCloserId, setEditedCloserId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
@@ -103,6 +107,10 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const deleteLead = useDeleteLead();
   const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(item?.lead_id);
   const createLeadHistory = useCreateLeadHistory();
+  const { data: teamMembers } = useTeamMembers();
+
+  const sdrs = teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
+  const closers = teamMembers?.filter(m => m.role === "closer" && m.is_active) || [];
 
   // Sync state with item when it changes
   useEffect(() => {
@@ -111,6 +119,8 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       setEditedStatus(item.status || "reuniao_marcada");
       setEditedDate(item.meeting_date ? new Date(item.meeting_date) : undefined);
       setEditedTime(item.meeting_date ? format(new Date(item.meeting_date), "HH:mm") : "10:00");
+      setEditedSdrId(item.sdr_id || null);
+      setEditedCloserId(item.closer_id || null);
       setIsEditing(false);
       setNewNote("");
       setIsAddingNote(false);
@@ -132,8 +142,10 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
         id: item.id,
         notes: editedNotes,
         status: editedStatus,
+        sdr_id: editedSdrId,
+        closer_id: editedCloserId,
         leadId: item.lead_id,
-        assignedTo: item.sdr_id || item.closer_id,
+        assignedTo: editedSdrId || editedCloserId || item.sdr_id || item.closer_id,
       };
 
       if (editedDate) {
@@ -158,6 +170,25 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
           lead_id: item.lead_id,
           action: "Status alterado",
           description: `Status alterado para "${newStatusLabel}"`,
+        });
+      }
+
+      // Add history entry for SDR/Closer changes
+      if (editedSdrId !== item.sdr_id) {
+        const sdrName = sdrs.find(s => s.id === editedSdrId)?.name || "Nenhum";
+        await createLeadHistory.mutateAsync({
+          lead_id: item.lead_id,
+          action: "SDR alterado",
+          description: `SDR alterado para "${sdrName}"`,
+        });
+      }
+
+      if (editedCloserId !== item.closer_id) {
+        const closerName = closers.find(c => c.id === editedCloserId)?.name || "Nenhum";
+        await createLeadHistory.mutateAsync({
+          lead_id: item.lead_id,
+          action: "Closer alterado",
+          description: `Closer alterado para "${closerName}"`,
         });
       }
 
@@ -401,10 +432,16 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    Responsáveis
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Users className="w-4 h-4 text-primary" />
+                      Responsáveis
+                    </h3>
+                    <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+                      <Pencil className="w-4 h-4 mr-1" />
+                      Editar
+                    </Button>
+                  </div>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <div className="w-8 h-8 rounded-full bg-chart-2/20 flex items-center justify-center">
@@ -471,6 +508,38 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                             <Calendar mode="single" selected={editedDate} onSelect={setEditedDate} locale={ptBR} />
                           </PopoverContent>
                         </Popover>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>SDR Responsável</Label>
+                        <Select value={editedSdrId || "none"} onValueChange={(v) => setEditedSdrId(v === "none" ? null : v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar SDR" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {sdrs.map((sdr) => (
+                              <SelectItem key={sdr.id} value={sdr.id}>{sdr.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Closer Responsável</Label>
+                        <Select value={editedCloserId || "none"} onValueChange={(v) => setEditedCloserId(v === "none" ? null : v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar Closer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {closers.map((closer) => (
+                              <SelectItem key={closer.id} value={closer.id}>{closer.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
