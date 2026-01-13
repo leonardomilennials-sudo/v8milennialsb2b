@@ -42,11 +42,13 @@ function useSDRConfirmations(sdrId: string | undefined) {
       // Buscar meta do SDR (tipo "reunioes" conforme cadastrado em Gestão de Metas)
       const { data: goal } = await supabase
         .from("goals")
-        .select("target_value")
+        .select("target_value, created_at")
         .eq("team_member_id", sdrId)
         .eq("month", month)
         .eq("year", year)
         .eq("type", "reunioes")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       return {
@@ -86,11 +88,13 @@ function useCloserSales(closerId: string | undefined) {
       // Buscar meta do Closer (tipo "vendas" conforme cadastrado em Gestão de Metas)
       const { data: goal } = await supabase
         .from("goals")
-        .select("target_value")
+        .select("target_value, created_at")
         .eq("team_member_id", closerId)
         .eq("month", month)
         .eq("year", year)
         .eq("type", "vendas")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
       
       return {
