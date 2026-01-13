@@ -16,8 +16,8 @@ import PipeFollowUps from "./pages/PipeFollowUps";
 import Ranking from "./pages/Ranking";
 import Metas from "./pages/Metas";
 import GestaoMetas from "./pages/GestaoMetas";
+import Performance from "./pages/Performance";
 import Equipe from "./pages/Equipe";
-import Premiacoes from "./pages/Premiacoes";
 import Comissoes from "./pages/Comissoes";
 import Leads from "./pages/Leads";
 import Configuracoes from "./pages/Configuracoes";
@@ -76,34 +76,30 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/ranking"
+        path="/performance"
         element={
           <ProtectedRoute>
             <LayoutWrapper>
-              <Ranking />
+              <Performance />
             </LayoutWrapper>
           </ProtectedRoute>
         }
+      />
+      <Route
+        path="/ranking"
+        element={<Navigate to="/performance" replace />}
       />
       <Route
         path="/metas"
-        element={
-          <ProtectedRoute>
-            <LayoutWrapper>
-              <Metas />
-            </LayoutWrapper>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/performance" replace />}
+      />
+      <Route
+        path="/premiacoes"
+        element={<Navigate to="/performance" replace />}
       />
       <Route
         path="/gestao-metas"
-        element={
-          <ProtectedRoute>
-            <LayoutWrapper>
-              <GestaoMetas />
-            </LayoutWrapper>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/performance" replace />}
       />
       <Route
         path="/pipe-whatsapp"
@@ -137,13 +133,7 @@ function AppRoutes() {
       />
       <Route
         path="/premiacoes"
-        element={
-          <ProtectedRoute>
-            <LayoutWrapper>
-              <Premiacoes />
-            </LayoutWrapper>
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/performance" replace />}
       />
       <Route
         path="/comissoes"

@@ -39,15 +39,12 @@ const navItems: NavItem[] = [
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
   { label: "Funil Qualificação", icon: MessageSquare, path: "/pipe-whatsapp" },
   { label: "Leads", icon: Users, path: "/leads" },
-  { label: "Ranking", icon: Trophy, path: "/ranking" },
-  { label: "Metas", icon: Target, path: "/metas" },
-  { label: "Premiações", icon: Gift, path: "/premiacoes" },
+  { label: "Performance", icon: Trophy, path: "/performance" },
   { label: "Comissões", icon: DollarSign, path: "/comissoes" },
 ];
 
 const adminNavItems: NavItem[] = [
   { label: "Equipe", icon: UserCheck, path: "/equipe" },
-  { label: "Gestão de Metas", icon: Target, path: "/gestao-metas" },
 ];
 
 const bottomNavItems: NavItem[] = [
