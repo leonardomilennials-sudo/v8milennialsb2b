@@ -168,6 +168,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
   
+  // Agora usado tanto para SDR quanto para Closer
   const { data: commissionSummary, isLoading: commissionLoading } = useCommissionSummary(
     currentMember?.id || "",
     month,
@@ -202,58 +203,84 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   }
   
   // Widget para SDR
-  if (memberRole === "sdr" && sdrData) {
+  if (memberRole === "sdr" && sdrData && commissionSummary) {
     const percentage = sdrData.goal > 0 ? (sdrData.confirmed / sdrData.goal) * 100 : 0;
     const isOnTrack = percentage >= 50;
     
     return (
       <div className="p-3 border-t border-sidebar-border space-y-2">
+        {/* Ganhos do mês para SDR */}
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className={`rounded-lg p-3 bg-gradient-to-br ${
-            isOnTrack 
-              ? "from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30" 
-              : "from-amber-500/20 to-amber-600/10 border border-amber-500/30"
-          }`}
+          className="rounded-lg p-3 bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30"
         >
           {collapsed ? (
             <div className="flex flex-col items-center gap-1">
-              <CheckCircle className={`w-5 h-5 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-              <span className={`text-sm font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
-                {sdrData.confirmed}
+              <DollarSign className="w-5 h-5 text-primary" />
+              <span className="text-xs font-bold text-primary">
+                {formatCurrency(commissionSummary.totalEarnings).replace("R$", "")}
               </span>
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-                <span className="text-xs font-medium text-sidebar-foreground/70">Sua meta de comparecidas</span>
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-sidebar-foreground/70">Ganhos do Mês</span>
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className={`text-2xl font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
-                  {sdrData.confirmed}
-                </span>
-                <span className="text-sm text-sidebar-foreground/50">/ {sdrData.goal}</span>
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className="text-xl font-bold text-primary"
+              >
+                {formatCurrency(commissionSummary.totalEarnings)}
+              </motion.div>
+              <div className="flex items-center gap-2 mt-1 text-xs text-sidebar-foreground/50">
+                <span>OTE: {formatCurrency(commissionSummary.oteBase + commissionSummary.calculatedBonus)}</span>
               </div>
-              {/* Progress bar */}
-              <div className="mt-2 h-1.5 bg-sidebar-border rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(percentage, 100)}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className={`h-full rounded-full ${isOnTrack ? "bg-emerald-400" : "bg-amber-400"}`}
-                />
-              </div>
-              <p className="text-xs text-sidebar-foreground/50 mt-1">
-                {percentage.toFixed(0)}% da meta
-              </p>
-              <p className="text-[10px] text-sidebar-foreground/40 mt-1 truncate" title={sdrData.goalName}>
-                🎯 {sdrData.goalName}
-              </p>
             </>
           )}
         </motion.div>
+
+        {/* Meta de comparecidas */}
+        {!collapsed && (
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            className={`rounded-lg p-3 bg-gradient-to-br ${
+              isOnTrack 
+                ? "from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30" 
+                : "from-amber-500/20 to-amber-600/10 border border-amber-500/30"
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
+              <span className="text-xs font-medium text-sidebar-foreground/70">Sua meta de comparecidas</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-2xl font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
+                {sdrData.confirmed}
+              </span>
+              <span className="text-sm text-sidebar-foreground/50">/ {sdrData.goal}</span>
+            </div>
+            {/* Progress bar */}
+            <div className="mt-2 h-1.5 bg-sidebar-border rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(percentage, 100)}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className={`h-full rounded-full ${isOnTrack ? "bg-emerald-400" : "bg-amber-400"}`}
+              />
+            </div>
+            <p className="text-xs text-sidebar-foreground/50 mt-1">
+              {percentage.toFixed(0)}% da meta
+            </p>
+            <p className="text-[10px] text-sidebar-foreground/40 mt-1 truncate" title={sdrData.goalName}>
+              🎯 {sdrData.goalName}
+            </p>
+          </motion.div>
+        )}
 
         {/* Oráculo Comercial para SDR */}
         <OraculoComercial
