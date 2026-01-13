@@ -1,8 +1,7 @@
 import { motion } from "framer-motion";
-import { TrendingUp, DollarSign, Target, Flame, CheckCircle } from "lucide-react";
+import { DollarSign, Target, Flame, CheckCircle } from "lucide-react";
 import { useCurrentTeamMember } from "@/hooks/useTeamMembers";
 import { useCommissionSummary } from "@/hooks/useCommissions";
-import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -108,8 +107,10 @@ interface SidebarPerformanceWidgetProps {
 }
 
 export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidgetProps) {
-  const { data: userRole } = useUserRole();
   const { data: currentMember, isLoading: memberLoading } = useCurrentTeamMember();
+  
+  // Use role from team_member instead of user_roles table
+  const memberRole = currentMember?.role;
   
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -122,15 +123,15 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   );
   
   const { data: sdrData, isLoading: sdrLoading } = useSDRConfirmations(
-    userRole?.role === "sdr" ? currentMember?.id : undefined
+    memberRole === "sdr" ? currentMember?.id : undefined
   );
   
   const { data: closerSales, isLoading: closerSalesLoading } = useCloserSales(
-    userRole?.role === "closer" ? currentMember?.id : undefined
+    memberRole === "closer" ? currentMember?.id : undefined
   );
   
   // Admin não vê o widget
-  if (userRole?.role === "admin") return null;
+  if (memberRole === "admin") return null;
   
   // Se não tem membro associado, não mostra
   if (!currentMember && !memberLoading) return null;
@@ -149,7 +150,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   }
   
   // Widget para SDR
-  if (userRole?.role === "sdr" && sdrData) {
+  if (memberRole === "sdr" && sdrData) {
     const percentage = sdrData.goal > 0 ? (sdrData.confirmed / sdrData.goal) * 100 : 0;
     const isOnTrack = percentage >= 50;
     
@@ -203,7 +204,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   }
   
   // Widget para Closer
-  if (userRole?.role === "closer" && commissionSummary && closerSales) {
+  if (memberRole === "closer" && commissionSummary && closerSales) {
     const percentage = commissionSummary.goalProgress;
     const isOnTrack = percentage >= 70;
     
