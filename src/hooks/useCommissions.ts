@@ -193,11 +193,13 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
         // Buscar meta de reuniões do SDR
         const { data: goal } = await supabase
           .from("goals")
-          .select("target_value")
+          .select("target_value, created_at")
           .eq("team_member_id", teamMemberId)
           .eq("month", month)
           .eq("year", year)
           .eq("type", "reunioes")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         goalTarget = Number(goal?.target_value) || 0;
@@ -217,11 +219,13 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
         // Closer: usar meta de vendas (quantidade)
         const { data: goal } = await supabase
           .from("goals")
-          .select("target_value")
+          .select("target_value, created_at")
           .eq("team_member_id", teamMemberId)
           .eq("month", month)
           .eq("year", year)
           .eq("type", "vendas")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         goalTarget = Number(goal?.target_value) || 0;
