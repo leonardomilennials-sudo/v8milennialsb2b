@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, AlertTriangle, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, AlertTriangle, CheckCircle2, Loader2, RefreshCw, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -29,6 +29,7 @@ export function OraculoComercial({ role, metrics, collapsed }: OraculoComercialP
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState<OraculoResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const now = new Date();
   const diaDoMes = now.getDate();
@@ -77,13 +78,20 @@ export function OraculoComercial({ role, metrics, collapsed }: OraculoComercialP
     }
   };
 
-  if (collapsed) {
+  // Modo colapsado do sidebar ou minimizado pelo usuário
+  if (collapsed || isMinimized) {
     return (
       <button
-        onClick={fetchOraculo}
+        onClick={() => {
+          if (isMinimized) {
+            setIsMinimized(false);
+          } else {
+            fetchOraculo();
+          }
+        }}
         disabled={isLoading}
         className="w-full p-2 flex items-center justify-center hover:bg-sidebar-accent rounded-lg transition-colors"
-        title="Oráculo Comercial"
+        title={isMinimized ? "Expandir Oráculo" : "Oráculo Comercial"}
       >
         {isLoading ? (
           <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
@@ -107,16 +115,25 @@ export function OraculoComercial({ role, metrics, collapsed }: OraculoComercialP
             Oráculo Comercial
           </span>
         </div>
-        {response && (
+        <div className="flex items-center gap-1">
+          {response && (
+            <button
+              onClick={fetchOraculo}
+              disabled={isLoading}
+              className="p-1 hover:bg-purple-500/20 rounded transition-colors"
+              title="Atualizar"
+            >
+              <RefreshCw className={`w-3 h-3 text-purple-400 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+          )}
           <button
-            onClick={fetchOraculo}
-            disabled={isLoading}
+            onClick={() => setIsMinimized(true)}
             className="p-1 hover:bg-purple-500/20 rounded transition-colors"
-            title="Atualizar"
+            title="Minimizar"
           >
-            <RefreshCw className={`w-3 h-3 text-purple-400 ${isLoading ? "animate-spin" : ""}`} />
+            <ChevronDown className="w-3 h-3 text-purple-400" />
           </button>
-        )}
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
