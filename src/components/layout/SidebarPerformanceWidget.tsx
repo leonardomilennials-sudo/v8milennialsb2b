@@ -42,7 +42,7 @@ function useSDRConfirmations(sdrId: string | undefined) {
       // Buscar meta do SDR (prioriza individual; se não existir, usa meta do time)
       const { data: individualGoal } = await supabase
         .from("goals")
-        .select("target_value, created_at")
+        .select("target_value, name, created_at")
         .eq("team_member_id", sdrId)
         .eq("month", month)
         .eq("year", year)
@@ -55,7 +55,7 @@ function useSDRConfirmations(sdrId: string | undefined) {
         ? { data: null }
         : await supabase
             .from("goals")
-            .select("target_value, created_at")
+            .select("target_value, name, created_at")
             .is("team_member_id", null)
             .eq("month", month)
             .eq("year", year)
@@ -65,10 +65,12 @@ function useSDRConfirmations(sdrId: string | undefined) {
             .maybeSingle();
 
       const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
+      const goalName = individualGoal?.name ?? teamGoal?.name ?? "Meta de reuniões";
 
       return {
         confirmed: confirmations?.length || 0,
-        goal: Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 20, // Default 20 se não tiver meta
+        goal: Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 20,
+        goalName,
       };
     },
     enabled: !!sdrId,
@@ -114,7 +116,7 @@ function useCloserSales(closerId: string | undefined) {
       // Buscar meta do Closer (prioriza individual; se não existir, usa meta do time)
       const { data: individualGoal } = await supabase
         .from("goals")
-        .select("target_value, created_at")
+        .select("target_value, name, created_at")
         .eq("team_member_id", closerId)
         .eq("month", month)
         .eq("year", year)
@@ -127,7 +129,7 @@ function useCloserSales(closerId: string | undefined) {
         ? { data: null }
         : await supabase
             .from("goals")
-            .select("target_value, created_at")
+            .select("target_value, name, created_at")
             .is("team_member_id", null)
             .eq("month", month)
             .eq("year", year)
@@ -138,6 +140,7 @@ function useCloserSales(closerId: string | undefined) {
 
       const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
       const goal = Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10;
+      const goalName = individualGoal?.name ?? teamGoal?.name ?? "Meta de vendas";
 
       // Heurística: metas altas de "vendas" normalmente são meta de faturamento (R$)
       const mode: "count" | "currency" = goal >= 500 ? "currency" : "count";
@@ -146,6 +149,7 @@ function useCloserSales(closerId: string | undefined) {
         current: mode === "currency" ? salesValue : salesCount,
         goal,
         mode,
+        goalName,
       };
     },
     enabled: !!closerId,
@@ -246,6 +250,9 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
               <p className="text-xs text-sidebar-foreground/50 mt-1">
                 {percentage.toFixed(0)}% da meta
               </p>
+              <p className="text-[10px] text-sidebar-foreground/40 mt-1 truncate" title={sdrData.goalName}>
+                🎯 {sdrData.goalName}
+              </p>
             </>
           )}
         </motion.div>
@@ -339,6 +346,9 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
               />
             </div>
             <p className="text-xs text-sidebar-foreground/50 mt-1">{percentage.toFixed(0)}% da meta</p>
+            <p className="text-[10px] text-sidebar-foreground/40 mt-1 truncate" title={closerSales.goalName}>
+              🎯 {closerSales.goalName}
+            </p>
           </motion.div>
         )}
       </div>
