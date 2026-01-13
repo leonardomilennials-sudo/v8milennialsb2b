@@ -228,7 +228,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
             <>
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-                <span className="text-xs font-medium text-sidebar-foreground/70">Confirmados</span>
+                <span className="text-xs font-medium text-sidebar-foreground/70">Sua meta de comparecidas</span>
               </div>
               <div className="flex items-baseline gap-2">
                 <span className={`text-2xl font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
@@ -325,7 +325,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
           >
             <div className="flex items-center gap-2 mb-1">
               <Target className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-              <span className="text-xs font-medium text-sidebar-foreground/70">Faturamento</span>
+              <span className="text-xs font-medium text-sidebar-foreground/70">Sua meta de vendas</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className={`text-lg font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
