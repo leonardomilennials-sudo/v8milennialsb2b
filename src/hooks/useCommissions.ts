@@ -183,26 +183,48 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
       const totalCommission = commissionMRR + commissionProjeto;
 
       // Get goal progress based on member role
-      // For SDR: use "reunioes" goal and count confirmed meetings
-      // For Closer: use "vendas" goal and count sales
+      // Prefer: individual goal; fallback: team goal (team_member_id null)
+      // SDR: "reunioes" based on confirmed meetings
+      // Closer: prefer "vendas" (count). If not found, fallback to "clientes" (count) then "faturamento" (R$)
       let goalProgress = 0;
       let goalTarget = 0;
       let goalCurrent = 0;
 
-      if (member.role === "sdr") {
-        // Buscar meta de reuniões do SDR
-        const { data: goal } = await supabase
+      const fetchGoalTarget = async (type: string) => {
+        // 1) individual goal
+        const { data: individualGoal } = await supabase
           .from("goals")
           .select("target_value, created_at")
           .eq("team_member_id", teamMemberId)
           .eq("month", month)
           .eq("year", year)
-          .eq("type", "reunioes")
+          .eq("type", type)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        goalTarget = Number(goal?.target_value) || 0;
+        if (individualGoal?.target_value != null) {
+          return Number(individualGoal.target_value) || 0;
+        }
+
+        // 2) team goal
+        const { data: teamGoal } = await supabase
+          .from("goals")
+          .select("target_value, created_at")
+          .is("team_member_id", null)
+          .eq("month", month)
+          .eq("year", year)
+          .eq("type", type)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return Number(teamGoal?.target_value) || 0;
+      };
+
+      if (member.role === "sdr") {
+        // Meta de reuniões (quantidade)
+        goalTarget = await fetchGoalTarget("reunioes");
 
         // Contar reuniões comparecidas do SDR
         const { data: confirmations } = await supabase
@@ -216,20 +238,25 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
         goalCurrent = confirmations?.length || 0;
         goalProgress = goalTarget > 0 ? (goalCurrent / goalTarget) * 100 : 0;
       } else {
-        // Closer: usar meta de vendas (quantidade)
-        const { data: goal } = await supabase
-          .from("goals")
-          .select("target_value, created_at")
-          .eq("team_member_id", teamMemberId)
-          .eq("month", month)
-          .eq("year", year)
-          .eq("type", "vendas")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // Closer: tenta usar meta em ordem de prioridade
+        const vendasTarget = await fetchGoalTarget("vendas");
+        const clientesTarget = vendasTarget > 0 ? 0 : await fetchGoalTarget("clientes");
+        const faturamentoTarget = vendasTarget > 0 || clientesTarget > 0 ? 0 : await fetchGoalTarget("faturamento");
 
-        goalTarget = Number(goal?.target_value) || 0;
-        goalCurrent = salesCount;
+        if (vendasTarget > 0) {
+          goalTarget = vendasTarget;
+          goalCurrent = salesCount;
+        } else if (clientesTarget > 0) {
+          goalTarget = clientesTarget;
+          goalCurrent = salesCount;
+        } else if (faturamentoTarget > 0) {
+          goalTarget = faturamentoTarget;
+          goalCurrent = totalMRR + totalProjeto;
+        } else {
+          goalTarget = 0;
+          goalCurrent = salesCount;
+        }
+
         goalProgress = goalTarget > 0 ? (goalCurrent / goalTarget) * 100 : 0;
       }
 

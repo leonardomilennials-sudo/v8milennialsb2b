@@ -39,8 +39,8 @@ function useSDRConfirmations(sdrId: string | undefined) {
       
       if (confError) throw confError;
       
-      // Buscar meta do SDR (tipo "reunioes" conforme cadastrado em Gestão de Metas)
-      const { data: goal } = await supabase
+      // Buscar meta do SDR (prioriza individual; se não existir, usa meta do time)
+      const { data: individualGoal } = await supabase
         .from("goals")
         .select("target_value, created_at")
         .eq("team_member_id", sdrId)
@@ -50,10 +50,25 @@ function useSDRConfirmations(sdrId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      
+
+      const { data: teamGoal } = individualGoal
+        ? { data: null }
+        : await supabase
+            .from("goals")
+            .select("target_value, created_at")
+            .is("team_member_id", null)
+            .eq("month", month)
+            .eq("year", year)
+            .eq("type", "reunioes")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+      const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
+
       return {
         confirmed: confirmations?.length || 0,
-        goal: Number(goal?.target_value) || 20, // Default 20 se não tiver meta
+        goal: Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 20, // Default 20 se não tiver meta
       };
     },
     enabled: !!sdrId,
@@ -85,8 +100,8 @@ function useCloserSales(closerId: string | undefined) {
       
       if (salesError) throw salesError;
       
-      // Buscar meta do Closer (tipo "vendas" conforme cadastrado em Gestão de Metas)
-      const { data: goal } = await supabase
+      // Buscar meta do Closer (prioriza individual; se não existir, usa meta do time)
+      const { data: individualGoal } = await supabase
         .from("goals")
         .select("target_value, created_at")
         .eq("team_member_id", closerId)
@@ -96,10 +111,25 @@ function useCloserSales(closerId: string | undefined) {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      
+
+      const { data: teamGoal } = individualGoal
+        ? { data: null }
+        : await supabase
+            .from("goals")
+            .select("target_value, created_at")
+            .is("team_member_id", null)
+            .eq("month", month)
+            .eq("year", year)
+            .eq("type", "vendas")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+      const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
+
       return {
         sales: sales?.length || 0,
-        goal: Number(goal?.target_value) || 10, // Default 10 se não tiver meta
+        goal: Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10, // Default 10 se não tiver meta
       };
     },
     enabled: !!closerId,
