@@ -89,14 +89,16 @@ function getMeetingUrgency(meetingDate: Date | null) {
 }
 
 export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: ConfirmacaoDetailModalProps) {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingMeeting, setIsEditingMeeting] = useState(false);
+  const [isEditingOwners, setIsEditingOwners] = useState(false);
   const [editedNotes, setEditedNotes] = useState("");
   const [editedStatus, setEditedStatus] = useState<PipeConfirmacaoStatus>("reuniao_marcada");
   const [editedDate, setEditedDate] = useState<Date | undefined>();
   const [editedTime, setEditedTime] = useState("10:00");
   const [editedSdrId, setEditedSdrId] = useState<string | null>(null);
   const [editedCloserId, setEditedCloserId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSavingMeeting, setIsSavingMeeting] = useState(false);
+  const [isSavingOwners, setIsSavingOwners] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -121,7 +123,8 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       setEditedTime(item.meeting_date ? format(new Date(item.meeting_date), "HH:mm") : "10:00");
       setEditedSdrId(item.sdr_id || null);
       setEditedCloserId(item.closer_id || null);
-      setIsEditing(false);
+      setIsEditingMeeting(false);
+      setIsEditingOwners(false);
       setNewNote("");
       setIsAddingNote(false);
     }
@@ -135,15 +138,19 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const origin = originConfig[lead?.origin as keyof typeof originConfig] || originConfig.outro;
   const currentStatus = statusColumns.find(s => s.id === item.status);
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  const getMemberName = (id: string | null | undefined) =>
+    teamMembers?.find((m) => m.id === id)?.name;
+
+  const currentSdrName = getMemberName(editedSdrId) || item.sdr?.name || lead?.sdr?.name || "Não atribuído";
+  const currentCloserName = getMemberName(editedCloserId) || item.closer?.name || lead?.closer?.name || "Não atribuído";
+
+  const handleSaveMeeting = async () => {
+    setIsSavingMeeting(true);
     try {
       const updates: any = {
         id: item.id,
         notes: editedNotes,
         status: editedStatus,
-        sdr_id: editedSdrId,
-        closer_id: editedCloserId,
         leadId: item.lead_id,
         assignedTo: editedSdrId || editedCloserId || item.sdr_id || item.closer_id,
       };
@@ -155,7 +162,6 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
         updates.meeting_date = meetingDateTime.toISOString();
       }
 
-      // Add history entry for the update
       if (editedNotes !== item.notes) {
         await createLeadHistory.mutateAsync({
           lead_id: item.lead_id,
@@ -165,7 +171,7 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       }
 
       if (editedStatus !== item.status) {
-        const newStatusLabel = statusColumns.find(s => s.id === editedStatus)?.title;
+        const newStatusLabel = statusColumns.find((s) => s.id === editedStatus)?.title;
         await createLeadHistory.mutateAsync({
           lead_id: item.lead_id,
           action: "Status alterado",
@@ -173,9 +179,23 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
         });
       }
 
-      // Add history entry for SDR/Closer changes
+      await updatePipeConfirmacao.mutateAsync(updates);
+      toast.success("Reunião atualizada com sucesso!");
+      setIsEditingMeeting(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao atualizar reunião");
+    } finally {
+      setIsSavingMeeting(false);
+    }
+  };
+
+  const handleSaveOwners = async () => {
+    setIsSavingOwners(true);
+    try {
+      // history
       if (editedSdrId !== item.sdr_id) {
-        const sdrName = sdrs.find(s => s.id === editedSdrId)?.name || "Nenhum";
+        const sdrName = getMemberName(editedSdrId) || "Nenhum";
         await createLeadHistory.mutateAsync({
           lead_id: item.lead_id,
           action: "SDR alterado",
@@ -184,7 +204,7 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       }
 
       if (editedCloserId !== item.closer_id) {
-        const closerName = closers.find(c => c.id === editedCloserId)?.name || "Nenhum";
+        const closerName = getMemberName(editedCloserId) || "Nenhum";
         await createLeadHistory.mutateAsync({
           lead_id: item.lead_id,
           action: "Closer alterado",
@@ -192,14 +212,21 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
         });
       }
 
-      await updatePipeConfirmacao.mutateAsync(updates);
-      toast.success("Reunião atualizada com sucesso!");
-      setIsEditing(false);
+      await updatePipeConfirmacao.mutateAsync({
+        id: item.id,
+        sdr_id: editedSdrId,
+        closer_id: editedCloserId,
+        leadId: item.lead_id,
+        assignedTo: editedSdrId || editedCloserId || null,
+      });
+
+      toast.success("Responsáveis atualizados!");
+      setIsEditingOwners(false);
       onSuccess?.();
     } catch (error) {
-      toast.error("Erro ao atualizar reunião");
+      toast.error("Erro ao atualizar responsáveis");
     } finally {
-      setIsSaving(false);
+      setIsSavingOwners(false);
     }
   };
 
@@ -437,31 +464,94 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                       <Users className="w-4 h-4 text-primary" />
                       Responsáveis
                     </h3>
-                    <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                      <Pencil className="w-4 h-4 mr-1" />
-                      Editar
-                    </Button>
+                    {!isEditingOwners && (
+                      <Button variant="ghost" size="sm" onClick={() => setIsEditingOwners(true)}>
+                        <Pencil className="w-4 h-4 mr-1" />
+                        Editar
+                      </Button>
+                    )}
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="w-8 h-8 rounded-full bg-chart-2/20 flex items-center justify-center">
-                        <span className="text-xs font-bold text-chart-2">SDR</span>
+
+                  {isEditingOwners ? (
+                    <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>SDR Responsável</Label>
+                          <Select
+                            value={editedSdrId || "none"}
+                            onValueChange={(v) => setEditedSdrId(v === "none" ? null : v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecionar SDR" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhum</SelectItem>
+                              {sdrs.map((sdr) => (
+                                <SelectItem key={sdr.id} value={sdr.id}>
+                                  {sdr.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Closer Responsável</Label>
+                          <Select
+                            value={editedCloserId || "none"}
+                            onValueChange={(v) => setEditedCloserId(v === "none" ? null : v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecionar Closer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhum</SelectItem>
+                              {closers.map((closer) => (
+                                <SelectItem key={closer.id} value={closer.id}>
+                                  {closer.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{item.sdr?.name || lead?.sdr?.name || "Não atribuído"}</p>
-                        <p className="text-xs text-muted-foreground">SDR Responsável</p>
+
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" onClick={() => setIsEditingOwners(false)}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={handleSaveOwners} disabled={isSavingOwners}>
+                          {isSavingOwners ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4 mr-1" />
+                          )}
+                          Salvar
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <div className="w-8 h-8 rounded-full bg-chart-5/20 flex items-center justify-center">
-                        <span className="text-xs font-bold text-chart-5">CL</span>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <div className="w-8 h-8 rounded-full bg-chart-2/20 flex items-center justify-center">
+                          <span className="text-xs font-bold text-chart-2">SDR</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{currentSdrName}</p>
+                          <p className="text-xs text-muted-foreground">SDR Responsável</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{item.closer?.name || lead?.closer?.name || "Não atribuído"}</p>
-                        <p className="text-xs text-muted-foreground">Closer Responsável</p>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <div className="w-8 h-8 rounded-full bg-chart-5/20 flex items-center justify-center">
+                          <span className="text-xs font-bold text-chart-5">CL</span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{currentCloserName}</p>
+                          <p className="text-xs text-muted-foreground">Closer Responsável</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -472,13 +562,13 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                     <MessageSquare className="w-4 h-4 text-primary" />
                     Observações
                   </h3>
-                  <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)}>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditingMeeting(!isEditingMeeting)}>
                     <Edit3 className="w-4 h-4 mr-1" />
-                    {isEditing ? "Cancelar" : "Editar"}
+                    {isEditingMeeting ? "Cancelar" : "Editar"}
                   </Button>
                 </div>
 
-                {isEditing ? (
+                {isEditingMeeting ? (
                   <div className="space-y-4 p-4 border border-primary/20 rounded-xl bg-primary/5">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -489,7 +579,9 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                           </SelectTrigger>
                           <SelectContent>
                             {statusColumns.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.title}
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -511,38 +603,6 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>SDR Responsável</Label>
-                        <Select value={editedSdrId || "none"} onValueChange={(v) => setEditedSdrId(v === "none" ? null : v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar SDR" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Nenhum</SelectItem>
-                            {sdrs.map((sdr) => (
-                              <SelectItem key={sdr.id} value={sdr.id}>{sdr.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Closer Responsável</Label>
-                        <Select value={editedCloserId || "none"} onValueChange={(v) => setEditedCloserId(v === "none" ? null : v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecionar Closer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Nenhum</SelectItem>
-                            {closers.map((closer) => (
-                              <SelectItem key={closer.id} value={closer.id}>{closer.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
                     <div className="space-y-2">
                       <Label>Horário</Label>
                       <Input type="time" value={editedTime} onChange={(e) => setEditedTime(e.target.value)} />
@@ -559,11 +619,15 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                      <Button variant="ghost" onClick={() => setIsEditingMeeting(false)}>
                         Cancelar
                       </Button>
-                      <Button onClick={handleSave} disabled={isSaving}>
-                        {isSaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Save className="w-4 h-4 mr-1" />}
+                      <Button onClick={handleSaveMeeting} disabled={isSavingMeeting}>
+                        {isSavingMeeting ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="w-4 h-4 mr-1" />
+                        )}
                         Salvar
                       </Button>
                     </div>
@@ -571,9 +635,7 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                 ) : (
                   <div className="space-y-4">
                     <div className="p-4 rounded-lg bg-muted/50 min-h-[80px]">
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {item.notes || "Nenhuma observação registrada."}
-                      </p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{item.notes || "Nenhuma observação registrada."}</p>
                     </div>
 
                     {/* Quick Add Note */}
@@ -585,16 +647,8 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
                         rows={2}
                         className="flex-1"
                       />
-                      <Button 
-                        onClick={handleAddNote} 
-                        disabled={!newNote.trim() || isAddingNote}
-                        className="self-end"
-                      >
-                        {isAddingNote ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Plus className="w-4 h-4" />
-                        )}
+                      <Button onClick={handleAddNote} disabled={!newNote.trim() || isAddingNote} className="self-end">
+                        {isAddingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       </Button>
                     </div>
                   </div>
