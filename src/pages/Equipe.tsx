@@ -234,8 +234,9 @@ export default function Equipe() {
                     <Input
                       id="ote_base"
                       type="number"
+                      min="0"
                       value={formData.ote_base}
-                      onChange={(e) => setFormData({ ...formData, ote_base: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, ote_base: e.target.value === "" ? 0 : Number(e.target.value) })}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -243,8 +244,9 @@ export default function Equipe() {
                     <Input
                       id="ote_bonus"
                       type="number"
+                      min="0"
                       value={formData.ote_bonus}
-                      onChange={(e) => setFormData({ ...formData, ote_bonus: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, ote_bonus: e.target.value === "" ? 0 : Number(e.target.value) })}
                     />
                   </div>
                 </div>
@@ -254,9 +256,10 @@ export default function Equipe() {
                     <Input
                       id="commission_mrr"
                       type="number"
+                      min="0"
                       step="0.1"
                       value={formData.commission_mrr_percent}
-                      onChange={(e) => setFormData({ ...formData, commission_mrr_percent: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, commission_mrr_percent: e.target.value === "" ? 0 : Number(e.target.value) })}
                     />
                   </div>
                   <div className="grid gap-2">
@@ -264,9 +267,10 @@ export default function Equipe() {
                     <Input
                       id="commission_projeto"
                       type="number"
+                      min="0"
                       step="0.1"
                       value={formData.commission_projeto_percent}
-                      onChange={(e) => setFormData({ ...formData, commission_projeto_percent: Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, commission_projeto_percent: e.target.value === "" ? 0 : Number(e.target.value) })}
                     />
                   </div>
                 </div>
