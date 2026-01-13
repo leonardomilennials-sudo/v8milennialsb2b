@@ -89,17 +89,28 @@ function useCloserSales(closerId: string | undefined) {
       const startDate = new Date(year, month - 1, 1);
       const endDate = new Date(year, month, 0, 23, 59, 59);
       
+      const startIso = startDate.toISOString();
+      const endIso = endDate.toISOString();
+
       // Buscar vendas do mês
       const { data: sales, error: salesError } = await supabase
         .from("pipe_propostas")
-        .select("id")
+        .select("id, sale_value")
         .eq("closer_id", closerId)
         .eq("status", "vendido")
-        .gte("closed_at", startDate.toISOString())
-        .lte("closed_at", endDate.toISOString());
-      
+        // closed_at às vezes vem null, então usamos updated_at como fallback
+        .or(
+          `and(closed_at.gte.${startIso},closed_at.lte.${endIso}),and(updated_at.gte.${startIso},updated_at.lte.${endIso})`
+        );
+
       if (salesError) throw salesError;
-      
+
+      const salesCount = sales?.length || 0;
+      const salesValue = (sales || []).reduce(
+        (sum, s) => sum + (Number(s.sale_value) || 0),
+        0
+      );
+
       // Buscar meta do Closer (prioriza individual; se não existir, usa meta do time)
       const { data: individualGoal } = await supabase
         .from("goals")
@@ -126,10 +137,15 @@ function useCloserSales(closerId: string | undefined) {
             .maybeSingle();
 
       const resolvedTarget = Number(individualGoal?.target_value ?? teamGoal?.target_value);
+      const goal = Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10;
+
+      // Heurística: metas altas de "vendas" normalmente são meta de faturamento (R$)
+      const mode: "count" | "currency" = goal >= 500 ? "currency" : "count";
 
       return {
-        sales: sales?.length || 0,
-        goal: Number.isFinite(resolvedTarget) && resolvedTarget > 0 ? resolvedTarget : 10, // Default 10 se não tiver meta
+        current: mode === "currency" ? salesValue : salesCount,
+        goal,
+        mode,
       };
     },
     enabled: !!closerId,
@@ -239,10 +255,21 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
   
   // Widget para Closer
   if (memberRole === "closer" && commissionSummary && closerSales) {
-    // Usar porcentagem baseada nas vendas vs meta (closerSales), não commissionSummary.goalProgress
-    const percentage = closerSales.goal > 0 ? (closerSales.sales / closerSales.goal) * 100 : 0;
+    const percentage = closerSales.goal > 0 ? (closerSales.current / closerSales.goal) * 100 : 0;
     const isOnTrack = percentage >= 70;
-    
+
+    const currentLabel =
+      closerSales.mode === "currency"
+        ? formatCurrency(closerSales.current)
+        : String(closerSales.current);
+
+    const goalLabel =
+      closerSales.mode === "currency"
+        ? formatCurrency(closerSales.goal)
+        : String(closerSales.goal);
+
+    const title = closerSales.mode === "currency" ? "Faturamento" : "Vendas";
+
     return (
       <div className="p-3 border-t border-sidebar-border space-y-2">
         {/* Ganhos do mês */}
@@ -279,28 +306,28 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
             </>
           )}
         </motion.div>
-        
-        {/* Vendas vs Meta */}
+
+        {/* Meta */}
         {!collapsed && (
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.1 }}
             className={`rounded-lg p-3 bg-gradient-to-br ${
-              isOnTrack 
-                ? "from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30" 
+              isOnTrack
+                ? "from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30"
                 : "from-amber-500/20 to-amber-600/10 border border-amber-500/30"
             }`}
           >
             <div className="flex items-center gap-2 mb-1">
               <Target className={`w-4 h-4 ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`} />
-              <span className="text-xs font-medium text-sidebar-foreground/70">Vendas</span>
+              <span className="text-xs font-medium text-sidebar-foreground/70">{title}</span>
             </div>
             <div className="flex items-baseline gap-2">
               <span className={`text-lg font-bold ${isOnTrack ? "text-emerald-400" : "text-amber-400"}`}>
-                {closerSales.sales}
+                {currentLabel}
               </span>
-              <span className="text-sm text-sidebar-foreground/50">/ {closerSales.goal}</span>
+              <span className="text-sm text-sidebar-foreground/50">/ {goalLabel}</span>
             </div>
             {/* Progress bar */}
             <div className="mt-2 h-1.5 bg-sidebar-border rounded-full overflow-hidden">
@@ -311,9 +338,7 @@ export function SidebarPerformanceWidget({ collapsed }: SidebarPerformanceWidget
                 className={`h-full rounded-full ${isOnTrack ? "bg-emerald-400" : "bg-amber-400"}`}
               />
             </div>
-            <p className="text-xs text-sidebar-foreground/50 mt-1">
-              {percentage.toFixed(0)}% da meta
-            </p>
+            <p className="text-xs text-sidebar-foreground/50 mt-1">{percentage.toFixed(0)}% da meta</p>
           </motion.div>
         )}
       </div>
