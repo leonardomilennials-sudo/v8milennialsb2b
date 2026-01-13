@@ -163,6 +163,7 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
       // Calculate totals by product type
       let totalMRR = 0;
       let totalProjeto = 0;
+      const salesCount = sales?.length || 0;
 
       sales?.forEach(sale => {
         const value = Number(sale.sale_value) || 0;
@@ -181,19 +182,52 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
       const commissionProjeto = totalProjeto * (commissionProjetoPercent / 100);
       const totalCommission = commissionMRR + commissionProjeto;
 
-      // Get goal progress
-      const { data: goals } = await supabase
-        .from("goals")
-        .select("target_value, current_value")
-        .eq("team_member_id", teamMemberId)
-        .eq("month", month)
-        .eq("year", year)
-        .eq("type", "revenue")
-        .single();
+      // Get goal progress based on member role
+      // For SDR: use "reunioes" goal and count confirmed meetings
+      // For Closer: use "vendas" goal and count sales
+      let goalProgress = 0;
+      let goalTarget = 0;
+      let goalCurrent = 0;
 
-      const goalProgress = goals 
-        ? ((Number(goals.current_value) || 0) / (Number(goals.target_value) || 1)) * 100
-        : 0;
+      if (member.role === "sdr") {
+        // Buscar meta de reuniões do SDR
+        const { data: goal } = await supabase
+          .from("goals")
+          .select("target_value")
+          .eq("team_member_id", teamMemberId)
+          .eq("month", month)
+          .eq("year", year)
+          .eq("type", "reunioes")
+          .maybeSingle();
+
+        goalTarget = Number(goal?.target_value) || 0;
+
+        // Contar reuniões comparecidas do SDR
+        const { data: confirmations } = await supabase
+          .from("pipe_confirmacao")
+          .select("id")
+          .eq("sdr_id", teamMemberId)
+          .eq("status", "compareceu")
+          .gte("meeting_date", startDate.toISOString())
+          .lte("meeting_date", endDate.toISOString());
+
+        goalCurrent = confirmations?.length || 0;
+        goalProgress = goalTarget > 0 ? (goalCurrent / goalTarget) * 100 : 0;
+      } else {
+        // Closer: usar meta de vendas (quantidade)
+        const { data: goal } = await supabase
+          .from("goals")
+          .select("target_value")
+          .eq("team_member_id", teamMemberId)
+          .eq("month", month)
+          .eq("year", year)
+          .eq("type", "vendas")
+          .maybeSingle();
+
+        goalTarget = Number(goal?.target_value) || 0;
+        goalCurrent = salesCount;
+        goalProgress = goalTarget > 0 ? (goalCurrent / goalTarget) * 100 : 0;
+      }
 
       // Calculate OTE bonus
       const oteBase = Number(member.ote_base) || 0;
