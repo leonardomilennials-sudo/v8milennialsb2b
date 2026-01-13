@@ -113,7 +113,7 @@ function useCloserSales(closerId: string | undefined) {
         0
       );
 
-      // Buscar meta do Closer (prioriza individual; se não existir, usa meta do time)
+      // Buscar meta do Closer (prioriza individual tipo "vendas"; se não existir, usa meta do time tipo "faturamento")
       const { data: individualGoal } = await supabase
         .from("goals")
         .select("target_value, name, created_at")
@@ -125,6 +125,7 @@ function useCloserSales(closerId: string | undefined) {
         .limit(1)
         .maybeSingle();
 
+      // Se não tem meta individual, busca meta de time (tipo "faturamento")
       const { data: teamGoal } = individualGoal
         ? { data: null }
         : await supabase
@@ -133,7 +134,7 @@ function useCloserSales(closerId: string | undefined) {
             .is("team_member_id", null)
             .eq("month", month)
             .eq("year", year)
-            .eq("type", "vendas")
+            .eq("type", "faturamento")
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
