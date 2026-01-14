@@ -365,6 +365,50 @@ export type Database = {
           },
         ]
       }
+      lead_scores: {
+        Row: {
+          created_at: string
+          factors: Json | null
+          id: string
+          last_calculated: string
+          lead_id: string
+          predicted_conversion: number | null
+          recommended_action: string | null
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          last_calculated?: string
+          lead_id: string
+          predicted_conversion?: number | null
+          recommended_action?: string | null
+          score?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          factors?: Json | null
+          id?: string
+          last_calculated?: string
+          lead_id?: string
+          predicted_conversion?: number | null
+          recommended_action?: string | null
+          score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_scores_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_tags: {
         Row: {
           created_at: string
