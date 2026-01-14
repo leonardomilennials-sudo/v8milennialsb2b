@@ -18,6 +18,7 @@ import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 import { format, isToday, isTomorrow, isPast, differenceInHours, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QuickAddDailyAction } from "./QuickAddDailyAction";
+import { MeetingCountdown } from "./MeetingCountdown";
 
 interface ConfirmacaoCardProps {
   card: {
@@ -200,26 +201,31 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         </div>
       </div>
 
-      {/* Meeting Date */}
+      {/* Meeting Date with Countdown */}
       {meetingDate && (
         <div className={cn(
-          "flex items-center gap-2 text-muted-foreground mb-3 p-2 rounded-lg",
+          "mb-3 p-2 rounded-lg",
           indicator?.type === "today" && "bg-warning/10",
           indicator?.type === "imminent" && "bg-destructive/10",
           indicator?.type === "overdue" && "bg-destructive/10",
           !indicator && "bg-muted/50"
         )}>
-          <Calendar className={cn(
-            "w-4 h-4",
-            indicator?.type === "today" && "text-warning",
-            indicator?.type === "imminent" && "text-destructive",
-            indicator?.type === "overdue" && "text-destructive"
-          )} />
-          <span className="text-xs font-medium">
-            {format(meetingDate, "dd MMM, HH:mm", { locale: ptBR })}
-          </span>
-          {isToday(meetingDate) && (
-            <Clock className="w-3 h-3 ml-auto text-warning" />
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className={cn(
+                "w-4 h-4",
+                indicator?.type === "today" && "text-warning",
+                indicator?.type === "imminent" && "text-destructive",
+                indicator?.type === "overdue" && "text-destructive"
+              )} />
+              <span className="text-xs font-medium">
+                {format(meetingDate, "dd MMM, HH:mm", { locale: ptBR })}
+              </span>
+            </div>
+          </div>
+          {/* Countdown Timer */}
+          {!["compareceu", "perdido"].includes(card.status || "") && (
+            <MeetingCountdown meetingDate={meetingDate} variant="compact" className="mt-1" />
           )}
         </div>
       )}
