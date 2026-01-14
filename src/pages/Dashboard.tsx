@@ -21,6 +21,7 @@ import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
 import { TopPerformers } from "@/components/dashboard/TopPerformers";
 import { SalesBreakdown } from "@/components/dashboard/SalesBreakdown";
 import { QuickStats } from "@/components/dashboard/QuickStats";
+import { PriorityLeads } from "@/components/dashboard/PriorityLeads";
 import { useDashboardMetrics, useFunnelData, useRankingData, useConversionRates } from "@/hooks/useDashboardMetrics";
 import { useTeamGoals } from "@/hooks/useGoals";
 import { useAuth } from "@/contexts/AuthContext";
@@ -238,20 +239,37 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Performance & Activity Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              Performance do Mês
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PerformanceChart />
-          </CardContent>
-        </Card>
+      {/* Performance Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            Performance do Mês
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PerformanceChart />
+        </CardContent>
+      </Card>
 
+      {/* Priority Leads & Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <PriorityLeads />
+        <FunnelChart 
+          title="Funil de Vendas" 
+          steps={funnelSteps.length > 0 ? funnelSteps : [
+            { label: "Leads", value: metrics?.totalLeads || 0, color: "bg-primary" },
+            { label: "Reuniões", value: metrics?.reunioesMarcadas || 0, color: "bg-chart-2" },
+            { label: "Compareceu", value: metrics?.reunioesComparecidas || 0, color: "bg-chart-3" },
+            { label: "Vendas", value: metrics?.novosClientes || 0, color: "bg-success" },
+          ]} 
+        />
+        <SalesBreakdown />
+      </div>
+      
+      {/* Additional Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TopPerformers />
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -263,21 +281,6 @@ export default function Dashboard() {
             <ActivityFeed />
           </CardContent>
         </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <FunnelChart 
-          title="Funil de Vendas" 
-          steps={funnelSteps.length > 0 ? funnelSteps : [
-            { label: "Leads", value: metrics?.totalLeads || 0, color: "bg-primary" },
-            { label: "Reuniões", value: metrics?.reunioesMarcadas || 0, color: "bg-chart-2" },
-            { label: "Compareceu", value: metrics?.reunioesComparecidas || 0, color: "bg-chart-3" },
-            { label: "Vendas", value: metrics?.novosClientes || 0, color: "bg-success" },
-          ]} 
-        />
-        <SalesBreakdown />
-        <TopPerformers />
       </div>
 
       {/* Weekly Performance */}
