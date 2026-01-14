@@ -135,13 +135,14 @@ Deno.serve(async (req) => {
     const reuniaoMarcadaTagId = await getOrCreateTag("Reunião Marcada", "#F59E0B");
 
     if (existingLead) {
-      // SCENARIO 1: Lead with this email already exists
+      // SCENARIO 1: Lead with this email already exists (Quiz + Cal = Ambos)
       console.log("Found existing lead:", existingLead.id);
 
-      // Update the existing lead with meeting info
+      // Update the existing lead with meeting info and set origin to "ambos"
       const { error: updateError } = await supabase
         .from("leads")
         .update({
+          origin: "ambos", // Lead veio do Quiz e agora agendou via Cal
           compromisso_date: startTime,
           notes: existingLead.notes 
             ? `${existingLead.notes}\n\n[Cal.com] Reunião agendada: ${startTime}`
@@ -206,7 +207,7 @@ Deno.serve(async (req) => {
       );
 
     } else {
-      // SCENARIO 2: No lead with this email exists - create new lead with Cal tag
+      // SCENARIO 2: No lead with this email exists - create new lead with Cal origin
       console.log("No existing lead found, creating new lead from Cal.com");
       
       const { data: newLead, error: createError } = await supabase
@@ -215,7 +216,7 @@ Deno.serve(async (req) => {
           name: name || `Agendamento Cal - ${email.split("@")[0]}`,
           email,
           phone,
-          origin: "quiz", // Using quiz as origin since it's from the same flow
+          origin: "cal", // Lead veio direto do Cal.com, sem passar pelo Quiz
           compromisso_date: startTime,
           notes: `[Cal.com] Lead criado a partir de agendamento direto`,
         })
