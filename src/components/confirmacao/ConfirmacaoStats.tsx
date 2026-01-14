@@ -45,8 +45,12 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
     total: data.length,
   };
 
-  const confirmationRate = stats.total > 0 ? Math.round((stats.compareceu / stats.total) * 100) : 0;
-  const lossRate = stats.total > 0 ? Math.round((stats.perdido / stats.total) * 100) : 0;
+  // Cálculo de no-show: apenas leads finalizados (remarcar + compareceu + perdido)
+  const finalizados = stats.remarcar + stats.compareceu + stats.perdido;
+  const noShowCount = stats.remarcar + stats.perdido;
+  const noShowRate = finalizados > 0 ? Math.round((noShowCount / finalizados) * 100) : 0;
+  const showRate = finalizados > 0 ? Math.round((stats.compareceu / finalizados) * 100) : 0;
+  
   const pendingRate = stats.total > 0 ? Math.round((stats.pending / stats.total) * 100) : 0;
 
   // Próximas urgentes (D-3, D-1, hoje)
@@ -95,11 +99,22 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
     {
       title: "Compareceram",
       value: stats.compareceu,
-      percentage: confirmationRate,
+      percentage: showRate,
       icon: CheckCircle2,
       color: "text-success",
       bgColor: "bg-success/10",
       progressColor: "bg-success",
+      description: `${stats.compareceu} de ${finalizados} finalizados`,
+    },
+    {
+      title: "No-Show",
+      value: noShowCount,
+      percentage: noShowRate,
+      icon: CalendarX,
+      color: "text-destructive",
+      bgColor: "bg-destructive/10",
+      progressColor: "bg-destructive",
+      description: `Remarcar (${stats.remarcar}) + Perdidos (${stats.perdido})`,
     },
     {
       title: "Pendentes",
@@ -109,15 +124,7 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
       color: "text-warning",
       bgColor: "bg-warning/10",
       progressColor: "bg-warning",
-    },
-    {
-      title: "Perdidos",
-      value: stats.perdido,
-      percentage: lossRate,
-      icon: CalendarX,
-      color: "text-destructive",
-      bgColor: "bg-destructive/10",
-      progressColor: "bg-destructive",
+      description: "Aguardando confirmação",
     },
     {
       title: "Remarcar",
@@ -125,6 +132,7 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
       icon: Calendar,
       color: "text-orange-500",
       bgColor: "bg-orange-500/10",
+      description: "Precisam reagendar",
     },
   ];
 
@@ -187,12 +195,15 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
                   />
                 </div>
               )}
+              {card.description && (
+                <p className="text-xs text-muted-foreground mt-2">{card.description}</p>
+              )}
             </Card>
           </motion.div>
         ))}
       </div>
 
-      {/* Overall Performance */}
+      {/* Overall Performance - Show Rate based on finalized only */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -205,29 +216,39 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
                 <Target className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg">Taxa de Comparecimento Geral</h3>
+                <h3 className="font-semibold text-lg">Taxa de Comparecimento</h3>
                 <p className="text-sm text-muted-foreground">
-                  {stats.compareceu} de {stats.total} reuniões convertidas
+                  {stats.compareceu} de {finalizados} leads finalizados compareceram
                 </p>
               </div>
             </div>
             <div className="text-right">
               <p className={cn(
                 "text-4xl font-bold",
-                confirmationRate >= 70 ? "text-success" : confirmationRate >= 50 ? "text-warning" : "text-destructive"
+                showRate >= 70 ? "text-success" : showRate >= 50 ? "text-warning" : "text-destructive"
               )}>
-                {confirmationRate}%
+                {showRate}%
               </p>
               <p className="text-sm text-muted-foreground">
-                {confirmationRate >= 70 ? "Excelente!" : confirmationRate >= 50 ? "Bom" : "Precisa melhorar"}
+                {showRate >= 70 ? "Excelente!" : showRate >= 50 ? "Bom" : "Precisa melhorar"}
               </p>
             </div>
           </div>
-          <div className="mt-4">
-            <Progress 
-              value={confirmationRate} 
-              className="h-3"
-            />
+          <div className="mt-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-success">Compareceram: {showRate}%</span>
+              <span className="text-destructive">No-Show: {noShowRate}%</span>
+            </div>
+            <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+              <div 
+                className="bg-success transition-all" 
+                style={{ width: `${showRate}%` }} 
+              />
+              <div 
+                className="bg-destructive transition-all" 
+                style={{ width: `${noShowRate}%` }} 
+              />
+            </div>
           </div>
         </Card>
       </motion.div>
