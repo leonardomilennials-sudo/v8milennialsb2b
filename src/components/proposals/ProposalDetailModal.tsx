@@ -341,6 +341,37 @@ export function ProposalDetailModal({
                 </div>
               </motion.div>
 
+              {/* Commitment Date - Highlighted */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-blue-500/20">
+                    <Calendar className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <Label htmlFor="commitment_date" className="text-base font-semibold">Data da Reunião</Label>
+                    <p className="text-xs text-muted-foreground">Quando será o compromisso com o lead</p>
+                  </div>
+                </div>
+                <Input
+                  id="commitment_date"
+                  type="datetime-local"
+                  value={formData.commitment_date}
+                  onChange={(e) => setFormData({ ...formData, commitment_date: e.target.value })}
+                  className="bg-background"
+                />
+                {formData.commitment_date && (
+                  <p className="text-sm text-blue-500 mt-2 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    {format(new Date(formData.commitment_date), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                  </p>
+                )}
+              </motion.div>
+
               {/* Status Selection */}
               <div className="grid gap-2">
                 <Label>Status da Proposta</Label>
@@ -437,19 +468,6 @@ export function ProposalDetailModal({
                 </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="commitment_date">Data do Compromisso</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="commitment_date"
-                    type="datetime-local"
-                    value={formData.commitment_date}
-                    onChange={(e) => setFormData({ ...formData, commitment_date: e.target.value })}
-                    className="pl-9"
-                  />
-                </div>
-              </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="notes">Observações</Label>
