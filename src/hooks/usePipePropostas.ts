@@ -19,7 +19,7 @@ export type PipePropostasStatus =
 export const statusColumns: { id: PipePropostasStatus; title: string; color: string }[] = [
   { id: "marcar_compromisso", title: "Marcar Compromisso", color: "#F5C518" },
   { id: "compromisso_marcado", title: "Compromisso Marcado", color: "#3B82F6" },
-  { id: "esfriou", title: "Esfriou", color: "#94A3B8" },
+  { id: "esfriou", title: "Esfriou", color: "#64748B" },
   { id: "futuro", title: "Futuro", color: "#8B5CF6" },
   { id: "vendido", title: "Vendido ✓", color: "#22C55E" },
   { id: "perdido", title: "Perdido", color: "#EF4444" },
