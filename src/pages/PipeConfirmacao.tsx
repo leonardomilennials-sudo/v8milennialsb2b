@@ -115,6 +115,12 @@ export default function PipeConfirmacao() {
           
           return matchesSearch && matchesOrigin && matchesUrgency && matchesTime && matchesStatus;
         })
+        // Sort by meeting date - closest meetings first
+        .sort((a, b) => {
+          const dateA = a.meeting_date ? new Date(a.meeting_date).getTime() : Infinity;
+          const dateB = b.meeting_date ? new Date(b.meeting_date).getTime() : Infinity;
+          return dateA - dateB;
+        })
         .map(transformToCard);
 
       return { ...col, items: columnItems };
