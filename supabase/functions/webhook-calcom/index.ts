@@ -189,6 +189,18 @@ Deno.serve(async (req) => {
           });
       }
 
+      // Remove lead from pipe_whatsapp (funil de qualificação) since it has a meeting scheduled
+      const { error: deleteWhatsappError } = await supabase
+        .from("pipe_whatsapp")
+        .delete()
+        .eq("lead_id", existingLead.id);
+
+      if (deleteWhatsappError) {
+        console.log("Note: No pipe_whatsapp entry found or error removing:", deleteWhatsappError.message);
+      } else {
+        console.log("Removed lead from pipe_whatsapp (qualificação)");
+      }
+
       // Create history entry
       await supabase.from("lead_history").insert({
         lead_id: existingLead.id,
