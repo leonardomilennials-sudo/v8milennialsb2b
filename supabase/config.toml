@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.oraculo-comercial]
 verify_jwt = false
+
+[functions.calculate-lead-score]
+verify_jwt = false

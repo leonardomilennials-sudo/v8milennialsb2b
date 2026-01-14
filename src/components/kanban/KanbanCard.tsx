@@ -1,6 +1,8 @@
 import { Calendar, Star, User, Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScheduleFollowUpButton } from "@/components/followups/ScheduleFollowUpButton";
+import { LeadScoreBadge } from "@/components/leads/LeadScoreBadge";
+import { useLeadScoresMap } from "@/hooks/useLeadScore";
 
 export interface Lead {
   id: string;
@@ -41,6 +43,9 @@ const originLabels = {
 };
 
 export function KanbanCard({ lead, onClick }: KanbanCardProps) {
+  const scoresMap = useLeadScoresMap();
+  const leadScore = lead.leadId ? scoresMap.get(lead.leadId) : null;
+
   return (
     <div
       onClick={onClick}
@@ -48,9 +53,26 @@ export function KanbanCard({ lead, onClick }: KanbanCardProps) {
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-            {lead.name}
-          </h4>
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+              {lead.name}
+            </h4>
+            {leadScore ? (
+              <LeadScoreBadge
+                score={leadScore.score}
+                predictedConversion={leadScore.predicted_conversion}
+                factors={leadScore.factors}
+                recommendedAction={leadScore.recommended_action}
+                size="sm"
+              />
+            ) : lead.leadId ? (
+              <LeadScoreBadge
+                score={null}
+                leadId={lead.leadId}
+                size="sm"
+              />
+            ) : null}
+          </div>
           <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
             <Building2 className="w-3 h-3" />
             <span className="text-xs truncate">{lead.company}</span>
