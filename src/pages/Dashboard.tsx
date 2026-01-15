@@ -1,15 +1,16 @@
 import { motion } from "framer-motion";
 import {
-  Users,
+  Fuel,
   Calendar,
   CheckCircle2,
   XCircle,
   TrendingUp,
   DollarSign,
   Target,
-  Zap,
+  Gauge,
   Activity,
   BarChart3,
+  Flag,
 } from "lucide-react";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { GoalProgress } from "@/components/dashboard/GoalProgress";
@@ -115,34 +116,71 @@ export default function Dashboard() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold"
-          >
-            {getGreeting()}, {userName}! ⚡
-          </motion.h1>
-          <p className="text-muted-foreground mt-1">
-            Aqui está o resumo do seu time comercial
-          </p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="flex items-center gap-3">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring" }}
+              className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center"
+            >
+              <Gauge className="w-6 h-6 text-primary" />
+            </motion.div>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                {getGreeting()}, {userName}! 
+                <motion.span 
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, repeatDelay: 3 }}
+                >
+                  🏁
+                </motion.span>
+              </h1>
+              <p className="text-muted-foreground">
+                Central de Comando V8 • Hora de acelerar
+              </p>
+            </div>
+          </div>
+        </motion.div>
         <div className="flex items-center gap-3">
           <QuickStats className="hidden lg:flex" />
-          <span className="text-sm text-muted-foreground">
-            {format(now, "MMMM yyyy", { locale: ptBR })}
-          </span>
-          <img src={boltIcon} alt="" className="w-8 h-8 opacity-80" />
+          <motion.div 
+            className="flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Flag className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">
+              {format(now, "MMMM yyyy", { locale: ptBR })}
+            </span>
+          </motion.div>
+          <motion.img 
+            src={boltIcon} 
+            alt="" 
+            className="w-8 h-8 opacity-80"
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+          />
         </div>
       </div>
 
-      {/* Main Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Main Metrics - Combustível Stats */}
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+      >
         <MetricCard
-          title="Total de Leads"
+          title="Combustível (Leads)"
           value={metrics?.totalLeads?.toString() || "0"}
           subtitle="Este mês"
-          icon={Users}
+          icon={Fuel}
         />
         <MetricCard
           title="Reuniões Marcadas"
@@ -163,12 +201,17 @@ export default function Dashboard() {
           subtitle={`${metrics?.noShow || 0} não compareceram`}
           icon={XCircle}
         />
-      </div>
+      </motion.div>
 
-      {/* Sales Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Sales Metrics - Velocímetro do Faturamento */}
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+      >
         <MetricCard
-          title="Valor Total Vendido"
+          title="Velocidade Total (Vendas)"
           value={formatCurrency(metrics?.vendaTotal || 0)}
           subtitle={`${metrics?.novosClientes || 0} vendas fechadas`}
           icon={DollarSign}
@@ -186,21 +229,26 @@ export default function Dashboard() {
           subtitle={`${Math.round((metrics?.vendaProjeto || 0) / (metrics?.ticketMedioProjeto || 1))} projetos`}
           icon={Target}
         />
-      </div>
+      </motion.div>
 
-      {/* Goal Progress */}
+      {/* Goal Progress - Velocímetro de Metas */}
       {(faturamentoGoal || clientesGoal || reunioesGoal) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-card rounded-xl border border-border p-6"
+          transition={{ duration: 0.3, delay: 0.3 }}
+          className="bg-card rounded-xl border border-border p-6 racing-stripe"
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold">Progresso da Meta Mensal</h2>
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium">Dia {dayOfMonth} de {daysInMonth}</span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Gauge className="w-5 h-5 text-primary" />
+              </div>
+              <h2 className="text-lg font-semibold">Velocímetro de Metas</h2>
+            </div>
+            <div className="flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+              <Flag className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Volta {dayOfMonth} de {daysInMonth}</span>
             </div>
           </div>
 
@@ -252,49 +300,74 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Priority Leads & Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Priority Leads & Charts Row - Combustível Prioritário */}
+      <motion.div 
+        className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+      >
         <PriorityLeads />
         <FunnelChart 
-          title="Funil de Vendas" 
+          title="Pista de Conversão" 
           steps={funnelSteps.length > 0 ? funnelSteps : [
-            { label: "Leads", value: metrics?.totalLeads || 0, color: "bg-primary" },
+            { label: "Combustível", value: metrics?.totalLeads || 0, color: "bg-primary" },
             { label: "Reuniões", value: metrics?.reunioesMarcadas || 0, color: "bg-chart-2" },
             { label: "Compareceu", value: metrics?.reunioesComparecidas || 0, color: "bg-chart-3" },
             { label: "Vendas", value: metrics?.novosClientes || 0, color: "bg-success" },
           ]} 
         />
         <SalesBreakdown />
-      </div>
+      </motion.div>
       
-      {/* Additional Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Additional Charts Row - Pilotos em Ação */}
+      <motion.div 
+        className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.5 }}
+      >
         <TopPerformers />
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="w-4 h-4 text-primary" />
-              Atividade Recente
+              Pit Lane • Atividade Recente
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 px-2">
             <ActivityFeed />
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
 
-      {/* Weekly Performance */}
-      <WeeklyChart />
+      {/* Weekly Performance - Voltas da Semana */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.6 }}
+      >
+        <WeeklyChart />
+      </motion.div>
 
-      {/* Conversion Charts */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Taxa de Conversão por Membro</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ConversionChart />
-        </CardContent>
-      </Card>
+      {/* Conversion Charts - Performance dos Pilotos */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.7 }}
+      >
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Flag className="w-4 h-4 text-primary" />
+              Performance dos Pilotos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ConversionChart />
+          </CardContent>
+        </Card>
+      </motion.div>
 
     </div>
   );
