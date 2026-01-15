@@ -235,13 +235,25 @@ Deno.serve(async (req) => {
             });
         }
 
-        // Remove from pipe_whatsapp if exists
-        await supabase
-          .from("pipe_whatsapp")
-          .delete()
-          .eq("lead_id", existingLead.id);
+        // Check if lead is in pipe_propostas with status "compromisso_marcado"
+        // If so, keep in pipe_whatsapp (exception rule)
+        const { data: existingProposta } = await supabase
+          .from("pipe_propostas")
+          .select("id, status")
+          .eq("lead_id", existingLead.id)
+          .eq("status", "compromisso_marcado")
+          .maybeSingle();
 
-        console.log("Lead moved to pipe_confirmacao");
+        if (!existingProposta) {
+          // Only remove from pipe_whatsapp if NOT in compromisso_marcado
+          await supabase
+            .from("pipe_whatsapp")
+            .delete()
+            .eq("lead_id", existingLead.id);
+          console.log("Lead removed from pipe_whatsapp (moved to pipe_confirmacao)");
+        } else {
+          console.log("Lead kept in pipe_whatsapp (has compromisso_marcado in propostas)");
+        }
       }
 
       // Create history entry for unification

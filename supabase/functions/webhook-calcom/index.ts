@@ -277,16 +277,29 @@ Deno.serve(async (req) => {
           });
       }
 
-      // Remove lead from pipe_whatsapp (funil de qualificação) since it has a meeting scheduled
-      const { error: deleteWhatsappError } = await supabase
-        .from("pipe_whatsapp")
-        .delete()
-        .eq("lead_id", existingLead.id);
+      // Check if lead is in pipe_propostas with status "compromisso_marcado"
+      // If so, keep in pipe_whatsapp (exception rule)
+      const { data: existingProposta } = await supabase
+        .from("pipe_propostas")
+        .select("id, status")
+        .eq("lead_id", existingLead.id)
+        .eq("status", "compromisso_marcado")
+        .maybeSingle();
 
-      if (deleteWhatsappError) {
-        console.log("Note: No pipe_whatsapp entry found or error removing:", deleteWhatsappError.message);
+      if (!existingProposta) {
+        // Only remove from pipe_whatsapp if NOT in compromisso_marcado
+        const { error: deleteWhatsappError } = await supabase
+          .from("pipe_whatsapp")
+          .delete()
+          .eq("lead_id", existingLead.id);
+
+        if (deleteWhatsappError) {
+          console.log("Note: No pipe_whatsapp entry found or error removing:", deleteWhatsappError.message);
+        } else {
+          console.log("Removed lead from pipe_whatsapp (qualificação)");
+        }
       } else {
-        console.log("Removed lead from pipe_whatsapp (qualificação)");
+        console.log("Lead kept in pipe_whatsapp (has compromisso_marcado in propostas)");
       }
 
       // Create history entry
