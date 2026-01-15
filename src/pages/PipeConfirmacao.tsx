@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Plus, Calendar, Loader2, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
@@ -13,7 +12,8 @@ import { ConfirmacaoStats } from "@/components/confirmacao/ConfirmacaoStats";
 import { ConfirmacaoCard } from "@/components/confirmacao/ConfirmacaoCard";
 import { ConfirmacaoFilters, OriginFilter, TimeFilter, UrgencyFilter } from "@/components/confirmacao/ConfirmacaoFilters";
 import { MeetingTimeline } from "@/components/confirmacao/MeetingTimeline";
-import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast } from "date-fns";
+import { CompareceuModal } from "@/components/confirmacao/CompareceuModal";
+import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -28,6 +28,8 @@ interface ConfirmacaoCardData extends DraggableItem {
   origin: "calendly" | "whatsapp" | "meta_ads" | "outro";
   sdr?: string;
   closer?: string;
+  sdrId?: string | null;
+  closerId?: string | null;
   tags: string[];
   leadId: string;
   faturamento?: number;
@@ -36,6 +38,46 @@ interface ConfirmacaoCardData extends DraggableItem {
   status?: string;
   confirmacaoId?: string;
   isConfirmed?: boolean;
+}
+
+// Calculate correct status based on meeting date
+function calculateStatusByDate(meetingDate: Date | null): PipeConfirmacaoStatus | null {
+  if (!meetingDate) return null;
+  
+  const now = new Date();
+  const days = differenceInDays(meetingDate, now);
+  
+  // If meeting is in the past (and not today), it's overdue - should remarcar
+  if (isPast(meetingDate) && !isToday(meetingDate)) {
+    return "remarcar";
+  }
+  
+  // If meeting is today
+  if (isToday(meetingDate)) {
+    return "confirmacao_no_dia";
+  }
+  
+  // If meeting is tomorrow (D-1)
+  if (days === 1 || isTomorrow(meetingDate)) {
+    return "confirmar_d1";
+  }
+  
+  // If meeting is in 2-3 days (D-3)
+  if (days >= 2 && days <= 3) {
+    return "confirmar_d3";
+  }
+  
+  // If meeting is in 4-5 days (D-5)
+  if (days >= 4 && days <= 5) {
+    return "confirmar_d5";
+  }
+  
+  // If meeting is more than 5 days away
+  if (days > 5) {
+    return "reuniao_marcada";
+  }
+  
+  return null;
 }
 
 export default function PipeConfirmacao() {
@@ -51,9 +93,55 @@ export default function PipeConfirmacao() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "timeline">("kanban");
   
+  // Compareceu modal state
+  const [isCompareceuModalOpen, setIsCompareceuModalOpen] = useState(false);
+  const [pendingCompareceuItem, setPendingCompareceuItem] = useState<any>(null);
+  const [isProcessingCompareceu, setIsProcessingCompareceu] = useState(false);
+  
   const { data: pipeData, isLoading, refetch } = usePipeConfirmacao();
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
   const createPipeProposta = useCreatePipeProposta();
+
+  // Auto-update statuses based on meeting dates
+  const autoUpdateStatuses = useCallback(async () => {
+    if (!pipeData) return;
+    
+    const terminalStatuses: PipeConfirmacaoStatus[] = ["compareceu", "perdido"];
+    
+    for (const item of pipeData) {
+      // Skip terminal statuses
+      if (terminalStatuses.includes(item.status as PipeConfirmacaoStatus)) continue;
+      
+      // Skip remarcar status unless it's no longer overdue (meeting date changed)
+      if (item.status === "remarcar") {
+        const meetingDate = item.meeting_date ? new Date(item.meeting_date) : null;
+        if (meetingDate && (isPast(meetingDate) && !isToday(meetingDate))) {
+          continue; // Still overdue, keep in remarcar
+        }
+      }
+      
+      const meetingDate = item.meeting_date ? new Date(item.meeting_date) : null;
+      const calculatedStatus = calculateStatusByDate(meetingDate);
+      
+      if (calculatedStatus && calculatedStatus !== item.status) {
+        try {
+          await updatePipeConfirmacao.mutateAsync({
+            id: item.id,
+            status: calculatedStatus,
+            leadId: item.lead_id,
+            assignedTo: item.sdr_id || item.closer_id,
+          });
+        } catch (error) {
+          console.error("Error auto-updating status:", error);
+        }
+      }
+    }
+  }, [pipeData, updatePipeConfirmacao]);
+
+  // Run auto-update on mount and when data changes
+  useEffect(() => {
+    autoUpdateStatuses();
+  }, [pipeData?.length]); // Only run when data length changes to avoid infinite loops
 
   const transformToCard = (item: any): ConfirmacaoCardData => {
     const lead = item.lead;
@@ -71,6 +159,8 @@ export default function PipeConfirmacao() {
       origin: lead?.origin || "outro",
       sdr: item.sdr?.name || lead?.sdr?.name,
       closer: item.closer?.name || lead?.closer?.name,
+      sdrId: item.sdr_id,
+      closerId: item.closer_id,
       tags: lead?.lead_tags?.map((lt: any) => lt.tag?.name).filter(Boolean) || [],
       leadId: item.lead_id,
       faturamento: lead?.faturamento,
@@ -133,6 +223,13 @@ export default function PipeConfirmacao() {
     const item = pipeData?.find(p => p.id === itemId);
     if (!item) return;
 
+    // If moving to compareceu, open modal to select SDR/Closer
+    if (newStatus === "compareceu") {
+      setPendingCompareceuItem(item);
+      setIsCompareceuModalOpen(true);
+      return;
+    }
+
     try {
       await updatePipeConfirmacao.mutateAsync({ 
         id: itemId, 
@@ -140,19 +237,41 @@ export default function PipeConfirmacao() {
         leadId: item.lead_id,
         assignedTo: item.sdr_id || item.closer_id,
       });
-
-      if (newStatus === "compareceu") {
-        await createPipeProposta.mutateAsync({
-          lead_id: item.lead_id,
-          closer_id: item.closer_id,
-          status: "marcar_compromisso",
-        });
-        toast.success("Lead movido para Gestão de Propostas!");
-      } else {
-        toast.success("Status atualizado!");
-      }
+      toast.success("Status atualizado!");
     } catch (error) {
       toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleCompareceuConfirm = async (sdrId: string | null, closerId: string | null) => {
+    if (!pendingCompareceuItem) return;
+    
+    setIsProcessingCompareceu(true);
+    try {
+      // Update confirmacao with SDR and Closer
+      await updatePipeConfirmacao.mutateAsync({ 
+        id: pendingCompareceuItem.id, 
+        status: "compareceu" as PipeConfirmacaoStatus,
+        sdr_id: sdrId,
+        closer_id: closerId,
+        leadId: pendingCompareceuItem.lead_id,
+        assignedTo: sdrId || closerId,
+      });
+
+      // Create proposta with selected closer
+      await createPipeProposta.mutateAsync({
+        lead_id: pendingCompareceuItem.lead_id,
+        closer_id: closerId,
+        status: "marcar_compromisso",
+      });
+
+      toast.success("Lead movido para Gestão de Propostas!");
+      setIsCompareceuModalOpen(false);
+      setPendingCompareceuItem(null);
+    } catch (error) {
+      toast.error("Erro ao processar comparecimento");
+    } finally {
+      setIsProcessingCompareceu(false);
     }
   };
 
@@ -276,6 +395,16 @@ export default function PipeConfirmacao() {
         onOpenChange={setIsDetailModalOpen}
         item={selectedItem}
         onSuccess={refetch}
+      />
+
+      <CompareceuModal
+        open={isCompareceuModalOpen}
+        onOpenChange={setIsCompareceuModalOpen}
+        onConfirm={handleCompareceuConfirm}
+        leadName={pendingCompareceuItem?.lead?.name || "Lead"}
+        currentSdrId={pendingCompareceuItem?.sdr_id}
+        currentCloserId={pendingCompareceuItem?.closer_id}
+        isLoading={isProcessingCompareceu}
       />
     </div>
   );
