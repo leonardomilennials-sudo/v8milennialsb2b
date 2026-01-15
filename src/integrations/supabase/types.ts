@@ -572,6 +572,7 @@ export type Database = {
           closer_id: string | null
           created_at: string
           id: string
+          is_confirmed: boolean
           lead_id: string
           meeting_date: string | null
           notes: string | null
@@ -583,6 +584,7 @@ export type Database = {
           closer_id?: string | null
           created_at?: string
           id?: string
+          is_confirmed?: boolean
           lead_id: string
           meeting_date?: string | null
           notes?: string | null
@@ -594,6 +596,7 @@ export type Database = {
           closer_id?: string | null
           created_at?: string
           id?: string
+          is_confirmed?: boolean
           lead_id?: string
           meeting_date?: string | null
           notes?: string | null
@@ -876,6 +879,7 @@ export type Database = {
         | "ambos"
       pipe_confirmacao_status:
         | "reuniao_marcada"
+        | "confirmar_d5"
         | "confirmar_d3"
         | "confirmar_d1"
         | "pre_confirmada"
@@ -1038,6 +1042,7 @@ export const Constants = {
       ],
       pipe_confirmacao_status: [
         "reuniao_marcada",
+        "confirmar_d5",
         "confirmar_d3",
         "confirmar_d1",
         "pre_confirmada",

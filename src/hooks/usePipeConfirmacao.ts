@@ -10,22 +10,20 @@ export type PipeConfirmacaoUpdate = TablesUpdate<"pipe_confirmacao">;
 
 export type PipeConfirmacaoStatus = 
   | "reuniao_marcada"
+  | "confirmar_d5"
   | "confirmar_d3"
   | "confirmar_d1"
-  | "pre_confirmada"
   | "confirmacao_no_dia"
-  | "confirmada_no_dia"
   | "remarcar"
   | "compareceu"
   | "perdido";
 
 export const statusColumns: { id: PipeConfirmacaoStatus; title: string; color: string }[] = [
   { id: "reuniao_marcada", title: "Reunião Marcada", color: "#6366f1" },
+  { id: "confirmar_d5", title: "Confirmar D-5", color: "#8b5cf6" },
   { id: "confirmar_d3", title: "Confirmar D-3", color: "#f59e0b" },
-  { id: "confirmar_d1", title: "Confirmar D-1", color: "#f59e0b" },
-  { id: "pre_confirmada", title: "Pré Confirmada", color: "#10b981" },
-  { id: "confirmacao_no_dia", title: "Confirmação | No dia", color: "#3b82f6" },
-  { id: "confirmada_no_dia", title: "Confirmada | No dia", color: "#22c55e" },
+  { id: "confirmar_d1", title: "Confirmar D-1", color: "#f97316" },
+  { id: "confirmacao_no_dia", title: "Confirmação no Dia", color: "#3b82f6" },
   { id: "remarcar", title: "Remarcar 📅", color: "#f97316" },
   { id: "compareceu", title: "Compareceu ✓", color: "#16a34a" },
   { id: "perdido", title: "Perdido ✗", color: "#ef4444" },

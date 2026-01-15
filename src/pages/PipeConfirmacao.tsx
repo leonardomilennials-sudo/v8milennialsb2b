@@ -35,6 +35,7 @@ interface ConfirmacaoCardData extends DraggableItem {
   urgency?: string;
   status?: string;
   confirmacaoId?: string;
+  isConfirmed?: boolean;
 }
 
 export default function PipeConfirmacao() {
@@ -77,6 +78,7 @@ export default function PipeConfirmacao() {
       urgency: lead?.urgency,
       status: item.status,
       confirmacaoId: item.id,
+      isConfirmed: item.is_confirmed || false,
     };
   };
 

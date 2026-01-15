@@ -110,11 +110,10 @@ export function AddMeetingModal({ open, onOpenChange, onSuccess }: AddMeetingMod
 
   const statusOptions: { value: PipeConfirmacaoStatus; label: string }[] = [
     { value: "reuniao_marcada", label: "Reunião Marcada" },
+    { value: "confirmar_d5", label: "Confirmar D-5" },
     { value: "confirmar_d3", label: "Confirmar D-3" },
     { value: "confirmar_d1", label: "Confirmar D-1" },
-    { value: "pre_confirmada", label: "Pré Confirmada" },
-    { value: "confirmacao_no_dia", label: "Confirmação | No dia" },
-    { value: "confirmada_no_dia", label: "Confirmada | No dia" },
+    { value: "confirmacao_no_dia", label: "Confirmação no Dia" },
     { value: "remarcar", label: "Remarcar" },
   ];
 

@@ -32,13 +32,13 @@ export function QuickStats({ className }: QuickStatsProps) {
         .gte("meeting_date", todayStart)
         .lte("meeting_date", todayEnd);
 
-      // Confirmed meetings
+      // Confirmed meetings (using is_confirmed field)
       const { count: confirmedToday } = await supabase
         .from("pipe_confirmacao")
         .select("*", { count: "exact", head: true })
         .gte("meeting_date", todayStart)
         .lte("meeting_date", todayEnd)
-        .in("status", ["confirmada_no_dia", "pre_confirmada"]);
+        .eq("is_confirmed", true);
 
       // Pending follow-ups
       const { count: pendingFollowUps } = await supabase
