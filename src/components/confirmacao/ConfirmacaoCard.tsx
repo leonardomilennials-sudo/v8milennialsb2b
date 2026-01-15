@@ -10,15 +10,21 @@ import {
   AlertTriangle,
   CheckCircle2,
   MapPin,
-  MessageCircle
+  MessageCircle,
+  Check
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
 import { format, isToday, isTomorrow, isPast, differenceInHours, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { QuickAddDailyAction } from "./QuickAddDailyAction";
 import { MeetingCountdown } from "./MeetingCountdown";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface ConfirmacaoCardProps {
   card: {
@@ -40,6 +46,7 @@ interface ConfirmacaoCardProps {
     urgency?: string;
     status?: string;
     confirmacaoId?: string;
+    isConfirmed?: boolean;
   };
   onClick?: () => void;
   variant?: "default" | "compact" | "detailed";
@@ -114,12 +121,45 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
   const origin = originConfig[card.origin] || originConfig.outro;
   const meetingDate = card.meetingDateTime || (card.meetingDate ? new Date(card.meetingDate) : null);
   const indicator = getMeetingIndicator(meetingDate, card.status);
+  const queryClient = useQueryClient();
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleToggleConfirmed = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!card.confirmacaoId || isUpdating) return;
+    
+    setIsUpdating(true);
+    try {
+      const newValue = !card.isConfirmed;
+      const { error } = await supabase
+        .from("pipe_confirmacao")
+        .update({ is_confirmed: newValue })
+        .eq("id", card.confirmacaoId);
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
+      toast.success(newValue ? "Reunião confirmada!" : "Confirmação removida");
+    } catch (error) {
+      toast.error("Erro ao atualizar confirmação");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // Determine card border color based on confirmation status
+  const confirmationStyle = card.isConfirmed 
+    ? "ring-2 ring-green-500/50 border-green-500/30" 
+    : "ring-1 ring-orange-500/30 border-orange-500/20";
 
   if (variant === "compact") {
     return (
       <motion.div
         whileHover={{ scale: 1.02 }}
-        className="p-3 rounded-lg border border-border bg-card cursor-pointer hover:shadow-md transition-all"
+        className={cn(
+          "p-3 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-all",
+          card.isConfirmed ? "border-green-500/30 bg-green-500/5" : "border-orange-500/30 bg-orange-500/5"
+        )}
         onClick={onClick}
       >
         <div className="flex items-center justify-between">
@@ -127,11 +167,16 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
             <span className="text-lg">{origin.icon}</span>
             <span className="font-medium text-sm truncate">{card.name}</span>
           </div>
-          {indicator && (
-            <Badge variant="outline" className={cn("text-xs shrink-0", indicator.className)}>
-              {indicator.label}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {card.isConfirmed && (
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+            )}
+            {indicator && (
+              <Badge variant="outline" className={cn("text-xs shrink-0", indicator.className)}>
+                {indicator.label}
+              </Badge>
+            )}
+          </div>
         </div>
       </motion.div>
     );
@@ -142,21 +187,26 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
       whileHover={{ scale: 1.02, y: -2 }}
       className={cn(
         "kanban-card group cursor-pointer relative overflow-hidden",
+        confirmationStyle,
         indicator?.type === "overdue" && "ring-1 ring-destructive/50",
         indicator?.type === "imminent" && "ring-2 ring-destructive/50 shadow-lg shadow-destructive/10",
-        indicator?.type === "today" && "ring-1 ring-warning/50"
+        indicator?.type === "today" && !card.isConfirmed && "ring-1 ring-warning/50"
       )}
       onClick={onClick}
     >
-      {/* Urgent indicator strip */}
-      {indicator?.type === "imminent" && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-destructive via-destructive/80 to-destructive animate-pulse" />
+      {/* Confirmation status strip - green for confirmed, orange for pending */}
+      {card.isConfirmed ? (
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 via-green-400 to-green-500" />
+      ) : (
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
+      )}
+      
+      {/* Urgent indicator overlay */}
+      {indicator?.type === "imminent" && !card.isConfirmed && (
+        <div className="absolute top-1.5 left-0 right-0 h-0.5 bg-destructive animate-pulse" />
       )}
       {indicator?.type === "overdue" && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-destructive" />
-      )}
-      {indicator?.type === "today" && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-warning" />
+        <div className="absolute top-1.5 left-0 right-0 h-0.5 bg-destructive" />
       )}
 
       {/* Header */}
@@ -286,35 +336,63 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         </div>
       )}
 
-      {/* Responsáveis */}
+      {/* Confirmation Button + Responsáveis */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
         <div className="flex items-center gap-3">
+          {/* Confirmation Toggle Button */}
+          <Button
+            variant={card.isConfirmed ? "default" : "outline"}
+            size="sm"
+            className={cn(
+              "h-7 px-2 text-xs font-medium transition-all",
+              card.isConfirmed 
+                ? "bg-green-500 hover:bg-green-600 text-white" 
+                : "border-orange-500/50 text-orange-500 hover:bg-orange-500/10"
+            )}
+            onClick={handleToggleConfirmed}
+            disabled={isUpdating}
+          >
+            {card.isConfirmed ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Confirmado
+              </>
+            ) : (
+              <>
+                <Check className="w-3 h-3 mr-1" />
+                Confirmar
+              </>
+            )}
+          </Button>
+          
           {card.sdr && (
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-full bg-chart-2/20 flex items-center justify-center">
                 <span className="text-[8px] font-bold text-chart-2">S</span>
               </div>
-              <span className="text-xs text-muted-foreground truncate max-w-[60px]">{card.sdr}</span>
+              <span className="text-xs text-muted-foreground truncate max-w-[50px]">{card.sdr}</span>
             </div>
           )}
+        </div>
+        <div className="flex items-center gap-2">
           {card.closer && (
             <div className="flex items-center gap-1.5">
               <div className="w-5 h-5 rounded-full bg-chart-5/20 flex items-center justify-center">
                 <span className="text-[8px] font-bold text-chart-5">C</span>
               </div>
-              <span className="text-xs text-muted-foreground truncate max-w-[60px]">{card.closer}</span>
+              <span className="text-xs text-muted-foreground truncate max-w-[50px]">{card.closer}</span>
             </div>
           )}
+          {formatPhoneForWhatsApp(card.phone) && (
+            <button
+              onClick={(e) => openWhatsApp(card.phone, e)}
+              className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
+              title="Abrir WhatsApp"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
-        {formatPhoneForWhatsApp(card.phone) && (
-          <button
-            onClick={(e) => openWhatsApp(card.phone, e)}
-            className="p-1.5 rounded-md bg-[#25D366]/10 hover:bg-[#25D366]/20 text-[#25D366] transition-colors"
-            title="Abrir WhatsApp"
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
     </motion.div>
   );

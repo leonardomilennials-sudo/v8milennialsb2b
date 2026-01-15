@@ -34,9 +34,9 @@ export function ConfirmacaoStats({ data }: ConfirmacaoStatsProps) {
     thisWeek: data.filter(item => item.meeting_date && isThisWeek(new Date(item.meeting_date), { locale: undefined })).length,
     overdue: data.filter(item => item.meeting_date && isPast(new Date(item.meeting_date)) && !isToday(new Date(item.meeting_date)) && !["compareceu", "perdido"].includes(item.status)).length,
     
-    // Por status
-    confirmed: data.filter(item => ["confirmada_no_dia", "compareceu"].includes(item.status)).length,
-    pending: data.filter(item => ["reuniao_marcada", "confirmar_d3", "confirmar_d1", "pre_confirmada", "confirmacao_no_dia"].includes(item.status)).length,
+    // Por status - usando is_confirmed para identificar confirmados
+    confirmed: data.filter(item => item.is_confirmed === true || item.status === "compareceu").length,
+    pending: data.filter(item => !item.is_confirmed && ["reuniao_marcada", "confirmar_d5", "confirmar_d3", "confirmar_d1", "confirmacao_no_dia"].includes(item.status)).length,
     compareceu: data.filter(item => item.status === "compareceu").length,
     perdido: data.filter(item => item.status === "perdido").length,
     remarcar: data.filter(item => item.status === "remarcar").length,
