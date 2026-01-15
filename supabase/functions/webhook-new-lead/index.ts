@@ -173,12 +173,20 @@ Deno.serve(async (req) => {
           : notes;
       }
 
-      // Handle compromisso_date - update or set new meeting
+      // Handle compromisso_date - ALWAYS preserve existing, or use new if none exists
       const newCompromissoDate = compromisso_date || null;
+      const finalCompromissoDate = existingLead.compromisso_date || newCompromissoDate;
+      
       if (newCompromissoDate && !existingLead.compromisso_date) {
+        // Only update if existing lead has no compromisso_date
         updatedData.compromisso_date = newCompromissoDate;
         updatedData.origin = "ambos"; // Mark as lead from multiple sources
+      } else if (existingLead.compromisso_date && newCompromissoDate && existingLead.compromisso_date !== newCompromissoDate) {
+        // If both have dates, keep existing and log the conflict
+        updatedData.notes = (updatedData.notes || existingLead.notes || '') + 
+          `\n\n[Conflito de data] Nova data recebida: ${newCompromissoDate} - mantida data original: ${existingLead.compromisso_date}`;
       }
+      // If existingLead.compromisso_date exists and no new date, nothing changes (preserves existing)
 
       // Apply updates if any
       if (Object.keys(updatedData).length > 0) {
@@ -195,7 +203,10 @@ Deno.serve(async (req) => {
       }
 
       // Handle pipe routing for unified lead
-      if (newCompromissoDate) {
+      // Use existing compromisso_date if available, otherwise use new one
+      const effectiveCompromissoDate = existingLead.compromisso_date || newCompromissoDate;
+      
+      if (effectiveCompromissoDate) {
         // Check if already in pipe_confirmacao
         const { data: existingConfirmacao } = await supabase
           .from("pipe_confirmacao")

@@ -204,16 +204,32 @@ Deno.serve(async (req) => {
       // SCENARIO 1: Lead with this email already exists (Quiz + Cal = Ambos)
       console.log("Found existing lead:", existingLead.id);
 
-      // Update the existing lead with meeting info and set origin to "ambos"
+      // IMPORTANT: Preserve existing compromisso_date if it exists
+      const existingCompromissoDate = existingLead.compromisso_date;
+      const shouldUpdateDate = !existingCompromissoDate;
+      
+      // Build update object
+      const updateData: Record<string, any> = {
+        origin: "ambos", // Lead veio do Quiz e agora agendou via Cal
+      };
+      
+      if (shouldUpdateDate) {
+        // Only update compromisso_date if lead doesn't have one
+        updateData.compromisso_date = startTime;
+        updateData.notes = existingLead.notes 
+          ? `${existingLead.notes}\n\n[Cal.com] Reunião agendada: ${startTime}`
+          : `[Cal.com] Reunião agendada: ${startTime}`;
+      } else {
+        // Lead already has a meeting scheduled, just log it
+        updateData.notes = existingLead.notes 
+          ? `${existingLead.notes}\n\n[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}`
+          : `[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}`;
+      }
+
+      // Update the existing lead
       const { error: updateError } = await supabase
         .from("leads")
-        .update({
-          origin: "ambos", // Lead veio do Quiz e agora agendou via Cal
-          compromisso_date: startTime,
-          notes: existingLead.notes 
-            ? `${existingLead.notes}\n\n[Cal.com] Reunião agendada: ${startTime}`
-            : `[Cal.com] Reunião agendada: ${startTime}`,
-        })
+        .update(updateData)
         .eq("id", existingLead.id);
 
       if (updateError) {
@@ -230,28 +246,34 @@ Deno.serve(async (req) => {
       // Add "Reunião Marcada" tag
       await addTagToLead(existingLead.id, reuniaoMarcadaTagId);
 
+      // Use effective date - existing or new
+      const effectiveMeetingDate = existingCompromissoDate || startTime;
+
       // Create or update pipe_confirmacao entry
       const { data: existingConfirmacao } = await supabase
         .from("pipe_confirmacao")
-        .select("id")
+        .select("id, meeting_date")
         .eq("lead_id", existingLead.id)
-        .single();
+        .maybeSingle();
 
       if (existingConfirmacao) {
-        await supabase
-          .from("pipe_confirmacao")
-          .update({
-            status: "reuniao_marcada",
-            meeting_date: startTime,
-          })
-          .eq("id", existingConfirmacao.id);
+        // Only update if no meeting_date exists
+        if (!existingConfirmacao.meeting_date) {
+          await supabase
+            .from("pipe_confirmacao")
+            .update({
+              status: "reuniao_marcada",
+              meeting_date: effectiveMeetingDate,
+            })
+            .eq("id", existingConfirmacao.id);
+        }
       } else {
         await supabase
           .from("pipe_confirmacao")
           .insert({
             lead_id: existingLead.id,
             status: "reuniao_marcada",
-            meeting_date: startTime,
+            meeting_date: effectiveMeetingDate,
           });
       }
 
