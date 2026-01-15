@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
-  Users,
+  Fuel,
   Search,
   Filter,
   Star,
@@ -264,15 +264,16 @@ export default function Leads() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <motion.h1
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
             className="text-2xl font-bold flex items-center gap-2"
           >
-            <Users className="w-6 h-6 text-primary" />
-            Base de Leads
+            <Fuel className="w-6 h-6 text-primary" />
+            Tanque de Combustível
+            <span className="text-lg">⛽</span>
           </motion.h1>
           <p className="text-muted-foreground mt-1">
-            Gerencie todos os leads e aplique filtros
+            Gerencie todo o combustível da sua máquina de vendas
           </p>
         </div>
 

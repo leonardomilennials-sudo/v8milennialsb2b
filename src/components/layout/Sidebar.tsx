@@ -2,13 +2,11 @@ import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  Users,
+  Gauge,
+  Fuel,
   Calendar,
-  TrendingUp,
-  Target,
+  Wrench,
   Trophy,
-  Gift,
   DollarSign,
   Settings,
   ChevronLeft,
@@ -17,6 +15,8 @@ import {
   Kanban,
   UserCheck,
   LogOut,
+  Zap,
+  Flag,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,22 +33,22 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
-  { label: "Follow Ups", icon: TrendingUp, path: "/follow-ups" },
+  { label: "Central de Comando", icon: Gauge, path: "/" },
+  { label: "Revisão", icon: Wrench, path: "/follow-ups" },
   { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
-  { label: "Funil Qualificação", icon: MessageSquare, path: "/pipe-whatsapp" },
-  { label: "Leads", icon: Users, path: "/leads" },
-  { label: "Performance", icon: Trophy, path: "/performance" },
+  { label: "Qualificação", icon: MessageSquare, path: "/pipe-whatsapp" },
+  { label: "Combustível", icon: Fuel, path: "/leads" },
+  { label: "Pódio", icon: Trophy, path: "/performance" },
   { label: "Comissões", icon: DollarSign, path: "/comissoes" },
 ];
 
 const adminNavItems: NavItem[] = [
-  { label: "Equipe", icon: UserCheck, path: "/equipe" },
+  { label: "Pilotos", icon: Flag, path: "/equipe" },
 ];
 
 const bottomNavItems: NavItem[] = [
-  { label: "Configurações", icon: Settings, path: "/configuracoes" },
+  { label: "Pitstop", icon: Settings, path: "/configuracoes" },
 ];
 
 export function Sidebar() {
@@ -74,13 +74,13 @@ export function Sidebar() {
   };
 
   const getRoleLabel = () => {
-    if (!userRole?.role) return "Usuário";
+    if (!userRole?.role) return "Piloto";
     const labels: Record<string, string> = {
-      admin: "Admin",
-      sdr: "SDR",
-      closer: "Closer",
+      admin: "Chefe de Equipe",
+      sdr: "Piloto SDR",
+      closer: "Piloto Closer",
     };
-    return labels[userRole.role] || "Usuário";
+    return labels[userRole.role] || "Piloto";
   };
 
   return (
@@ -94,10 +94,23 @@ export function Sidebar() {
       <div className="p-4 flex items-center justify-between border-b border-sidebar-border">
         <motion.div
           animate={{ opacity: collapsed ? 0 : 1 }}
-          className="overflow-hidden"
+          className="overflow-hidden flex items-center gap-2"
         >
-          <img src={logoDark} alt="Millennials B2B" className="h-8" />
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-black text-primary tracking-tighter">V8</span>
+            <span className="text-sidebar-foreground/60 text-xs">by</span>
+            <img src={logoDark} alt="Millennials B2B" className="h-6" />
+          </div>
         </motion.div>
+        {collapsed && (
+          <motion.span 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-xl font-black text-primary"
+          >
+            V8
+          </motion.span>
+        )}
         <div className="flex items-center gap-1">
           {!collapsed && <AlertsDropdown />}
           <button
