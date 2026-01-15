@@ -5,6 +5,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to normalize email (lowercase, trim)
+function normalizeEmail(email: string | null | undefined): string | null {
+  if (!email) return null;
+  return email.toLowerCase().trim();
+}
+
+// Helper function to normalize name for comparison
+function normalizeName(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+// Helper function to get start and end of day for a given date
+function getDayBoundaries(date: Date): { start: string; end: string } {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -116,17 +142,57 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Search for existing lead with this email
-    const { data: existingLead, error: searchError } = await supabase
-      .from("leads")
-      .select("*")
-      .eq("email", email)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+    // Normalize email for case-insensitive comparison
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = normalizeName(name);
 
-    if (searchError && searchError.code !== "PGRST116") {
-      console.error("Error searching for lead:", searchError);
+    // ============================================
+    // DEDUPLICATION LOGIC
+    // ============================================
+    let existingLead = null;
+    let deduplicationMethod = null;
+
+    // 1. First, try to find by email (case-insensitive)
+    if (normalizedEmail) {
+      console.log("Searching for existing lead by email (case-insensitive):", normalizedEmail);
+      
+      const { data: leads, error: searchError } = await supabase
+        .from("leads")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (!searchError && leads) {
+        // Find lead with matching email (case-insensitive)
+        existingLead = leads.find(lead => normalizeEmail(lead.email) === normalizedEmail);
+        if (existingLead) {
+          deduplicationMethod = "email";
+          console.log("Found existing lead by email:", existingLead.id);
+        }
+      }
+    }
+
+    // 2. If no email match, try to find by name + same day
+    if (!existingLead && normalizedName) {
+      const today = new Date();
+      const { start, end } = getDayBoundaries(today);
+      
+      console.log("Searching for existing lead by name + same day:", normalizedName, "between", start, "and", end);
+      
+      const { data: todayLeads, error: searchError } = await supabase
+        .from("leads")
+        .select("*")
+        .gte("created_at", start)
+        .lte("created_at", end)
+        .order("created_at", { ascending: false });
+
+      if (!searchError && todayLeads) {
+        // Find lead with matching name (case-insensitive, normalized spaces)
+        existingLead = todayLeads.find(lead => normalizeName(lead.name) === normalizedName);
+        if (existingLead) {
+          deduplicationMethod = "name_same_day";
+          console.log("Found existing lead by name + same day:", existingLead.id);
+        }
+      }
     }
 
     // Get or create necessary tags
