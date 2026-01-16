@@ -58,6 +58,7 @@ type TeamRole = "sdr" | "closer";
 
 interface TeamMemberFormData {
   name: string;
+  email: string;
   role: TeamRole;
   ote_base: number;
   ote_bonus: number;
@@ -69,6 +70,7 @@ interface TeamMemberFormData {
 
 const initialFormData: TeamMemberFormData = {
   name: "",
+  email: "",
   role: "sdr",
   ote_base: 0,
   ote_bonus: 0,
@@ -112,6 +114,7 @@ export default function Equipe() {
       setEditingMember(member);
       setFormData({
         name: member.name,
+        email: (member as any).email || "",
         role: member.role as TeamRole,
         ote_base: Number(member.ote_base) || 0,
         ote_bonus: Number(member.ote_bonus) || 0,
@@ -214,6 +217,23 @@ export default function Equipe() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Nome completo"
                   />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email (Cal.com)</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="email@exemplo.com"
+                      className="pl-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Email usado no Cal.com para atribuição automática de reuniões
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="role">Função</Label>
@@ -398,6 +418,7 @@ export default function Equipe() {
           <TableHeader>
             <TableRow>
               <TableHead>Nome</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>Função</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">OTE Base</TableHead>
@@ -410,13 +431,13 @@ export default function Equipe() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Carregando...
                 </TableCell>
               </TableRow>
             ) : filteredMembers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Nenhum membro encontrado
                 </TableCell>
               </TableRow>
@@ -424,6 +445,16 @@ export default function Equipe() {
               filteredMembers.map((member) => (
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
+                  <TableCell>
+                    {(member as any).email ? (
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {(member as any).email}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground/50 italic">Não configurado</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={roleColors[member.role as TeamRole]}>
                       {roleLabels[member.role as TeamRole]}
