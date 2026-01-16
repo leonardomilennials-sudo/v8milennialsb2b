@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, RefreshCw, User, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, Play, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { usePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { usePipePropostas } from "@/hooks/usePipePropostas";
-import { useTeamGoals, useIndividualGoals } from "@/hooks/useGoals";
+import { useIndividualGoals } from "@/hooks/useGoals";
 
 interface TeamMemberTask {
   memberId: string;
   memberName: string;
   role: "sdr" | "closer";
-  problema: string;
   tarefa: string;
   isLoading: boolean;
   error: string | null;
@@ -29,7 +28,6 @@ export function AICoachSection() {
   const currentMonth = now.getMonth() + 1;
   const currentYear = now.getFullYear();
   
-  const { data: teamGoals } = useTeamGoals(currentMonth, currentYear);
   const { data: individualGoals } = useIndividualGoals(currentMonth, currentYear);
   
   const dayOfMonth = now.getDate();
@@ -42,7 +40,6 @@ export function AICoachSection() {
     let metrics: any = { role, diaDoMes: dayOfMonth, diasRestantes };
     
     if (role === "sdr") {
-      // SDR metrics: meetings confirmed
       const sdrConfirmacoes = confirmacoes?.filter(c => 
         c.sdr_id === member.id && 
         c.status === "compareceu" &&
@@ -55,7 +52,6 @@ export function AICoachSection() {
       metrics.metaReuniao = sdrGoal?.goal || 20;
       metrics.percentualMeta = sdrGoal?.percentage || 0;
     } else {
-      // Closer metrics: sales
       const closerSales = propostas?.filter(p => 
         p.closer_id === member.id && 
         p.status === "vendido" &&
@@ -83,7 +79,6 @@ export function AICoachSection() {
         memberId: member.id,
         memberName: member.name,
         role,
-        problema: data.problema || "",
         tarefa: data.tarefa || "",
         isLoading: false,
         error: null
@@ -93,7 +88,6 @@ export function AICoachSection() {
         memberId: member.id,
         memberName: member.name,
         role,
-        problema: "",
         tarefa: "",
         isLoading: false,
         error: err.message || "Erro ao consultar IA"
@@ -109,18 +103,15 @@ export function AICoachSection() {
       m.is_active && (m.role === "sdr" || m.role === "closer")
     );
 
-    // Initialize loading state
     setTasks(activeMembers.map(m => ({
       memberId: m.id,
       memberName: m.name,
       role: m.role as "sdr" | "closer",
-      problema: "",
       tarefa: "",
       isLoading: true,
       error: null
     })));
 
-    // Fetch tasks in parallel (max 3 at a time to avoid rate limits)
     const results: TeamMemberTask[] = [];
     const batchSize = 3;
     
@@ -129,7 +120,6 @@ export function AICoachSection() {
       const batchResults = await Promise.all(batch.map(fetchTaskForMember));
       results.push(...batchResults);
       
-      // Update state incrementally
       setTasks(prev => {
         const updated = [...prev];
         batchResults.forEach(result => {
@@ -149,62 +139,85 @@ export function AICoachSection() {
     }
   }, [teamMembers?.length, confirmacoes?.length, propostas?.length]);
 
-  // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(fetchAllTasks, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [teamMembers, confirmacoes, propostas, individualGoals]);
 
-  const closerTasks = tasks.filter(t => t.role === "closer");
-  const sdrTasks = tasks.filter(t => t.role === "sdr");
+  const allTasks = [...tasks.filter(t => t.role === "closer"), ...tasks.filter(t => t.role === "sdr")];
 
   return (
-    <div className="space-y-1.5">
-      {[...closerTasks, ...sdrTasks].slice(0, 5).map((task, index) => (
-        <TaskCardMini key={task.memberId} task={task} index={index} />
+    <div className="space-y-2">
+      {allTasks.slice(0, 5).map((task, index) => (
+        <TaskCard key={task.memberId} task={task} index={index} />
       ))}
-      {closerTasks.length === 0 && sdrTasks.length === 0 && (
-        <p className="text-[10px] text-muted-foreground text-center py-2">
-          Carregando...
-        </p>
+      {allTasks.length === 0 && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-4 h-4 animate-spin text-white/30" />
+        </div>
       )}
     </div>
   );
 }
 
-function TaskCardMini({ task, index }: { task: TeamMemberTask; index: number }) {
+function TaskCard({ task, index }: { task: TeamMemberTask; index: number }) {
+  const roleColor = task.role === "closer" ? "text-primary" : "text-amber-400";
+  const roleBg = task.role === "closer" ? "bg-primary/10" : "bg-amber-400/10";
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 3 }}
+      initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className="p-1.5 rounded-lg bg-card/30 border border-border/30"
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+      className="p-2 rounded-lg bg-white/[0.02] border border-white/5 transition-all"
     >
-      <div className="flex items-center gap-1.5 mb-0.5">
-        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
-          task.role === "closer" ? "bg-primary/20 text-primary" : "bg-amber-500/20 text-amber-400"
-        }`}>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold ${roleBg} ${roleColor}`}>
           {task.memberName?.charAt(0)}
         </div>
-        <span className="text-[10px] font-semibold text-foreground truncate">{task.memberName}</span>
+        <span className="text-xs font-medium text-white/80 flex-1 truncate">{task.memberName}</span>
+        <span className={`text-[9px] uppercase tracking-wider ${roleColor}`}>
+          {task.role}
+        </span>
       </div>
 
+      {/* Content */}
       <AnimatePresence mode="wait">
-        {task.isLoading && (
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Loader2 className="w-2.5 h-2.5 animate-spin" />
-            <span className="text-[9px]">...</span>
-          </div>
-        )}
-
-        {!task.isLoading && !task.error && task.tarefa && (
-          <p className="text-[9px] text-emerald-300/80 leading-tight line-clamp-2 pl-5">
-            {task.tarefa}
-          </p>
-        )}
-
-        {!task.isLoading && task.error && (
-          <p className="text-[9px] text-red-400/80 pl-5">Erro</p>
+        {task.isLoading ? (
+          <motion.div 
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex items-center gap-2 pl-7"
+          >
+            <Loader2 className="w-3 h-3 animate-spin text-white/30" />
+            <span className="text-[10px] text-white/30">Analisando...</span>
+          </motion.div>
+        ) : task.error ? (
+          <motion.p 
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-[10px] text-red-400/60 pl-7"
+          >
+            Erro ao carregar
+          </motion.p>
+        ) : (
+          <motion.div 
+            key="content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pl-7"
+          >
+            <p className="text-[11px] text-white/60 leading-relaxed line-clamp-2">
+              {task.tarefa}
+            </p>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
