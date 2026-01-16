@@ -25,6 +25,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState } from "react";
+import type { Database } from "@/integrations/supabase/types";
+
+type PipeConfirmacaoStatus = Database["public"]["Enums"]["pipe_confirmacao_status"];
 
 interface ConfirmacaoCardProps {
   card: {
@@ -124,22 +127,52 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
   const queryClient = useQueryClient();
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Determine confirmation state based on status
+  const isPreConfirmada = card.status === "pre_confirmada";
+  const isConfirmadaNoDia = card.status === "confirmada_no_dia";
+  const isMeetingDay = meetingDate ? isToday(meetingDate) : false;
+  const canConfirmToday = isMeetingDay && (card.status === "confirmacao_no_dia" || isPreConfirmada);
+
   const handleToggleConfirmed = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!card.confirmacaoId || isUpdating) return;
     
     setIsUpdating(true);
     try {
-      const newValue = !card.isConfirmed;
+      let newStatus: PipeConfirmacaoStatus;
+      
+      // If it's the meeting day and already pre-confirmed or in confirmacao_no_dia, confirm fully
+      if (canConfirmToday) {
+        newStatus = "confirmada_no_dia";
+      } 
+      // If already confirmed on the day, do nothing (or could toggle back)
+      else if (isConfirmadaNoDia) {
+        setIsUpdating(false);
+        toast.info("Já confirmada no dia!");
+        return;
+      }
+      // Otherwise, pre-confirm
+      else {
+        newStatus = "pre_confirmada";
+      }
+
       const { error } = await supabase
         .from("pipe_confirmacao")
-        .update({ is_confirmed: newValue })
+        .update({ 
+          status: newStatus,
+          is_confirmed: newStatus === "confirmada_no_dia" 
+        })
         .eq("id", card.confirmacaoId);
       
       if (error) throw error;
       
       queryClient.invalidateQueries({ queryKey: ["pipe_confirmacao"] });
-      toast.success(newValue ? "Reunião confirmada!" : "Confirmação removida");
+      
+      if (newStatus === "confirmada_no_dia") {
+        toast.success("✅ Reunião confirmada no dia!");
+      } else {
+        toast.success("🔵 Reunião pré-confirmada!");
+      }
     } catch (error) {
       toast.error("Erro ao atualizar confirmação");
     } finally {
@@ -148,9 +181,13 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
   };
 
   // Determine card border color based on confirmation status
-  const confirmationStyle = card.isConfirmed 
-    ? "ring-2 ring-green-500/50 border-green-500/30" 
-    : "ring-1 ring-orange-500/30 border-orange-500/20";
+  const getConfirmationStyle = () => {
+    if (isConfirmadaNoDia) return "ring-2 ring-green-500/50 border-green-500/30";
+    if (isPreConfirmada) return "ring-2 ring-blue-500/50 border-blue-500/30";
+    return "ring-1 ring-orange-500/30 border-orange-500/20";
+  };
+
+  const confirmationStyle = getConfirmationStyle();
 
   if (variant === "compact") {
     return (
@@ -158,7 +195,9 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         whileHover={{ scale: 1.02 }}
         className={cn(
           "p-3 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-all",
-          card.isConfirmed ? "border-green-500/30 bg-green-500/5" : "border-orange-500/30 bg-orange-500/5"
+          isConfirmadaNoDia ? "border-green-500/30 bg-green-500/5" : 
+          isPreConfirmada ? "border-blue-500/30 bg-blue-500/5" : 
+          "border-orange-500/30 bg-orange-500/5"
         )}
         onClick={onClick}
       >
@@ -168,8 +207,11 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
             <span className="font-medium text-sm truncate">{card.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            {card.isConfirmed && (
+            {isConfirmadaNoDia && (
               <CheckCircle2 className="w-4 h-4 text-green-500" />
+            )}
+            {isPreConfirmada && (
+              <CheckCircle2 className="w-4 h-4 text-blue-500" />
             )}
             {indicator && (
               <Badge variant="outline" className={cn("text-xs shrink-0", indicator.className)}>
@@ -194,15 +236,17 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
       )}
       onClick={onClick}
     >
-      {/* Confirmation status strip - green for confirmed, orange for pending */}
-      {card.isConfirmed ? (
+      {/* Confirmation status strip - green for confirmed, blue for pre-confirmed, orange for pending */}
+      {isConfirmadaNoDia ? (
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 via-green-400 to-green-500" />
+      ) : isPreConfirmada ? (
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500" />
       ) : (
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500" />
       )}
       
       {/* Urgent indicator overlay */}
-      {indicator?.type === "imminent" && !card.isConfirmed && (
+      {indicator?.type === "imminent" && !isPreConfirmada && !isConfirmadaNoDia && (
         <div className="absolute top-1.5 left-0 right-0 h-0.5 bg-destructive animate-pulse" />
       )}
       {indicator?.type === "overdue" && (
@@ -341,26 +385,40 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         <div className="flex items-center gap-3">
           {/* Confirmation Toggle Button */}
           <Button
-            variant={card.isConfirmed ? "default" : "outline"}
+            variant={isConfirmadaNoDia ? "default" : isPreConfirmada ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-7 px-2 text-xs font-medium transition-all",
-              card.isConfirmed 
+              isConfirmadaNoDia 
                 ? "bg-green-500 hover:bg-green-600 text-white" 
-                : "border-orange-500/50 text-orange-500 hover:bg-orange-500/10"
+                : isPreConfirmada
+                  ? "bg-blue-500 hover:bg-blue-600 text-white"
+                  : "border-orange-500/50 text-orange-500 hover:bg-orange-500/10"
             )}
             onClick={handleToggleConfirmed}
-            disabled={isUpdating}
+            disabled={isUpdating || isConfirmadaNoDia}
           >
-            {card.isConfirmed ? (
+            {isConfirmadaNoDia ? (
               <>
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Confirmado
               </>
+            ) : isPreConfirmada ? (
+              canConfirmToday ? (
+                <>
+                  <Check className="w-3 h-3 mr-1" />
+                  Confirmar Hoje
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  Pré-Confirmado
+                </>
+              )
             ) : (
               <>
                 <Check className="w-3 h-3 mr-1" />
-                Confirmar
+                {isMeetingDay ? "Confirmar" : "Pré-Confirmar"}
               </>
             )}
           </Button>
