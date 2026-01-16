@@ -21,6 +21,7 @@ import Equipe from "./pages/Equipe";
 import Comissoes from "./pages/Comissoes";
 import Leads from "./pages/Leads";
 import Configuracoes from "./pages/Configuracoes";
+import TVDashboard from "./pages/TVDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -162,6 +163,14 @@ function AppRoutes() {
             <LayoutWrapper>
               <Configuracoes />
             </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tv"
+        element={
+          <ProtectedRoute>
+            <TVDashboard />
           </ProtectedRoute>
         }
       />

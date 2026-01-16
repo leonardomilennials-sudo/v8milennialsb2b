@@ -17,6 +17,7 @@ import {
   LogOut,
   Zap,
   Flag,
+  Tv,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
 import v8Logo from "@/assets/v8-logo.png";
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   { label: "Pilotos", icon: Flag, path: "/equipe" },
+  { label: "TV Dashboard", icon: Tv, path: "/tv" },
 ];
 
 const bottomNavItems: NavItem[] = [
