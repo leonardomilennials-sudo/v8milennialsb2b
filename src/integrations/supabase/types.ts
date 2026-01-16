@@ -789,6 +789,7 @@ export type Database = {
           commission_mrr_percent: number | null
           commission_projeto_percent: number | null
           created_at: string
+          email: string | null
           id: string
           is_active: boolean
           name: string
@@ -802,6 +803,7 @@ export type Database = {
           commission_mrr_percent?: number | null
           commission_projeto_percent?: number | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -815,6 +817,7 @@ export type Database = {
           commission_mrr_percent?: number | null
           commission_projeto_percent?: number | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name?: string

@@ -79,7 +79,37 @@ Deno.serve(async (req) => {
     // Extract phone from responses if available
     const phone = responses.phone || responses.telefone || responses.celular || responses.whatsapp || null;
 
-    console.log("Extracted data:", { email, name, startTime, phone });
+    // ============================================
+    // EXTRACT ORGANIZER INFO FOR CLOSER MATCHING
+    // ============================================
+    const organizer = payload.organizer || {};
+    const organizerEmail = normalizeEmail(organizer.email);
+    const organizerName = organizer.name;
+    
+    console.log("Organizer data:", { organizerEmail, organizerName });
+
+    // Find the team member (Closer) by organizer email
+    let closerId: string | null = null;
+    
+    if (organizerEmail) {
+      const { data: teamMember, error: teamMemberError } = await supabase
+        .from("team_members")
+        .select("id, name, role")
+        .eq("email", organizerEmail)
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      if (teamMember) {
+        closerId = teamMember.id;
+        console.log(`Found Closer by email: ${teamMember.name} (${teamMember.id})`);
+      } else if (teamMemberError) {
+        console.log("Error finding team member by email:", teamMemberError.message);
+      } else {
+        console.log(`No team member found with email: ${organizerEmail}`);
+      }
+    }
+
+    console.log("Extracted data:", { email, name, startTime, phone, closerId });
 
     if (!email) {
       console.log("No email found in webhook payload");
@@ -208,22 +238,28 @@ Deno.serve(async (req) => {
       const existingCompromissoDate = existingLead.compromisso_date;
       const shouldUpdateDate = !existingCompromissoDate;
       
-      // Build update object
+      // Build update object - include closer_id if found
       const updateData: Record<string, any> = {
         origin: "ambos", // Lead veio do Quiz e agora agendou via Cal
       };
+      
+      // Assign closer if found and lead doesn't have one already
+      if (closerId && !existingLead.closer_id) {
+        updateData.closer_id = closerId;
+        console.log("Assigning closer to existing lead:", closerId);
+      }
       
       if (shouldUpdateDate) {
         // Only update compromisso_date if lead doesn't have one
         updateData.compromisso_date = startTime;
         updateData.notes = existingLead.notes 
-          ? `${existingLead.notes}\n\n[Cal.com] Reunião agendada: ${startTime}`
-          : `[Cal.com] Reunião agendada: ${startTime}`;
+          ? `${existingLead.notes}\n\n[Cal.com] Reunião agendada: ${startTime}${organizerName ? ` (Organizador: ${organizerName})` : ''}`
+          : `[Cal.com] Reunião agendada: ${startTime}${organizerName ? ` (Organizador: ${organizerName})` : ''}`;
       } else {
         // Lead already has a meeting scheduled, just log it
         updateData.notes = existingLead.notes 
-          ? `${existingLead.notes}\n\n[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}`
-          : `[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}`;
+          ? `${existingLead.notes}\n\n[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}${organizerName ? ` (Organizador: ${organizerName})` : ''}`
+          : `[Cal.com] Nova reunião tentada: ${startTime} - mantida data original: ${existingCompromissoDate}${organizerName ? ` (Organizador: ${organizerName})` : ''}`;
       }
 
       // Update the existing lead
@@ -249,32 +285,50 @@ Deno.serve(async (req) => {
       // Use effective date - existing or new
       const effectiveMeetingDate = existingCompromissoDate || startTime;
 
-      // Create or update pipe_confirmacao entry
+      // Create or update pipe_confirmacao entry - with closer_id
       const { data: existingConfirmacao } = await supabase
         .from("pipe_confirmacao")
-        .select("id, meeting_date")
+        .select("id, meeting_date, closer_id")
         .eq("lead_id", existingLead.id)
         .maybeSingle();
 
       if (existingConfirmacao) {
-        // Only update if no meeting_date exists
+        // Update pipe_confirmacao with closer if found and not already set
+        const confirmacaoUpdate: Record<string, any> = {};
+        
         if (!existingConfirmacao.meeting_date) {
+          confirmacaoUpdate.status = "reuniao_marcada";
+          confirmacaoUpdate.meeting_date = effectiveMeetingDate;
+        }
+        
+        // Assign closer to pipe_confirmacao if found and not already set
+        if (closerId && !existingConfirmacao.closer_id) {
+          confirmacaoUpdate.closer_id = closerId;
+          console.log("Assigning closer to existing pipe_confirmacao:", closerId);
+        }
+        
+        if (Object.keys(confirmacaoUpdate).length > 0) {
           await supabase
             .from("pipe_confirmacao")
-            .update({
-              status: "reuniao_marcada",
-              meeting_date: effectiveMeetingDate,
-            })
+            .update(confirmacaoUpdate)
             .eq("id", existingConfirmacao.id);
         }
       } else {
+        // Create new pipe_confirmacao with closer_id
+        const confirmacaoInsert: Record<string, any> = {
+          lead_id: existingLead.id,
+          status: "reuniao_marcada",
+          meeting_date: effectiveMeetingDate,
+        };
+        
+        if (closerId) {
+          confirmacaoInsert.closer_id = closerId;
+          console.log("Creating pipe_confirmacao with closer:", closerId);
+        }
+        
         await supabase
           .from("pipe_confirmacao")
-          .insert({
-            lead_id: existingLead.id,
-            status: "reuniao_marcada",
-            meeting_date: effectiveMeetingDate,
-          });
+          .insert(confirmacaoInsert);
       }
 
       // Check if lead is in pipe_propostas with status "compromisso_marcado"
@@ -302,11 +356,11 @@ Deno.serve(async (req) => {
         console.log("Lead kept in pipe_whatsapp (has compromisso_marcado in propostas)");
       }
 
-      // Create history entry
+      // Create history entry with closer info
       await supabase.from("lead_history").insert({
         lead_id: existingLead.id,
         action: "Reunião agendada via Cal.com",
-        description: `Lead unificado - reunião agendada para ${startTime}`,
+        description: `Lead unificado - reunião agendada para ${startTime}${closerId ? ` - Closer atribuído automaticamente` : ''}${organizerName ? ` (Organizador: ${organizerName})` : ''}`,
       });
 
       return new Response(
@@ -314,6 +368,7 @@ Deno.serve(async (req) => {
           success: true, 
           message: "Lead existente atualizado com dados do Cal.com",
           lead_id: existingLead.id,
+          closer_id: closerId,
           scenario: "unified",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -323,16 +378,24 @@ Deno.serve(async (req) => {
       // SCENARIO 2: No lead with this email exists - create new lead with Cal origin
       console.log("No existing lead found, creating new lead from Cal.com");
       
+      // Build insert object with closer_id if found
+      const leadInsert: Record<string, any> = {
+        name: name || `Agendamento Cal - ${email.split("@")[0]}`,
+        email,
+        phone,
+        origin: "cal", // Lead veio direto do Cal.com, sem passar pelo Quiz
+        compromisso_date: startTime,
+        notes: `[Cal.com] Lead criado a partir de agendamento direto${organizerName ? ` (Organizador: ${organizerName})` : ''}`,
+      };
+      
+      if (closerId) {
+        leadInsert.closer_id = closerId;
+        console.log("Creating new lead with closer:", closerId);
+      }
+      
       const { data: newLead, error: createError } = await supabase
         .from("leads")
-        .insert({
-          name: name || `Agendamento Cal - ${email.split("@")[0]}`,
-          email,
-          phone,
-          origin: "cal", // Lead veio direto do Cal.com, sem passar pelo Quiz
-          compromisso_date: startTime,
-          notes: `[Cal.com] Lead criado a partir de agendamento direto`,
-        })
+        .insert(leadInsert)
         .select()
         .single();
 
@@ -347,20 +410,27 @@ Deno.serve(async (req) => {
       // Add "Cal" tag to new lead
       await addTagToLead(newLead.id, calTagId);
 
-      // Create pipe_confirmacao entry
+      // Create pipe_confirmacao entry with closer_id
+      const confirmacaoInsert: Record<string, any> = {
+        lead_id: newLead.id,
+        status: "reuniao_marcada",
+        meeting_date: startTime,
+      };
+      
+      if (closerId) {
+        confirmacaoInsert.closer_id = closerId;
+        console.log("Creating pipe_confirmacao for new lead with closer:", closerId);
+      }
+      
       await supabase
         .from("pipe_confirmacao")
-        .insert({
-          lead_id: newLead.id,
-          status: "reuniao_marcada",
-          meeting_date: startTime,
-        });
+        .insert(confirmacaoInsert);
 
-      // Create history entry
+      // Create history entry with closer info
       await supabase.from("lead_history").insert({
         lead_id: newLead.id,
         action: "Lead criado via Cal.com",
-        description: `Novo lead criado a partir de agendamento Cal.com - reunião para ${startTime}`,
+        description: `Novo lead criado a partir de agendamento Cal.com - reunião para ${startTime}${closerId ? ` - Closer atribuído automaticamente` : ''}${organizerName ? ` (Organizador: ${organizerName})` : ''}`,
       });
 
       return new Response(
@@ -368,6 +438,7 @@ Deno.serve(async (req) => {
           success: true, 
           message: "Novo lead criado via Cal.com",
           lead_id: newLead.id,
+          closer_id: closerId,
           scenario: "new_cal_lead",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
