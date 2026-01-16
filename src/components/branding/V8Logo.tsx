@@ -16,17 +16,17 @@ export function V8Logo({
   className = "" 
 }: V8LogoProps) {
   const logoSizes = {
-    sm: "h-6",
-    md: "h-10",
-    lg: "h-16",
-    xl: "h-20",
+    sm: "h-10",
+    md: "h-14",
+    lg: "h-20",
+    xl: "h-28",
   };
 
   const millennialsSizes = {
-    sm: "h-4",
-    md: "h-6",
-    lg: "h-8",
-    xl: "h-10",
+    sm: "h-5",
+    md: "h-7",
+    lg: "h-10",
+    xl: "h-12",
   };
 
   const LogoWrapper = animated ? motion.div : "div";

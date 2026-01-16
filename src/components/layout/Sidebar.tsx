@@ -92,23 +92,24 @@ export function Sidebar() {
       className="h-screen bg-sidebar flex flex-col border-r border-sidebar-border sticky top-0"
     >
       {/* Logo */}
-      <div className="p-4 flex items-center justify-between border-b border-sidebar-border">
+      <div className="p-4 flex items-center justify-between border-b border-sidebar-border min-h-[72px]">
         <motion.div
           animate={{ opacity: collapsed ? 0 : 1 }}
-          className="overflow-hidden flex items-center gap-2"
+          className="overflow-visible flex items-center gap-2"
         >
           <div className="flex items-center gap-2">
-            <img src={v8Logo} alt="V8" className="h-10" />
+            <img src={v8Logo} alt="V8" className="h-14 object-contain" />
             <span className="text-sidebar-foreground/60 text-xs">by</span>
-            <img src={logoDark} alt="Millennials B2B" className="h-6" />
+            <img src={logoDark} alt="Millennials B2B" className="h-7 object-contain" />
           </div>
         </motion.div>
         {collapsed && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="overflow-visible"
           >
-            <img src={v8Logo} alt="V8" className="h-8" />
+            <img src={v8Logo} alt="V8" className="h-12 object-contain" />
           </motion.div>
         )}
         <div className="flex items-center gap-1">
