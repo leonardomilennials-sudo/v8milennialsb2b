@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import logoLight from "@/assets/logo-light.png";
+import v8Logo from "@/assets/v8-logo.png";
 
 interface V8LogoProps {
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   showMillennials?: boolean;
   animated?: boolean;
   className?: string;
@@ -14,36 +15,37 @@ export function V8Logo({
   animated = true,
   className = "" 
 }: V8LogoProps) {
-  const sizeClasses = {
-    sm: "text-xl",
-    md: "text-3xl",
-    lg: "text-5xl",
+  const logoSizes = {
+    sm: "h-6",
+    md: "h-10",
+    lg: "h-16",
+    xl: "h-20",
   };
 
-  const logoSizes = {
+  const millennialsSizes = {
     sm: "h-4",
     md: "h-6",
-    lg: "h-10",
+    lg: "h-8",
+    xl: "h-10",
   };
 
-  const V8Text = animated ? motion.span : "span";
+  const LogoWrapper = animated ? motion.div : "div";
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <V8Text 
-        className={`font-black text-primary tracking-tighter ${sizeClasses[size]}`}
+      <LogoWrapper 
         {...(animated && {
           initial: { scale: 0.8, opacity: 0 },
           animate: { scale: 1, opacity: 1 },
           transition: { type: "spring", duration: 0.5 }
         })}
       >
-        V8
-      </V8Text>
+        <img src={v8Logo} alt="V8" className={logoSizes[size]} />
+      </LogoWrapper>
       {showMillennials && (
         <div className="flex flex-col">
           <span className="text-muted-foreground text-[10px] leading-none">powered by</span>
-          <img src={logoLight} alt="Millennials B2B" className={logoSizes[size]} />
+          <img src={logoLight} alt="Millennials B2B" className={millennialsSizes[size]} />
         </div>
       )}
     </div>

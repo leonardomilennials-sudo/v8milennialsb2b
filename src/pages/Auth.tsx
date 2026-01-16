@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Zap, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import logoLight from '@/assets/logo-light.png';
+import v8Logo from '@/assets/v8-logo.png';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -116,14 +117,14 @@ export default function Auth() {
         
         <div className="relative z-10 flex flex-col justify-between p-12 w-full">
           <div className="flex items-center gap-3">
-            <motion.span 
-              className="text-6xl font-black text-primary tracking-tighter"
+            <motion.img 
+              src={v8Logo}
+              alt="V8"
+              className="h-20"
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, type: "spring" }}
-            >
-              V8
-            </motion.span>
+            />
             <div className="flex flex-col">
               <span className="text-sidebar-foreground/60 text-xs">powered by</span>
               <img src={logoLight} alt="Millennials" className="h-8" />
@@ -196,9 +197,9 @@ export default function Auth() {
         >
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary rounded-full">
-              <span className="text-2xl font-black text-primary-foreground">V8</span>
-              <span className="font-bold text-primary-foreground">Millennials</span>
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-sidebar-background rounded-xl">
+              <img src={v8Logo} alt="V8" className="h-10" />
+              <span className="font-bold text-sidebar-foreground">Millennials</span>
             </div>
           </div>
 

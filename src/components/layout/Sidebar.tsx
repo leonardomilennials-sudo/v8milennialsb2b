@@ -19,6 +19,7 @@ import {
   Flag,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
+import v8Logo from "@/assets/v8-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
@@ -97,19 +98,18 @@ export function Sidebar() {
           className="overflow-hidden flex items-center gap-2"
         >
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-black text-primary tracking-tighter">V8</span>
+            <img src={v8Logo} alt="V8" className="h-10" />
             <span className="text-sidebar-foreground/60 text-xs">by</span>
             <img src={logoDark} alt="Millennials B2B" className="h-6" />
           </div>
         </motion.div>
         {collapsed && (
-          <motion.span 
+          <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-xl font-black text-primary"
           >
-            V8
-          </motion.span>
+            <img src={v8Logo} alt="V8" className="h-8" />
+          </motion.div>
         )}
         <div className="flex items-center gap-1">
           {!collapsed && <AlertsDropdown />}
