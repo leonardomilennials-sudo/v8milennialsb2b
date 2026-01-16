@@ -92,39 +92,35 @@ export function Sidebar() {
       className="h-screen bg-sidebar flex flex-col border-r border-sidebar-border sticky top-0"
     >
       {/* Logo */}
-      <div className="p-4 flex items-center justify-between border-b border-sidebar-border min-h-[72px]">
-        <motion.div
-          animate={{ opacity: collapsed ? 0 : 1 }}
-          className="overflow-visible flex items-center gap-2"
-        >
-          <div className="flex items-center gap-2">
-            <img src={v8Logo} alt="V8" className="h-14 object-contain" />
-            <span className="text-sidebar-foreground/60 text-xs">by</span>
-            <img src={logoDark} alt="Millennials B2B" className="h-7 object-contain" />
-          </div>
-        </motion.div>
-        {collapsed && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="overflow-visible"
-          >
-            <img src={v8Logo} alt="V8" className="h-12 object-contain" />
-          </motion.div>
-        )}
-        <div className="flex items-center gap-1">
-          {!collapsed && <AlertsDropdown />}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
-          >
-            {collapsed ? (
+      <div className="p-4 flex items-center justify-between border-b border-sidebar-border min-h-[80px]">
+        {collapsed ? (
+          <div className="flex flex-col items-center w-full gap-2">
+            <img src={v8Logo} alt="V8" className="h-10 w-10 object-contain" />
+            <button
+              onClick={() => setCollapsed(false)}
+              className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+            >
               <ChevronRight className="w-5 h-5 text-sidebar-foreground" />
-            ) : (
-              <ChevronLeft className="w-5 h-5 text-sidebar-foreground" />
-            )}
-          </button>
-        </div>
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <img src={v8Logo} alt="V8" className="h-12 w-12 object-contain flex-shrink-0" />
+              <span className="text-sidebar-foreground/60 text-xs flex-shrink-0">by</span>
+              <img src={logoDark} alt="Millennials B2B" className="h-6 object-contain" />
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <AlertsDropdown />
+              <button
+                onClick={() => setCollapsed(true)}
+                className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-sidebar-foreground" />
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Navigation */}
