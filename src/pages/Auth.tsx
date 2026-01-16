@@ -120,14 +120,14 @@ export default function Auth() {
             <motion.img 
               src={v8Logo}
               alt="V8"
-              className="h-20"
+              className="h-24 object-contain drop-shadow-lg"
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5, type: "spring" }}
             />
             <div className="flex flex-col">
               <span className="text-sidebar-foreground/60 text-xs">powered by</span>
-              <img src={logoLight} alt="Millennials" className="h-8" />
+              <img src={logoLight} alt="Millennials" className="h-8 object-contain" />
             </div>
           </div>
           
@@ -197,8 +197,8 @@ export default function Auth() {
         >
           {/* Mobile Logo */}
           <div className="lg:hidden mb-8 text-center">
-            <div className="inline-flex items-center gap-3 px-4 py-2 bg-sidebar-background rounded-xl">
-              <img src={v8Logo} alt="V8" className="h-10" />
+            <div className="inline-flex items-center gap-3 px-4 py-3 bg-sidebar-background rounded-xl">
+              <img src={v8Logo} alt="V8" className="h-14 object-contain drop-shadow-lg" />
               <span className="font-bold text-sidebar-foreground">Millennials</span>
             </div>
           </div>
