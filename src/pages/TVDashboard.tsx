@@ -96,7 +96,7 @@ export default function TVDashboard() {
       {/* Main Content - Single Screen */}
       <div className="flex-1 p-4 grid grid-cols-12 gap-3 overflow-hidden">
         {/* Left Column: Thermometer */}
-        <div className="col-span-3 bg-card/80 backdrop-blur-sm rounded-2xl p-4 border border-border/50 shadow-xl relative">
+        <div className="col-span-3 bg-sidebar-accent/50 backdrop-blur-sm rounded-2xl p-4 border border-sidebar-border shadow-xl relative">
           <SalesThermometer
             meta={data?.metaVendasMes || 60000}
             atual={data?.vendasRealizadas || 0}
@@ -147,7 +147,7 @@ export default function TVDashboard() {
           </div>
 
           {/* Individual Goals - Compact */}
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-3 border border-border/50 shadow-lg flex-1 overflow-hidden">
+          <div className="bg-sidebar-accent/50 backdrop-blur-sm rounded-2xl p-3 border border-sidebar-border shadow-lg flex-1 overflow-hidden">
             <h3 className="text-xs font-bold text-foreground/80 mb-2 flex items-center gap-2 uppercase tracking-wider">
               <TrendingUp className="w-3.5 h-3.5 text-primary" />
               Metas Individuais
@@ -182,7 +182,7 @@ export default function TVDashboard() {
         {/* Right Column: Hot Proposals + Sales + AI */}
         <div className="col-span-4 flex flex-col gap-3">
           {/* Hot Proposals */}
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-3 border border-border/50 shadow-lg">
+          <div className="bg-sidebar-accent/50 backdrop-blur-sm rounded-2xl p-3 border border-sidebar-border shadow-lg">
             <h3 className="text-xs font-bold text-foreground/80 mb-2 flex items-center gap-2 uppercase tracking-wider">
               <Flame className="w-3.5 h-3.5 text-orange-500" />
               Propostas Quentes
@@ -206,7 +206,7 @@ export default function TVDashboard() {
           </div>
 
           {/* Monthly Sales */}
-          <div className="bg-card/80 backdrop-blur-sm rounded-2xl p-3 border border-border/50 shadow-lg">
+          <div className="bg-sidebar-accent/50 backdrop-blur-sm rounded-2xl p-3 border border-sidebar-border shadow-lg">
             <h3 className="text-xs font-bold text-foreground/80 mb-2 flex items-center justify-between uppercase tracking-wider">
               <span className="flex items-center gap-2">
                 <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
