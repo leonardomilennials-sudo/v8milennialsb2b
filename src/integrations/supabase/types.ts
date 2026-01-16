@@ -880,6 +880,7 @@ export type Database = {
         | "organico"
         | "cal"
         | "ambos"
+        | "zydon"
       pipe_confirmacao_status:
         | "reuniao_marcada"
         | "confirmar_d5"
@@ -1042,6 +1043,7 @@ export const Constants = {
         "organico",
         "cal",
         "ambos",
+        "zydon",
       ],
       pipe_confirmacao_status: [
         "reuniao_marcada",
