@@ -128,6 +128,7 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
   const [isUpdating, setIsUpdating] = useState(false);
   const [isConfirmadoNoDiaState, setIsConfirmadoNoDiaState] = useState(false);
   const isMeetingDay = meetingDate ? isToday(meetingDate) : false;
+  const isCompareceu = card.status === "compareceu";
 
   // Check localStorage for "confirmed on the day" state on mount
   useEffect(() => {
@@ -143,16 +144,19 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
     }
   }, [card.confirmacaoId, isMeetingDay]);
 
+  // Cards with "compareceu" status are always shown as green
+  const showAsGreen = isConfirmadoNoDiaState || isCompareceu;
+
   const handleToggleConfirmed = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!card.confirmacaoId || isUpdating) return;
     
     setIsUpdating(true);
     try {
-      // If already confirmed on the day, do nothing
-      if (isConfirmadoNoDiaState) {
+      // If already confirmed on the day or compareceu, do nothing
+      if (showAsGreen) {
         setIsUpdating(false);
-        toast.info("Já confirmada no dia!");
+        toast.info("Já confirmada!");
         return;
       }
 
@@ -200,7 +204,7 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
 
   // Determine card border color based on confirmation status
   const getConfirmationStyle = () => {
-    if (isConfirmadoNoDiaState) return "ring-2 ring-green-500/50 border-green-500/30";
+    if (showAsGreen) return "ring-2 ring-green-500/50 border-green-500/30";
     if (card.isConfirmed) return "ring-2 ring-blue-500/50 border-blue-500/30";
     return "ring-1 ring-orange-500/30 border-orange-500/20";
   };
@@ -213,7 +217,7 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         whileHover={{ scale: 1.02 }}
         className={cn(
           "p-3 rounded-lg border bg-card cursor-pointer hover:shadow-md transition-all",
-          isConfirmadoNoDiaState ? "border-green-500/30 bg-green-500/5" : 
+          showAsGreen ? "border-green-500/30 bg-green-500/5" : 
           card.isConfirmed ? "border-blue-500/30 bg-blue-500/5" : 
           "border-orange-500/30 bg-orange-500/5"
         )}
@@ -225,10 +229,10 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
             <span className="font-medium text-sm truncate">{card.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            {isConfirmadoNoDiaState && (
+            {showAsGreen && (
               <CheckCircle2 className="w-4 h-4 text-green-500" />
             )}
-            {card.isConfirmed && !isConfirmadoNoDiaState && (
+            {card.isConfirmed && !showAsGreen && (
               <CheckCircle2 className="w-4 h-4 text-blue-500" />
             )}
             {indicator && (
@@ -254,8 +258,8 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
       )}
       onClick={onClick}
     >
-      {/* Confirmation status strip - green for confirmed, blue for pre-confirmed, orange for pending */}
-      {isConfirmadoNoDiaState ? (
+      {/* Confirmation status strip - green for confirmed/compareceu, blue for pre-confirmed, orange for pending */}
+      {showAsGreen ? (
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 via-green-400 to-green-500" />
       ) : card.isConfirmed ? (
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500" />
@@ -264,7 +268,7 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
       )}
       
       {/* Urgent indicator overlay */}
-      {indicator?.type === "imminent" && !card.isConfirmed && !isConfirmadoNoDiaState && (
+      {indicator?.type === "imminent" && !card.isConfirmed && !showAsGreen && (
         <div className="absolute top-1.5 left-0 right-0 h-0.5 bg-destructive animate-pulse" />
       )}
       {indicator?.type === "overdue" && (
@@ -403,23 +407,23 @@ export function ConfirmacaoCard({ card, onClick, variant = "default" }: Confirma
         <div className="flex items-center gap-3">
           {/* Confirmation Toggle Button */}
           <Button
-            variant={isConfirmadoNoDiaState ? "default" : card.isConfirmed ? "default" : "outline"}
+            variant={showAsGreen ? "default" : card.isConfirmed ? "default" : "outline"}
             size="sm"
             className={cn(
               "h-7 px-2 text-xs font-medium transition-all",
-              isConfirmadoNoDiaState 
-                ? "bg-green-500 hover:bg-green-600 text-white" 
+              showAsGreen 
+                ? "bg-green-500 hover:bg-green-600 text-white"
                 : card.isConfirmed
                   ? "bg-blue-500 hover:bg-blue-600 text-white"
                   : "border-orange-500/50 text-orange-500 hover:bg-orange-500/10"
             )}
             onClick={handleToggleConfirmed}
-            disabled={isUpdating || isConfirmadoNoDiaState}
+            disabled={isUpdating || showAsGreen}
           >
-            {isConfirmadoNoDiaState ? (
+            {showAsGreen ? (
               <>
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Confirmado
+                {isCompareceu ? "Compareceu" : "Confirmado"}
               </>
             ) : card.isConfirmed ? (
               isMeetingDay ? (
