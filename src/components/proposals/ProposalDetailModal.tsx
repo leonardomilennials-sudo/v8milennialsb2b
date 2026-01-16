@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 
 const statusLabels: Record<PipePropostasStatus, string> = {
   marcar_compromisso: "Marcar Compromisso",
+  reativar: "Reativar",
   compromisso_marcado: "Compromisso Marcado",
   esfriou: "Esfriou",
   futuro: "Futuro",
@@ -58,6 +59,7 @@ const statusLabels: Record<PipePropostasStatus, string> = {
 
 const statusIcons: Record<PipePropostasStatus, React.ReactNode> = {
   marcar_compromisso: <Calendar className="w-4 h-4" />,
+  reativar: <ArrowRight className="w-4 h-4" />,
   compromisso_marcado: <CheckCircle2 className="w-4 h-4" />,
   esfriou: <AlertCircle className="w-4 h-4" />,
   futuro: <Clock className="w-4 h-4" />,
