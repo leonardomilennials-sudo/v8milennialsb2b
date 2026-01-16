@@ -159,120 +159,53 @@ export function AICoachSection() {
   const sdrTasks = tasks.filter(t => t.role === "sdr");
 
   return (
-    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 via-card/80 to-indigo-600/10 border border-purple-500/30 backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-purple-500/20">
-            <Sparkles className="w-5 h-5 text-purple-400" />
-          </div>
-          <h3 className="text-lg font-bold text-foreground">Coach IA - Prioridades do Dia</h3>
-        </div>
-        <button
-          onClick={fetchAllTasks}
-          disabled={isRefreshing}
-          className="p-2 rounded-lg hover:bg-purple-500/20 transition-colors"
-        >
-          <RefreshCw className={`w-5 h-5 text-purple-400 ${isRefreshing ? "animate-spin" : ""}`} />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        {/* Closers */}
-        <div>
-          <h4 className="text-sm font-semibold text-muted-foreground mb-3">CLOSERS</h4>
-          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
-            {closerTasks.map((task, index) => (
-              <TaskCard key={task.memberId} task={task} index={index} />
-            ))}
-            {closerTasks.length === 0 && (
-              <p className="text-muted-foreground text-sm text-center py-4">
-                Nenhum closer ativo
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* SDRs */}
-        <div>
-          <h4 className="text-sm font-semibold text-muted-foreground mb-3">SDRs</h4>
-          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
-            {sdrTasks.map((task, index) => (
-              <TaskCard key={task.memberId} task={task} index={index} />
-            ))}
-            {sdrTasks.length === 0 && (
-              <p className="text-muted-foreground text-sm text-center py-4">
-                Nenhum SDR ativo
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="space-y-2">
+      {/* Combined list - Closers first, then SDRs */}
+      {[...closerTasks, ...sdrTasks].slice(0, 6).map((task, index) => (
+        <TaskCardMini key={task.memberId} task={task} index={index} />
+      ))}
+      {closerTasks.length === 0 && sdrTasks.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center py-2">
+          Carregando tarefas...
+        </p>
+      )}
     </div>
   );
 }
 
-function TaskCard({ task, index }: { task: TeamMemberTask; index: number }) {
+function TaskCardMini({ task, index }: { task: TeamMemberTask; index: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-      className="p-3 rounded-lg bg-card/50 border border-border/50"
+      transition={{ delay: index * 0.05 }}
+      className="p-2 rounded-lg bg-card/50 border border-border/50"
     >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
-          <User className="w-4 h-4 text-purple-400" />
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-5 h-5 rounded-full bg-purple-500/30 flex items-center justify-center">
+          <User className="w-3 h-3 text-purple-400" />
         </div>
-        <span className="font-semibold text-foreground">{task.memberName}</span>
+        <span className="text-xs font-semibold text-foreground">{task.memberName}</span>
+        <span className="text-[10px] text-muted-foreground uppercase">
+          {task.role}
+        </span>
       </div>
 
       <AnimatePresence mode="wait">
         {task.isLoading && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex items-center gap-2 text-muted-foreground"
-          >
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-xs">Analisando...</span>
-          </motion.div>
-        )}
-
-        {task.error && !task.isLoading && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-xs text-destructive"
-          >
-            {task.error}
-          </motion.div>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span className="text-[10px]">Analisando...</span>
+          </div>
         )}
 
         {!task.isLoading && !task.error && task.tarefa && (
-          <motion.div
-            key="task"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-2"
-          >
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                {task.problema}
-              </p>
-            </div>
-            <div className="flex items-start gap-2 bg-emerald-500/10 rounded-md p-2">
-              <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-emerald-300 font-medium leading-relaxed">
-                {task.tarefa}
-              </p>
-            </div>
-          </motion.div>
+          <div className="flex items-start gap-1.5 bg-emerald-500/10 rounded p-1.5">
+            <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] text-emerald-300 font-medium leading-tight line-clamp-2">
+              {task.tarefa}
+            </p>
+          </div>
         )}
       </AnimatePresence>
     </motion.div>
