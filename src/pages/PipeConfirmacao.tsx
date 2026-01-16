@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
+import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { AddMeetingModal } from "@/components/confirmacao/AddMeetingModal";
 import { ConfirmacaoDetailModal } from "@/components/confirmacao/ConfirmacaoDetailModal";
@@ -41,8 +42,17 @@ interface ConfirmacaoCardData extends DraggableItem {
 }
 
 // Calculate correct status based on meeting date
-function calculateStatusByDate(meetingDate: Date | null): PipeConfirmacaoStatus | null {
+function calculateStatusByDate(meetingDate: Date | null, currentStatus: PipeConfirmacaoStatus): PipeConfirmacaoStatus | null {
   if (!meetingDate) return null;
+  
+  // Don't auto-update pre-confirmed or confirmed statuses
+  if (["pre_confirmada", "confirmada_no_dia"].includes(currentStatus)) {
+    // If pre-confirmed and it's the meeting day, move to confirmacao_no_dia
+    if (currentStatus === "pre_confirmada" && isToday(meetingDate)) {
+      return "confirmacao_no_dia";
+    }
+    return null;
+  }
   
   const now = new Date();
   const days = differenceInDays(meetingDate, now);
@@ -86,6 +96,8 @@ export default function PipeConfirmacao() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>("all");
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedSdrId, setSelectedSdrId] = useState<string>("all");
+  const [selectedCloserId, setSelectedCloserId] = useState<string>("all");
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -99,8 +111,19 @@ export default function PipeConfirmacao() {
   const [isProcessingCompareceu, setIsProcessingCompareceu] = useState(false);
   
   const { data: pipeData, isLoading, refetch } = usePipeConfirmacao();
+  const { data: teamMembers = [] } = useTeamMembers();
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
   const createPipeProposta = useCreatePipeProposta();
+
+  // Transform team members for filter
+  const teamMemberOptions = useMemo(() => 
+    teamMembers.map(m => ({
+      id: m.id,
+      name: m.name,
+      role: m.role as "sdr" | "closer" | "admin"
+    })), 
+    [teamMembers]
+  );
 
   // Auto-update statuses based on meeting dates
   const autoUpdateStatuses = useCallback(async () => {
@@ -121,7 +144,7 @@ export default function PipeConfirmacao() {
       }
       
       const meetingDate = item.meeting_date ? new Date(item.meeting_date) : null;
-      const calculatedStatus = calculateStatusByDate(meetingDate);
+      const calculatedStatus = calculateStatusByDate(meetingDate, item.status as PipeConfirmacaoStatus);
       
       if (calculatedStatus && calculatedStatus !== item.status) {
         try {
@@ -205,7 +228,11 @@ export default function PipeConfirmacao() {
 
           const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(item.status);
           
-          return matchesSearch && matchesOrigin && matchesUrgency && matchesTime && matchesStatus;
+          // SDR/Closer filters
+          const matchesSdr = selectedSdrId === "all" || item.sdr_id === selectedSdrId;
+          const matchesCloser = selectedCloserId === "all" || item.closer_id === selectedCloserId;
+          
+          return matchesSearch && matchesOrigin && matchesUrgency && matchesTime && matchesStatus && matchesSdr && matchesCloser;
         })
         // Sort by meeting date - closest meetings first
         .sort((a, b) => {
@@ -349,6 +376,11 @@ export default function PipeConfirmacao() {
         selectedStatuses={selectedStatuses}
         onStatusesChange={setSelectedStatuses}
         statusOptions={statusColumns}
+        teamMembers={teamMemberOptions}
+        selectedSdrId={selectedSdrId}
+        onSdrFilterChange={setSelectedSdrId}
+        selectedCloserId={selectedCloserId}
+        onCloserFilterChange={setSelectedCloserId}
       />
 
       {/* Content */}

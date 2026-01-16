@@ -9,7 +9,8 @@ import {
   Tag,
   ChevronDown,
   RotateCcw,
-  Flame
+  Flame,
+  UserCheck
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,11 +19,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export type OriginFilter = "all" | "calendly" | "whatsapp" | "meta_ads" | "outro";
 export type TimeFilter = "all" | "today" | "tomorrow" | "week" | "overdue";
 export type UrgencyFilter = "all" | "imediato" | "1-mes" | "2-3-meses" | "6-meses";
+
+interface TeamMemberOption {
+  id: string;
+  name: string;
+  role: "sdr" | "closer" | "admin";
+}
 
 interface ConfirmacaoFiltersProps {
   searchQuery: string;
@@ -36,6 +44,12 @@ interface ConfirmacaoFiltersProps {
   selectedStatuses: string[];
   onStatusesChange: (statuses: string[]) => void;
   statusOptions: { id: string; title: string; color: string }[];
+  // New props for team member filtering
+  teamMembers?: TeamMemberOption[];
+  selectedSdrId?: string;
+  onSdrFilterChange?: (value: string) => void;
+  selectedCloserId?: string;
+  onCloserFilterChange?: (value: string) => void;
 }
 
 const originOptions: { value: OriginFilter; label: string; icon: string }[] = [
@@ -74,14 +88,24 @@ export function ConfirmacaoFilters({
   selectedStatuses,
   onStatusesChange,
   statusOptions,
+  teamMembers = [],
+  selectedSdrId = "all",
+  onSdrFilterChange,
+  selectedCloserId = "all",
+  onCloserFilterChange,
 }: ConfirmacaoFiltersProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
+  const sdrs = teamMembers.filter(m => m.role === "sdr" || m.role === "admin");
+  const closers = teamMembers.filter(m => m.role === "closer" || m.role === "admin");
 
   const activeFiltersCount = 
     (originFilter !== "all" ? 1 : 0) + 
     (timeFilter !== "all" ? 1 : 0) + 
     (urgencyFilter !== "all" ? 1 : 0) +
-    (selectedStatuses.length > 0 && selectedStatuses.length < statusOptions.length ? 1 : 0);
+    (selectedStatuses.length > 0 && selectedStatuses.length < statusOptions.length ? 1 : 0) +
+    (selectedSdrId !== "all" ? 1 : 0) +
+    (selectedCloserId !== "all" ? 1 : 0);
 
   const handleStatusToggle = (statusId: string) => {
     if (selectedStatuses.includes(statusId)) {
@@ -97,6 +121,8 @@ export function ConfirmacaoFilters({
     onUrgencyFilterChange("all");
     onStatusesChange([]);
     onSearchChange("");
+    onSdrFilterChange?.("all");
+    onCloserFilterChange?.("all");
   };
 
   return (
@@ -225,6 +251,53 @@ export function ConfirmacaoFilters({
 
               <Separator />
 
+              {/* Team Member Filters */}
+              {teamMembers.length > 0 && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4" />
+                      SDR
+                    </Label>
+                    <Select value={selectedSdrId} onValueChange={onSdrFilterChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos os SDRs" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os SDRs</SelectItem>
+                        {sdrs.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Closer
+                    </Label>
+                    <Select value={selectedCloserId} onValueChange={onCloserFilterChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Todos os Closers" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos os Closers</SelectItem>
+                        {closers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Separator />
+                </>
+              )}
+
               {/* Status Filter */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
@@ -319,6 +392,28 @@ export function ConfirmacaoFilters({
                 <button
                   className="ml-1 hover:bg-muted rounded-full p-0.5"
                   onClick={() => onStatusesChange([])}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            )}
+            {selectedSdrId !== "all" && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+                SDR: {teamMembers.find(m => m.id === selectedSdrId)?.name}
+                <button
+                  className="ml-1 hover:bg-muted rounded-full p-0.5"
+                  onClick={() => onSdrFilterChange?.("all")}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            )}
+            {selectedCloserId !== "all" && (
+              <Badge variant="secondary" className="pl-2 pr-1 py-1 gap-1">
+                Closer: {teamMembers.find(m => m.id === selectedCloserId)?.name}
+                <button
+                  className="ml-1 hover:bg-muted rounded-full p-0.5"
+                  onClick={() => onCloserFilterChange?.("all")}
                 >
                   <X className="w-3 h-3" />
                 </button>
