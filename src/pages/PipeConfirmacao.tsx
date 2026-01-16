@@ -251,7 +251,7 @@ export default function PipeConfirmacao() {
 
       return { ...col, items: columnItems };
     });
-  }, [pipeData, searchQuery, originFilter, urgencyFilter, timeFilter, selectedStatuses]);
+  }, [pipeData, searchQuery, originFilter, urgencyFilter, timeFilter, selectedStatuses, selectedSdrId, selectedCloserId]);
 
   const handleStatusChange = async (itemId: string, newStatus: string) => {
     const item = pipeData?.find(p => p.id === itemId);

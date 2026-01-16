@@ -259,7 +259,7 @@ export function ConfirmacaoFilters({
                       <UserCheck className="w-4 h-4" />
                       SDR
                     </Label>
-                    <Select value={selectedSdrId} onValueChange={onSdrFilterChange}>
+                    <Select value={selectedSdrId} onValueChange={(value) => onSdrFilterChange?.(value)}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Todos os SDRs" />
                       </SelectTrigger>
@@ -279,7 +279,7 @@ export function ConfirmacaoFilters({
                       <Users className="w-4 h-4" />
                       Closer
                     </Label>
-                    <Select value={selectedCloserId} onValueChange={onCloserFilterChange}>
+                    <Select value={selectedCloserId} onValueChange={(value) => onCloserFilterChange?.(value)}>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Todos os Closers" />
                       </SelectTrigger>
