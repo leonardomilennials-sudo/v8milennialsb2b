@@ -42,15 +42,18 @@ import {
   Loader2,
   Plus,
   Trash2,
-  Pencil
+  Pencil,
+  UserCheck
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { useUpdatePipeConfirmacao, useDeletePipeConfirmacao, PipeConfirmacaoStatus, statusColumns } from "@/hooks/usePipeConfirmacao";
+import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
 import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
 import { useDeleteLead } from "@/hooks/useLeads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { CompareceuModal } from "./CompareceuModal";
 import { toast } from "sonner";
 
 interface ConfirmacaoDetailModalProps {
@@ -103,10 +106,15 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteLeadConfirmOpen, setDeleteLeadConfirmOpen] = useState(false);
+  
+  // Compareceu modal state
+  const [isCompareceuModalOpen, setIsCompareceuModalOpen] = useState(false);
+  const [isProcessingCompareceu, setIsProcessingCompareceu] = useState(false);
 
   const updatePipeConfirmacao = useUpdatePipeConfirmacao();
   const deletePipeConfirmacao = useDeletePipeConfirmacao();
   const deleteLead = useDeleteLead();
+  const createPipeProposta = useCreatePipeProposta();
   const { data: leadHistory, isLoading: historyLoading } = useLeadHistory(item?.lead_id);
   const createLeadHistory = useCreateLeadHistory();
   const { data: teamMembers } = useTeamMembers();
@@ -145,6 +153,12 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   const currentCloserName = getMemberName(editedCloserId) || item.closer?.name || lead?.closer?.name || "Não atribuído";
 
   const handleSaveMeeting = async () => {
+    // If changing to compareceu, open the compareceu modal instead
+    if (editedStatus === "compareceu" && item.status !== "compareceu") {
+      setIsCompareceuModalOpen(true);
+      return;
+    }
+
     setIsSavingMeeting(true);
     try {
       const updates: any = {
@@ -187,6 +201,43 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
       toast.error("Erro ao atualizar reunião");
     } finally {
       setIsSavingMeeting(false);
+    }
+  };
+
+  const handleCompareceuConfirm = async (sdrId: string | null, closerId: string | null) => {
+    setIsProcessingCompareceu(true);
+    try {
+      // Update confirmacao with SDR, Closer and status
+      await updatePipeConfirmacao.mutateAsync({ 
+        id: item.id, 
+        status: "compareceu" as PipeConfirmacaoStatus,
+        sdr_id: sdrId,
+        closer_id: closerId,
+        leadId: item.lead_id,
+        assignedTo: sdrId || closerId,
+      });
+
+      // Create proposta with selected closer
+      await createPipeProposta.mutateAsync({
+        lead_id: item.lead_id,
+        closer_id: closerId,
+        status: "marcar_compromisso",
+      });
+
+      await createLeadHistory.mutateAsync({
+        lead_id: item.lead_id,
+        action: "Compareceu à reunião",
+        description: "Lead compareceu e foi movido para Gestão de Propostas",
+      });
+
+      toast.success("Lead movido para Gestão de Propostas!");
+      setIsCompareceuModalOpen(false);
+      setIsEditingMeeting(false);
+      onSuccess?.();
+    } catch (error) {
+      toast.error("Erro ao processar comparecimento");
+    } finally {
+      setIsProcessingCompareceu(false);
     }
   };
 
@@ -264,6 +315,12 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
   };
 
   const handleQuickStatusChange = async (newStatus: PipeConfirmacaoStatus) => {
+    // If changing to compareceu, open the compareceu modal instead
+    if (newStatus === "compareceu") {
+      setIsCompareceuModalOpen(true);
+      return;
+    }
+
     try {
       const newStatusLabel = statusColumns.find(s => s.id === newStatus)?.title;
       
@@ -850,6 +907,17 @@ export function ConfirmacaoDetailModal({ open, onOpenChange, item, onSuccess }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Compareceu Modal */}
+      <CompareceuModal
+        open={isCompareceuModalOpen}
+        onOpenChange={setIsCompareceuModalOpen}
+        onConfirm={handleCompareceuConfirm}
+        leadName={lead?.name || "Lead"}
+        currentSdrId={editedSdrId || item.sdr_id}
+        currentCloserId={editedCloserId || item.closer_id}
+        isLoading={isProcessingCompareceu}
+      />
     </Dialog>
   );
 }
