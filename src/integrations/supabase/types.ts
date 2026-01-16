@@ -894,6 +894,7 @@ export type Database = {
         | "perdido"
       pipe_propostas_status:
         | "marcar_compromisso"
+        | "reativar"
         | "compromisso_marcado"
         | "esfriou"
         | "futuro"
@@ -1059,6 +1060,7 @@ export const Constants = {
       ],
       pipe_propostas_status: [
         "marcar_compromisso",
+        "reativar",
         "compromisso_marcado",
         "esfriou",
         "futuro",
