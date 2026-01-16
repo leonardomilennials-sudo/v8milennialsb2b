@@ -159,14 +159,13 @@ export function AICoachSection() {
   const sdrTasks = tasks.filter(t => t.role === "sdr");
 
   return (
-    <div className="space-y-2">
-      {/* Combined list - Closers first, then SDRs */}
-      {[...closerTasks, ...sdrTasks].slice(0, 6).map((task, index) => (
+    <div className="space-y-1.5">
+      {[...closerTasks, ...sdrTasks].slice(0, 5).map((task, index) => (
         <TaskCardMini key={task.memberId} task={task} index={index} />
       ))}
       {closerTasks.length === 0 && sdrTasks.length === 0 && (
-        <p className="text-xs text-muted-foreground text-center py-2">
-          Carregando tarefas...
+        <p className="text-[10px] text-muted-foreground text-center py-2">
+          Carregando...
         </p>
       )}
     </div>
@@ -176,36 +175,36 @@ export function AICoachSection() {
 function TaskCardMini({ task, index }: { task: TeamMemberTask; index: number }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 5 }}
+      initial={{ opacity: 0, y: 3 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className="p-2 rounded-lg bg-card/50 border border-border/50"
+      transition={{ delay: index * 0.03 }}
+      className="p-1.5 rounded-lg bg-card/30 border border-border/30"
     >
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-5 h-5 rounded-full bg-purple-500/30 flex items-center justify-center">
-          <User className="w-3 h-3 text-purple-400" />
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold ${
+          task.role === "closer" ? "bg-primary/20 text-primary" : "bg-amber-500/20 text-amber-400"
+        }`}>
+          {task.memberName?.charAt(0)}
         </div>
-        <span className="text-xs font-semibold text-foreground">{task.memberName}</span>
-        <span className="text-[10px] text-muted-foreground uppercase">
-          {task.role}
-        </span>
+        <span className="text-[10px] font-semibold text-foreground truncate">{task.memberName}</span>
       </div>
 
       <AnimatePresence mode="wait">
         {task.isLoading && (
           <div className="flex items-center gap-1 text-muted-foreground">
-            <Loader2 className="w-3 h-3 animate-spin" />
-            <span className="text-[10px]">Analisando...</span>
+            <Loader2 className="w-2.5 h-2.5 animate-spin" />
+            <span className="text-[9px]">...</span>
           </div>
         )}
 
         {!task.isLoading && !task.error && task.tarefa && (
-          <div className="flex items-start gap-1.5 bg-emerald-500/10 rounded p-1.5">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 flex-shrink-0" />
-            <p className="text-[10px] text-emerald-300 font-medium leading-tight line-clamp-2">
-              {task.tarefa}
-            </p>
-          </div>
+          <p className="text-[9px] text-emerald-300/80 leading-tight line-clamp-2 pl-5">
+            {task.tarefa}
+          </p>
+        )}
+
+        {!task.isLoading && task.error && (
+          <p className="text-[9px] text-red-400/80 pl-5">Erro</p>
         )}
       </AnimatePresence>
     </motion.div>
