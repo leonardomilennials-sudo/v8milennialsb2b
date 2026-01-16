@@ -123,122 +123,191 @@ export default function TVDashboard() {
       {/* Main Grid - 8pt system */}
       <div className="flex-1 p-4 grid grid-cols-12 gap-4 overflow-hidden">
         
-        {/* Left Column - Meta do Mês (Hero) */}
-        <div className="col-span-3 flex flex-col gap-4">
-          <TVCard className="flex-1">
+        {/* Left Column - Meta do Mês (Hero) - BIGGER THERMOMETER */}
+        <div className="col-span-4 flex flex-col gap-4">
+          <TVCard className="flex-1 relative overflow-hidden">
             <div className="h-full flex flex-col">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
+              {/* Header with Month */}
+              <div className="text-center mb-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
                   <Target className="w-4 h-4 text-primary" />
-                  <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Meta do Mês</span>
+                  <span className="text-sm font-bold text-primary uppercase tracking-wider">
+                    Meta de {format(currentTime, "MMMM", { locale: ptBR })}
+                  </span>
                 </div>
-                <span className="text-xs text-white/40">Falta R$ {formatCurrency(quantoFalta)}</span>
               </div>
 
-              {/* Main Value */}
-              <div className="text-center mb-4">
-                <p className="text-3xl font-bold text-white mb-1">
-                  R$ <AnimatedNumber value={meta} />
-                </p>
-              </div>
+              {/* THERMOMETER - Full Height */}
+              <div className="flex-1 flex items-stretch gap-6 min-h-0">
+                {/* Scale Labels - Left Side */}
+                <div className="flex flex-col justify-between py-4 text-right w-12">
+                  {[100, 75, 50, 25, 0].map((p) => (
+                    <span key={p} className="text-xs font-mono text-white/40">
+                      {formatCurrency((meta * p) / 100)}
+                    </span>
+                  ))}
+                </div>
 
-              {/* Thermometer */}
-              <div className="flex-1 flex items-center justify-center py-2">
-                <div className="relative h-full max-h-[200px] flex items-end">
-                  {/* Scale */}
-                  <div className="flex flex-col justify-between h-full pr-2 text-[10px] font-mono text-white/30">
-                    {[60, 45, 30, 15, 0].map((v) => (
-                      <span key={v}>{v}K</span>
-                    ))}
-                  </div>
+                {/* Thermometer Tube Container */}
+                <div className="relative flex flex-col items-center flex-1 py-4">
+                  {/* TOP GOAL - Gamified "Explosion" Target */}
+                  <motion.div
+                    animate={{ 
+                      scale: percentage >= 100 ? [1, 1.2, 1] : 1,
+                      boxShadow: percentage >= 100 
+                        ? ["0 0 0px rgba(234,179,8,0.5)", "0 0 40px rgba(234,179,8,0.8)", "0 0 0px rgba(234,179,8,0.5)"]
+                        : "none"
+                    }}
+                    transition={{ repeat: percentage >= 100 ? Infinity : 0, duration: 1 }}
+                    className={`relative -mb-4 z-20 px-6 py-3 rounded-xl border-2 ${
+                      percentage >= 100 
+                        ? "bg-gradient-to-br from-yellow-400 via-amber-500 to-orange-500 border-yellow-300 shadow-2xl shadow-yellow-500/30" 
+                        : "bg-gradient-to-br from-primary/80 to-primary border-primary/50"
+                    }`}
+                  >
+                    {percentage >= 100 && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: [0, 1.5, 0], opacity: [1, 1, 0] }}
+                        transition={{ repeat: Infinity, duration: 2, delay: 0.5 }}
+                        className="absolute inset-0 rounded-xl bg-yellow-400/50"
+                      />
+                    )}
+                    <p className="text-3xl font-black text-white drop-shadow-lg text-center">
+                      R$ {formatCurrency(meta)}
+                    </p>
+                    <p className="text-xs font-medium text-white/80 text-center mt-0.5">
+                      {percentage >= 100 ? "🏆 META BATIDA!" : "Meta do Mês"}
+                    </p>
+                  </motion.div>
 
                   {/* Tube */}
-                  <div className="relative w-12 h-full rounded-t-full bg-white/5 border border-white/10 overflow-hidden">
+                  <div className="relative w-20 flex-1 rounded-t-full bg-white/5 border-2 border-white/10 overflow-hidden">
                     {/* Grid lines */}
                     {[25, 50, 75].map((p) => (
-                      <div key={p} className="absolute left-0 right-0 h-px bg-white/5" style={{ bottom: `${p}%` }} />
+                      <div key={p} className="absolute left-0 right-0 h-px bg-white/10" style={{ bottom: `${p}%` }} />
                     ))}
                     
                     {/* Expected position marker */}
                     <motion.div
-                      className="absolute left-0 right-0 h-0.5 bg-white/20"
-                      style={{ bottom: `${(ondeDeveria / meta) * 100}%` }}
-                    />
+                      initial={{ bottom: 0 }}
+                      animate={{ bottom: `${Math.min((ondeDeveria / meta) * 100, 100)}%` }}
+                      transition={{ duration: 1, delay: 0.3 }}
+                      className="absolute left-0 right-0 h-1 bg-white/30 z-10"
+                    >
+                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[6px] border-b-[6px] border-l-[8px] border-transparent border-l-white/30" />
+                    </motion.div>
 
                     {/* Fill */}
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${Math.min(percentage, 100)}%` }}
                       transition={{ duration: 1.5, ease: "easeOut" }}
-                      className={`absolute bottom-0 left-0.5 right-0.5 rounded-t-full ${
+                      className={`absolute bottom-0 left-1 right-1 rounded-t-full ${
                         isAhead 
-                          ? "bg-gradient-to-t from-emerald-600 to-emerald-400" 
-                          : "bg-gradient-to-t from-amber-600 to-amber-400"
+                          ? "bg-gradient-to-t from-emerald-600 via-emerald-500 to-emerald-400" 
+                          : "bg-gradient-to-t from-amber-600 via-amber-500 to-yellow-400"
                       }`}
                     >
                       {/* Shine effect */}
-                      <div className="absolute inset-y-0 left-1 w-1 bg-white/20 rounded-full" />
+                      <div className="absolute inset-y-0 left-2 w-2 bg-white/25 rounded-full" />
+                      
+                      {/* Bubbles animation */}
+                      <motion.div
+                        animate={{ y: [0, -10, 0] }}
+                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                        className="absolute bottom-4 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white/20"
+                      />
                     </motion.div>
                   </div>
 
-                  {/* Current value indicator */}
-                  <motion.div
-                    initial={{ bottom: 0 }}
-                    animate={{ bottom: `${Math.min(percentage, 100)}%` }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                    className="absolute right-0 translate-y-1/2"
-                    style={{ left: '4.5rem' }}
-                  >
-                    <div className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold ${
-                      isAhead ? "bg-emerald-500 text-white" : "bg-amber-500 text-black"
-                    }`}>
-                      R$ {formatCurrency(atual)}
-                    </div>
-                  </motion.div>
-
-                  {/* Bulb */}
+                  {/* Bulb at bottom */}
                   <motion.div
                     animate={{ 
                       boxShadow: isAhead 
-                        ? ["0 0 8px rgba(16,185,129,0.3)", "0 0 16px rgba(16,185,129,0.5)", "0 0 8px rgba(16,185,129,0.3)"]
-                        : ["0 0 8px rgba(245,158,11,0.3)", "0 0 16px rgba(245,158,11,0.5)", "0 0 8px rgba(245,158,11,0.3)"]
+                        ? ["0 0 10px rgba(16,185,129,0.4)", "0 0 25px rgba(16,185,129,0.7)", "0 0 10px rgba(16,185,129,0.4)"]
+                        : ["0 0 10px rgba(245,158,11,0.4)", "0 0 25px rgba(245,158,11,0.7)", "0 0 10px rgba(245,158,11,0.4)"]
                     }}
                     transition={{ repeat: Infinity, duration: 2 }}
-                    className={`absolute -bottom-3 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full flex items-center justify-center ${
-                      isAhead ? "bg-emerald-500" : "bg-amber-500"
+                    className={`-mt-3 w-24 h-24 rounded-full flex flex-col items-center justify-center z-10 border-4 ${
+                      isAhead 
+                        ? "bg-gradient-to-br from-emerald-400 to-emerald-600 border-emerald-400/50" 
+                        : "bg-gradient-to-br from-amber-400 to-amber-600 border-amber-400/50"
                     }`}
-                    style={{ marginLeft: '0.5rem' }}
                   >
-                    <span className="text-sm font-bold text-white">{percentage.toFixed(0)}%</span>
+                    <span className="text-2xl font-black text-white drop-shadow-md">
+                      {percentage.toFixed(0)}%
+                    </span>
+                    <span className="text-[10px] text-white/80 font-medium">atingido</span>
+                  </motion.div>
+                </div>
+
+                {/* Current Value Label - Right Side */}
+                <div className="relative w-28 py-4">
+                  <motion.div
+                    initial={{ bottom: "0%" }}
+                    animate={{ bottom: `${Math.max(5, Math.min(percentage - 8, 85))}%` }}
+                    transition={{ duration: 1.5, ease: "easeOut" }}
+                    className="absolute left-0 right-0"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-0 h-0 border-t-[8px] border-b-[8px] border-r-[10px] border-transparent ${
+                        isAhead ? "border-r-emerald-500" : "border-r-amber-500"
+                      }`} />
+                      <motion.div 
+                        animate={{ scale: [1, 1.02, 1] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className={`px-3 py-2 rounded-lg font-bold text-lg shadow-lg ${
+                          isAhead ? "bg-emerald-500 text-white" : "bg-amber-500 text-black"
+                        }`}
+                      >
+                        R$ {formatCurrency(atual)}
+                      </motion.div>
+                    </div>
+                    <p className="text-[10px] text-white/40 mt-1 ml-4">vendido</p>
                   </motion.div>
                 </div>
               </div>
 
-              {/* Status */}
-              <div className={`mt-4 p-2 rounded-lg flex items-center justify-center gap-2 ${
-                isAhead ? "bg-emerald-500/10" : "bg-amber-500/10"
+              {/* Status Bar */}
+              <div className={`mt-4 py-3 px-4 rounded-xl flex items-center justify-center gap-3 ${
+                isAhead 
+                  ? "bg-emerald-500/15 border border-emerald-500/30" 
+                  : "bg-amber-500/15 border border-amber-500/30"
               }`}>
                 {isAhead ? (
                   <>
-                    <ArrowUpRight className="w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-medium text-emerald-400">+R$ {formatCurrency(diferenca)} à frente</span>
+                    <ArrowUpRight className="w-5 h-5 text-emerald-400" />
+                    <span className="text-base font-bold text-emerald-400">
+                      +R$ {formatCurrency(diferenca)} acima do esperado
+                    </span>
                   </>
                 ) : (
                   <>
-                    <ArrowDownRight className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm font-medium text-amber-400">-R$ {formatCurrency(diferenca)} atrás</span>
+                    <ArrowDownRight className="w-5 h-5 text-amber-400" />
+                    <span className="text-base font-bold text-amber-400">
+                      -R$ {formatCurrency(diferenca)} para alcançar
+                    </span>
                   </>
                 )}
               </div>
+
+              {/* How much is missing */}
+              {quantoFalta > 0 && (
+                <div className="mt-3 text-center">
+                  <p className="text-sm text-white/50">
+                    Falta <span className="font-bold text-white">R$ {formatCurrency(quantoFalta)}</span> para bater a meta
+                  </p>
+                </div>
+              )}
             </div>
           </TVCard>
         </div>
 
-        {/* Middle Column - KPIs + Individual Goals */}
-        <div className="col-span-5 flex flex-col gap-4">
-          {/* KPIs Row - Neutral cards, color only on icon/number/delta */}
-          <div className="grid grid-cols-3 gap-3">
+        {/* Middle/Right - KPIs + Individual Goals + Everything else */}
+        <div className="col-span-8 flex flex-col gap-4">
+          {/* KPIs Row - Compact */}
+          <div className="grid grid-cols-6 gap-3">
             <KPICard 
               icon={Calendar}
               label="Reuniões"
@@ -281,123 +350,126 @@ export default function TVDashboard() {
             />
           </div>
 
-          {/* Individual Goals */}
-          <TVCard className="flex-1">
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Metas Individuais</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Closers */}
-              <div>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">Closers</p>
-                <div className="space-y-2">
-                  {closers.slice(0, 4).map((closer: any, i: number) => (
-                    <GoalBar key={closer.id} data={closer} index={i} type="closer" formatCurrency={formatCurrency} />
-                  ))}
-                  {closers.length === 0 && <p className="text-xs text-white/30">Sem dados</p>}
-                </div>
+          {/* Main Content Area - Grid */}
+          <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+            {/* Left Side - Individual Goals (More Space) */}
+            <TVCard className="flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <span className="text-sm font-bold text-white uppercase tracking-wider">Metas Individuais</span>
               </div>
 
-              {/* SDRs */}
-              <div>
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mb-2">SDRs</p>
-                <div className="space-y-2">
-                  {sdrs.slice(0, 4).map((sdr: any, i: number) => (
-                    <GoalBar key={sdr.id} data={sdr} index={i} type="sdr" formatCurrency={formatCurrency} />
-                  ))}
-                  {sdrs.length === 0 && <p className="text-xs text-white/30">Sem dados</p>}
-                </div>
-              </div>
-            </div>
-          </TVCard>
-        </div>
-
-        {/* Right Column - Propostas + Vendas + Coach */}
-        <div className="col-span-4 flex flex-col gap-4">
-          {/* Hot Proposals */}
-          <TVCard>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-orange-500" />
-                <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Propostas Quentes</span>
-              </div>
-              <span className="text-xs font-semibold text-orange-400">{(data?.propostasQuentes || []).length}</span>
-            </div>
-
-            <div className="space-y-2 max-h-[100px] overflow-y-auto">
-              {(data?.propostasQuentes || []).slice(0, 4).map((p: any, i: number) => (
-                <motion.div 
-                  key={p.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-xs font-bold">
-                      {p.calor || 7}
-                    </div>
-                    <span className="text-sm text-white/80 truncate max-w-[120px]">{p.lead?.name}</span>
+              <div className="flex-1 grid grid-cols-2 gap-6 overflow-y-auto">
+                {/* Closers */}
+                <div className="flex flex-col">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-3 font-semibold">Closers</p>
+                  <div className="space-y-3 flex-1">
+                    {closers.map((closer: any, i: number) => (
+                      <GoalBar key={closer.id} data={closer} index={i} type="closer" formatCurrency={formatCurrency} />
+                    ))}
+                    {closers.length === 0 && <p className="text-sm text-white/30">Sem metas configuradas</p>}
                   </div>
-                  <span className="text-sm font-semibold text-primary">R$ {formatCurrency(p.sale_value || 0)}</span>
-                </motion.div>
-              ))}
-              {(data?.propostasQuentes || []).length === 0 && (
-                <p className="text-xs text-white/30 text-center py-2">Sem propostas quentes</p>
-              )}
-            </div>
-          </TVCard>
+                </div>
 
-          {/* Monthly Sales */}
-          <TVCard>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-emerald-500" />
-                <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Vendas do Mês</span>
+                {/* SDRs */}
+                <div className="flex flex-col">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-3 font-semibold">SDRs</p>
+                  <div className="space-y-3 flex-1">
+                    {sdrs.map((sdr: any, i: number) => (
+                      <GoalBar key={sdr.id} data={sdr} index={i} type="sdr" formatCurrency={formatCurrency} />
+                    ))}
+                    {sdrs.length === 0 && <p className="text-sm text-white/30">Sem metas configuradas</p>}
+                  </div>
+                </div>
               </div>
-              <span className="text-xs font-semibold text-emerald-400">{(data?.vendasDoMes || []).length}</span>
-            </div>
+            </TVCard>
 
-            {/* Summary Pills */}
-            <div className="flex gap-2 mb-3">
-              <div className="flex-1 text-center py-1.5 px-2 rounded-lg bg-white/[0.03] border border-white/5">
-                <p className="text-[10px] text-white/40">MRR</p>
-                <p className="text-sm font-semibold text-primary">R$ {formatCurrency(data?.vendasMRR || 0)}</p>
-              </div>
-              <div className="flex-1 text-center py-1.5 px-2 rounded-lg bg-white/[0.03] border border-white/5">
-                <p className="text-[10px] text-white/40">Projeto</p>
-                <p className="text-sm font-semibold text-purple-400">R$ {formatCurrency(data?.vendasProjeto || 0)}</p>
-              </div>
-            </div>
+            {/* Right Side - Propostas + Vendas + Coach */}
+            <div className="flex flex-col gap-4">
+              {/* Hot Proposals */}
+              <TVCard className="flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-orange-500" />
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">Propostas Quentes</span>
+                  </div>
+                  <span className="text-sm font-bold text-orange-400">{(data?.propostasQuentes || []).length}</span>
+                </div>
 
-            <div className="space-y-1.5 max-h-[70px] overflow-y-auto">
-              {(data?.vendasDoMes || []).slice(0, 3).map((sale: any, i: number) => (
-                <motion.div 
-                  key={sale.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="flex items-center justify-between py-1 px-2 rounded bg-emerald-500/5"
-                >
-                  <span className="text-xs text-white/70 truncate max-w-[140px]">{sale.leadName}</span>
-                  <span className="text-xs font-semibold text-emerald-400">R$ {formatCurrency(sale.value)}</span>
-                </motion.div>
-              ))}
-            </div>
-          </TVCard>
+                <div className="space-y-2 overflow-y-auto max-h-[150px]">
+                  {(data?.propostasQuentes || []).slice(0, 5).map((p: any, i: number) => (
+                    <motion.div 
+                      key={p.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-orange-500/20">
+                          {p.calor || 7}
+                        </div>
+                        <span className="text-sm text-white/80 truncate max-w-[100px]">{p.lead?.name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-primary">R$ {formatCurrency(p.sale_value || 0)}</span>
+                    </motion.div>
+                  ))}
+                  {(data?.propostasQuentes || []).length === 0 && (
+                    <p className="text-sm text-white/30 text-center py-4">Sem propostas quentes</p>
+                  )}
+                </div>
+              </TVCard>
 
-          {/* AI Coach */}
-          <TVCard className="flex-1" accent="purple">
-            <div className="flex items-center gap-2 mb-3">
-              <Zap className="w-4 h-4 text-purple-400" />
-              <span className="text-xs font-medium text-white/60 uppercase tracking-wider">Coach IA</span>
+              {/* Monthly Sales */}
+              <TVCard className="flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-emerald-500" />
+                    <span className="text-sm font-bold text-white uppercase tracking-wider">Vendas do Mês</span>
+                  </div>
+                  <span className="text-sm font-bold text-emerald-400">{(data?.vendasDoMes || []).length}</span>
+                </div>
+
+                {/* Summary Pills */}
+                <div className="flex gap-3 mb-3">
+                  <div className="flex-1 text-center py-2 px-3 rounded-lg bg-white/[0.03] border border-white/5">
+                    <p className="text-xs text-white/40 mb-0.5">MRR</p>
+                    <p className="text-lg font-bold text-primary">R$ {formatCurrency(data?.vendasMRR || 0)}</p>
+                  </div>
+                  <div className="flex-1 text-center py-2 px-3 rounded-lg bg-white/[0.03] border border-white/5">
+                    <p className="text-xs text-white/40 mb-0.5">Projeto</p>
+                    <p className="text-lg font-bold text-purple-400">R$ {formatCurrency(data?.vendasProjeto || 0)}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 max-h-[100px] overflow-y-auto">
+                  {(data?.vendasDoMes || []).slice(0, 5).map((sale: any, i: number) => (
+                    <motion.div 
+                      key={sale.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="flex items-center justify-between py-2 px-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10"
+                    >
+                      <span className="text-sm text-white/70 truncate max-w-[120px]">{sale.leadName}</span>
+                      <span className="text-sm font-bold text-emerald-400">R$ {formatCurrency(sale.value)}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </TVCard>
+
+              {/* AI Coach - Smaller */}
+              <TVCard accent="purple">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-4 h-4 text-purple-400" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">Coach IA</span>
+                </div>
+                <div className="max-h-[80px] overflow-y-auto">
+                  <AICoachSection />
+                </div>
+              </TVCard>
             </div>
-            <div className="h-[calc(100%-2rem)] overflow-y-auto">
-              <AICoachSection />
-            </div>
-          </TVCard>
+          </div>
         </div>
       </div>
     </div>
@@ -492,7 +564,7 @@ function KPICard({
   );
 }
 
-// Individual Goal Bar
+// Individual Goal Bar - Bigger for TV
 function GoalBar({ 
   data, 
   index, 
@@ -512,36 +584,52 @@ function GoalBar({
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="group"
+      className="group p-2 rounded-lg hover:bg-white/[0.02] transition-colors"
     >
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
-          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-            isCompleted 
-              ? "bg-emerald-500 text-white" 
-              : "bg-white/10 text-white/60"
-          }`}>
-            {data.name?.charAt(0)}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <motion.div 
+            animate={isCompleted ? { scale: [1, 1.1, 1] } : {}}
+            transition={{ repeat: isCompleted ? Infinity : 0, duration: 2 }}
+            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-lg ${
+              isCompleted 
+                ? "bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-emerald-500/30" 
+                : "bg-white/10 text-white/60"
+            }`}
+          >
+            {isCompleted ? "✓" : data.name?.charAt(0)}
+          </motion.div>
+          <div>
+            <span className="text-sm font-medium text-white/80 group-hover:text-white transition-colors block">{data.name}</span>
+            {type === "closer" && data.current !== undefined && (
+              <span className="text-[11px] text-white/40">
+                R$ {formatCurrency(data.current || 0)} / R$ {formatCurrency(data.goal || 0)}
+              </span>
+            )}
+            {type === "sdr" && data.current !== undefined && (
+              <span className="text-[11px] text-white/40">
+                {data.current || 0} / {data.goal || 0} reuniões
+              </span>
+            )}
           </div>
-          <span className="text-xs text-white/70 group-hover:text-white/90 transition-colors">{data.name}</span>
         </div>
-        <span className={`text-xs font-semibold ${isCompleted ? "text-emerald-400" : "text-white/80"}`}>
+        <span className={`text-lg font-bold ${isCompleted ? "text-emerald-400" : "text-white/80"}`}>
           {percentage.toFixed(0)}%
         </span>
       </div>
       
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-white/5 rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${percentage}%` }}
           transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
           className={`h-full rounded-full ${
             isCompleted 
-              ? "bg-emerald-500" 
+              ? "bg-gradient-to-r from-emerald-500 to-emerald-400" 
               : percentage >= 75 
-                ? "bg-primary" 
+                ? "bg-gradient-to-r from-primary to-yellow-400" 
                 : percentage >= 50 
-                  ? "bg-amber-500" 
+                  ? "bg-gradient-to-r from-amber-600 to-amber-400" 
                   : "bg-white/30"
           }`}
         />
