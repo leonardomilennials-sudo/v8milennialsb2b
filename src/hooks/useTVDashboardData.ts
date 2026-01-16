@@ -98,12 +98,17 @@ export function useTVDashboardData() {
       const ondeDeveriamEstar = metaVendasMes * progressoEsperado;
       const quantoFalta = Math.max(0, metaVendasMes - vendasRealizadas);
       
-      // Meetings attended
-      const reunioesComparecidas = confirmacoes?.filter(c => 
-        c.status === "compareceu" &&
-        new Date(c.updated_at).getMonth() + 1 === currentMonth &&
-        new Date(c.updated_at).getFullYear() === currentYear
-      ).length || 0;
+      // Meetings attended this month
+      const currentMonthConfirmacoes = confirmacoes?.filter(c => {
+        const meetingDate = c.meeting_date ? new Date(c.meeting_date) : null;
+        return meetingDate && 
+          meetingDate.getMonth() + 1 === currentMonth && 
+          meetingDate.getFullYear() === currentYear;
+      }) || [];
+      
+      const reunioesComparecidas = currentMonthConfirmacoes.filter(c => 
+        c.status === "compareceu"
+      ).length;
       
       // Calculate ticket averages
       const mrrSales = currentMonthPropostas.filter(p => p.product_type === "mrr");
@@ -140,10 +145,9 @@ export function useTVDashboardData() {
       const taxaConversaoGeral = totalPropostas > 0 ? (totalVendas / totalPropostas) * 100 : 0;
       
       // No-show calculation (finalized leads only)
-      const finalizedConfirmacoes = confirmacoes?.filter(c => 
-        ["remarcar", "compareceu", "perdido"].includes(c.status) &&
-        new Date(c.updated_at).getMonth() + 1 === currentMonth
-      ) || [];
+      const finalizedConfirmacoes = currentMonthConfirmacoes.filter(c => 
+        ["remarcar", "compareceu", "perdido"].includes(c.status)
+      );
       const noShowCount = finalizedConfirmacoes.filter(c => 
         c.status === "remarcar" || c.status === "perdido"
       ).length;
@@ -187,22 +191,47 @@ export function useTVDashboardData() {
         closedAt: p.closed_at
       }));
       
-      // Individual goals from the hook
-      const closerGoals = individualGoals?.closerGoals?.map(g => ({
-        name: g.name,
-        id: g.id,
-        current: g.current,
-        goal: g.goal,
-        percentage: g.percentage
-      })) || [];
+      // ========== INDIVIDUAL GOALS - CALCULATE DYNAMICALLY ==========
       
-      const sdrGoals = individualGoals?.sdrGoals?.map(g => ({
-        name: g.name,
-        id: g.id,
-        current: g.current,
-        goal: g.goal,
-        percentage: g.percentage
-      })) || [];
+      // For CLOSERS: Calculate actual sales value per closer this month
+      const closerGoals = (individualGoals?.closerGoals || []).map(g => {
+        // Sum all sales for this closer in current month
+        const closerSales = currentMonthPropostas
+          .filter(p => p.closer_id === g.id)
+          .reduce((sum, p) => sum + (p.sale_value || 0), 0);
+        
+        const currentValue = closerSales;
+        const goalValue = g.goal || 0;
+        const percentage = goalValue > 0 ? Math.round((currentValue / goalValue) * 100) : 0;
+        
+        return {
+          name: g.name,
+          id: g.id,
+          current: currentValue,
+          goal: goalValue,
+          percentage
+        };
+      });
+      
+      // For SDRs: Calculate actual meetings comparecidas per SDR this month
+      const sdrGoals = (individualGoals?.sdrGoals || []).map(g => {
+        // Count meetings where this SDR's leads attended
+        const sdrMeetings = currentMonthConfirmacoes
+          .filter(c => c.sdr_id === g.id && c.status === "compareceu")
+          .length;
+        
+        const currentValue = sdrMeetings;
+        const goalValue = g.goal || 0;
+        const percentage = goalValue > 0 ? Math.round((currentValue / goalValue) * 100) : 0;
+        
+        return {
+          name: g.name,
+          id: g.id,
+          current: currentValue,
+          goal: goalValue,
+          percentage
+        };
+      });
       
       return {
         metaVendasMes,
