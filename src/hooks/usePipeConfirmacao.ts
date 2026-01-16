@@ -20,14 +20,14 @@ export type PipeConfirmacaoStatus =
   | "compareceu"
   | "perdido";
 
+// Visual Kanban columns - pre_confirmada and confirmada_no_dia are NOT shown as columns
+// They are visual states (colors) on the cards instead
 export const statusColumns: { id: PipeConfirmacaoStatus; title: string; color: string }[] = [
   { id: "reuniao_marcada", title: "Reunião Marcada", color: "#6366f1" },
   { id: "confirmar_d5", title: "Confirmar D-5", color: "#8b5cf6" },
   { id: "confirmar_d3", title: "Confirmar D-3", color: "#f59e0b" },
   { id: "confirmar_d1", title: "Confirmar D-1", color: "#f97316" },
-  { id: "pre_confirmada", title: "Pré-Confirmada 🔵", color: "#3b82f6" },
   { id: "confirmacao_no_dia", title: "Confirmação no Dia", color: "#f59e0b" },
-  { id: "confirmada_no_dia", title: "Confirmada no Dia ✓", color: "#16a34a" },
   { id: "remarcar", title: "Remarcar 📅", color: "#f97316" },
   { id: "compareceu", title: "Compareceu ✓", color: "#22c55e" },
   { id: "perdido", title: "Perdido ✗", color: "#ef4444" },

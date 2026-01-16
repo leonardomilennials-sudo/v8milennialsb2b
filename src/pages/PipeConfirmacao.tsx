@@ -42,16 +42,23 @@ interface ConfirmacaoCardData extends DraggableItem {
 }
 
 // Calculate correct status based on meeting date
+// Note: pre_confirmada and confirmada_no_dia are NOT used as statuses anymore
+// They are visual states controlled by is_confirmed field
 function calculateStatusByDate(meetingDate: Date | null, currentStatus: PipeConfirmacaoStatus): PipeConfirmacaoStatus | null {
   if (!meetingDate) return null;
   
-  // Don't auto-update pre-confirmed or confirmed statuses
-  if (["pre_confirmada", "confirmada_no_dia"].includes(currentStatus)) {
-    // If pre-confirmed and it's the meeting day, move to confirmacao_no_dia
-    if (currentStatus === "pre_confirmada" && isToday(meetingDate)) {
-      return "confirmacao_no_dia";
+  // Don't auto-update terminal statuses
+  if (["compareceu", "perdido", "remarcar"].includes(currentStatus)) {
+    // Check if remarcar should be updated (meeting date was changed to future)
+    if (currentStatus === "remarcar") {
+      if (!isPast(meetingDate) || isToday(meetingDate)) {
+        // Meeting is no longer overdue, recalculate
+      } else {
+        return null; // Still overdue
+      }
+    } else {
+      return null;
     }
-    return null;
   }
   
   const now = new Date();
