@@ -34,7 +34,7 @@ export interface TVDashboardMetrics {
   leadsParaTrabalhar: number;
   leadsRemarcar: number;
   leadsNovo: number;
-  leadsEmContato: number;
+  leadsAbordado: number;
   
   // Hot proposals
   propostasQuentes: any[];
@@ -171,8 +171,8 @@ export function useTVDashboardData() {
       // Leads to work
       const leadsRemarcar = confirmacoes?.filter(c => c.status === "remarcar").length || 0;
       const leadsNovo = whatsapp?.filter(w => w.status === "novo").length || 0;
-      const leadsEmContato = whatsapp?.filter(w => w.status === "em_contato").length || 0;
-      const leadsParaTrabalhar = leadsRemarcar + leadsNovo + leadsEmContato;
+      const leadsAbordado = whatsapp?.filter(w => w.status === "abordado").length || 0;
+      const leadsParaTrabalhar = leadsRemarcar + leadsNovo + leadsAbordado;
       
       // Hot proposals (calor >= 7, not closed)
       const propostasQuentes = propostas?.filter(p => 
@@ -250,7 +250,7 @@ export function useTVDashboardData() {
         leadsParaTrabalhar,
         leadsRemarcar,
         leadsNovo,
-        leadsEmContato,
+        leadsAbordado,
         propostasQuentes,
         vendasDoMes,
         individualGoals: {
