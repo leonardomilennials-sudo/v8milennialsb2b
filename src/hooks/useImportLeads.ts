@@ -275,14 +275,77 @@ export function useImportLeads() {
           for (const row of results.data as Record<string, string>[]) {
             const usedKeys = new Set<string>();
 
-            // NOME
-            const nameField = collectFieldValues(
+            // NOME COMPLETO - prioriza "Nome completo" que é o nome real do lead
+            const nomeCompletoField = collectFieldValues(
               row,
-              ["Nome completo", "Lead título", "Nome", "Nome do contato", "Contato"],
-              [/\bnome\b/, /\bname\b/, /contato/, /titulo/, /t[ií]tulo/]
+              ["Nome completo"],
+              []
             );
-            nameField.matchedKeys.forEach(k => usedKeys.add(k));
-            const name = chooseBestValue("name", nameField.values);
+            nomeCompletoField.matchedKeys.forEach(k => usedKeys.add(k));
+            const nomeCompleto = chooseBestValue("name", nomeCompletoField.values);
+
+            // LEAD TÍTULO - pode ser nome da pessoa ou código (Lead #xxx)
+            const leadTituloField = collectFieldValues(
+              row,
+              ["Lead título"],
+              []
+            );
+            leadTituloField.matchedKeys.forEach(k => usedKeys.add(k));
+            const leadTitulo = chooseBestValue("name", leadTituloField.values);
+
+            // EMPRESA - busca em múltiplas colunas
+            const companyField = collectFieldValues(
+              row,
+              ["Nome da empresa", "Empresa", "Company", "Razão Social", "Nome fantasia", "Empresa lead 's"],
+              [/empresa/, /\bcompany\b/, /razao/, /raz[aã]o/, /fantasia/]
+            );
+            companyField.matchedKeys.forEach(k => usedKeys.add(k));
+            let company = chooseBestValue("company", companyField.values);
+
+            // Lógica para determinar nome do lead e empresa:
+            // 1. Se "Nome completo" existe, é o nome do lead
+            // 2. Se "Lead título" parece código (Lead #xxx), ignorar para nome
+            // 3. Se "Lead título" é nome de pessoa e não tem empresa, usar como empresa se parecer empresa
+            let name: string | undefined;
+            
+            const isLeadCode = (v: string) => /^Lead\s*#\d+/i.test(v.trim());
+            const looksLikeCompany = (v: string) => {
+              const lower = v.toLowerCase();
+              return /\b(ltda|eireli|me|epp|sa|s\.a\.|comercio|comércio|indústria|industria|distribuidora|fabrica|fábrica|loja|store|shop|consultoria|agência|agencia|clinic|clínica|restaurante|bar|padaria|mercado|supermercado|atacado|varejo)\b/i.test(lower);
+            };
+
+            if (nomeCompleto) {
+              // Se tiver "Nome completo", é definitivamente o nome do lead
+              name = nomeCompleto;
+              
+              // Se Lead título não é código e parece empresa, usar como empresa
+              if (leadTitulo && !isLeadCode(leadTitulo) && !company) {
+                if (looksLikeCompany(leadTitulo) || leadTitulo !== nomeCompleto) {
+                  company = leadTitulo;
+                }
+              }
+            } else if (leadTitulo && !isLeadCode(leadTitulo)) {
+              // Não tem Nome completo, usar Lead título
+              // Verificar se contém "/" que separa nome/empresa
+              if (leadTitulo.includes("/")) {
+                const parts = leadTitulo.split("/").map(p => p.trim());
+                name = parts[0];
+                if (!company && parts[1]) {
+                  company = parts[1];
+                }
+              } else {
+                name = leadTitulo;
+              }
+            } else {
+              // Fallback: buscar em outras colunas de nome
+              const nameField = collectFieldValues(
+                row,
+                ["Nome", "Nome do contato", "Contato"],
+                [/\bnome\b/, /\bname\b/, /contato/]
+              );
+              nameField.matchedKeys.forEach(k => usedKeys.add(k));
+              name = chooseBestValue("name", nameField.values);
+            }
 
             if (!name) continue;
 
@@ -313,15 +376,6 @@ export function useImportLeads() {
 
             // Skip if no contact info
             if (!phone && !email) continue;
-
-            // EMPRESA
-            const companyField = collectFieldValues(
-              row,
-              ["Nome da empresa", "Empresa", "Company", "Razão Social", "Nome fantasia"],
-              [/empresa/, /\bcompany\b/, /razao/, /raz[aã]o/, /fantasia/]
-            );
-            companyField.matchedKeys.forEach(k => usedKeys.add(k));
-            const company = chooseBestValue("company", companyField.values);
 
             // FATURAMENTO - multiple columns, choose best
             const faturamentoField = collectFieldValues(
@@ -422,7 +476,7 @@ export function useImportLeads() {
               .map(key => ({ key, value: row[key].trim() }));
 
             const kommoBlock = buildKommoBlock({
-              nameValues: nameField.values,
+              nameValues: [nomeCompleto, leadTitulo, name].filter(Boolean) as string[],
               companyValues: companyField.values,
               emailValues: emailField.values,
               phoneValues: phoneField.values,
