@@ -5,10 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { CampanhaStage, CampanhaMember } from "@/hooks/useCampanhas";
 import { useImportLeads } from "@/hooks/useImportLeads";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ImportLeadsModalProps {
@@ -41,6 +42,7 @@ export function ImportLeadsModal({
   const [totalLeads, setTotalLeads] = useState(0);
   const [selectedStageId, setSelectedStageId] = useState<string>("");
   const [selectedSdrId, setSelectedSdrId] = useState<string>("");
+  const [autoDistribute, setAutoDistribute] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -103,11 +105,14 @@ export function ImportLeadsModal({
     setStep("importing");
 
     try {
+      const memberIds = members.map(m => m.team_member_id);
       await importLeads(
         file,
         campanhaId,
         selectedStageId,
-        selectedSdrId === "none" ? undefined : selectedSdrId || undefined
+        autoDistribute ? undefined : (selectedSdrId === "none" ? undefined : selectedSdrId || undefined),
+        autoDistribute,
+        autoDistribute ? memberIds : undefined
       );
       setStep("complete");
     } catch (error) {
@@ -124,6 +129,7 @@ export function ImportLeadsModal({
     setTotalLeads(0);
     setSelectedStageId("");
     setSelectedSdrId("");
+    setAutoDistribute(false);
     resetImport();
     onOpenChange(false);
   };
@@ -240,23 +246,63 @@ export function ImportLeadsModal({
                 </Select>
               </div>
 
-              {/* SDR Selection */}
-              <div className="space-y-2">
-                <Label>Atribuir a Vendedor (opcional)</Label>
-                <Select value={selectedSdrId} onValueChange={setSelectedSdrId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sem atribuição" />
-                  </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sem atribuição</SelectItem>
-                {members.map((member) => (
-                  <SelectItem key={member.team_member_id} value={member.team_member_id}>
-                    {member.team_member?.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-                </Select>
-              </div>
+              {/* Auto Distribution Toggle */}
+              {members.length > 1 && (
+                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <div className="flex items-center gap-3">
+                    <Users className="w-5 h-5 text-primary" />
+                    <div>
+                      <Label className="font-medium">Distribuição Automática</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Distribuir leads igualmente entre {members.length} vendedores
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={autoDistribute}
+                    onCheckedChange={(checked) => {
+                      setAutoDistribute(checked);
+                      if (checked) setSelectedSdrId("");
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* SDR Selection - Only show if not auto distributing */}
+              {!autoDistribute && (
+                <div className="space-y-2">
+                  <Label>Atribuir a Vendedor (opcional)</Label>
+                  <Select value={selectedSdrId} onValueChange={setSelectedSdrId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sem atribuição" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem atribuição</SelectItem>
+                      {members.map((member) => (
+                        <SelectItem key={member.team_member_id} value={member.team_member_id}>
+                          {member.team_member?.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Distribution Preview */}
+              {autoDistribute && members.length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Cada vendedor receberá aproximadamente:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {members.map((member) => (
+                      <span key={member.team_member_id} className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded-full text-xs">
+                        {member.team_member?.name}: ~{Math.ceil(totalLeads / members.length)} leads
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4 border-t">
@@ -351,6 +397,32 @@ export function ImportLeadsModal({
                   <p className="text-xs text-muted-foreground">Inválidos</p>
                 </motion.div>
               </div>
+
+              {/* Distribution breakdown */}
+              {result.distribution && Object.keys(result.distribution).length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="p-4 bg-primary/5 rounded-xl"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <Users className="w-4 h-4 text-primary" />
+                    <p className="text-sm font-medium">Distribuição por Vendedor</p>
+                  </div>
+                  <div className="space-y-2">
+                    {Object.entries(result.distribution).map(([sdrId, count]) => {
+                      const member = members.find(m => m.team_member_id === sdrId);
+                      return (
+                        <div key={sdrId} className="flex items-center justify-between text-sm">
+                          <span>{member?.team_member?.name || "Vendedor"}</span>
+                          <span className="font-medium text-primary">{count} leads</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Info */}
               <p className="text-sm text-center text-muted-foreground">
