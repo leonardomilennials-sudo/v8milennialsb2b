@@ -303,35 +303,69 @@ export function useImportLeads() {
             let company = chooseBestValue("company", companyField.values);
 
             // Lógica para determinar nome do lead e empresa:
-            // 1. Se "Nome completo" existe, é o nome do lead
+            // 1. Se "Nome completo" existe e é diferente do "Lead título", nome completo é a pessoa
             // 2. Se "Lead título" parece código (Lead #xxx), ignorar para nome
-            // 3. Se "Lead título" é nome de pessoa e não tem empresa, usar como empresa se parecer empresa
+            // 3. Se "Nome completo" contém "/" ou "|", separar nome/empresa
             let name: string | undefined;
             
             const isLeadCode = (v: string) => /^Lead\s*#\d+/i.test(v.trim());
             const looksLikeCompany = (v: string) => {
               const lower = v.toLowerCase();
-              return /\b(ltda|eireli|me|epp|sa|s\.a\.|comercio|comércio|indústria|industria|distribuidora|fabrica|fábrica|loja|store|shop|consultoria|agência|agencia|clinic|clínica|restaurante|bar|padaria|mercado|supermercado|atacado|varejo)\b/i.test(lower);
+              return /\b(ltda|eireli|me|epp|sa|s\.a\.|comercio|comércio|indústria|industria|distribuidora|fabrica|fábrica|loja|store|shop|consultoria|agência|agencia|clinic|clínica|restaurante|bar|padaria|mercado|supermercado|atacado|varejo|cosmet|alimentos|foods|sorvetes|beauty|gourmet)\b/i.test(lower);
+            };
+
+            // Função para separar nome/empresa de strings como "Adriano Paixao | Evoluxe Cosméticos"
+            const splitNameCompany = (value: string): { personName?: string; companyName?: string } => {
+              // Tenta separar por | ou /
+              const separators = [' | ', '|', ' / ', '/'];
+              for (const sep of separators) {
+                if (value.includes(sep)) {
+                  const parts = value.split(sep).map(p => p.trim()).filter(Boolean);
+                  if (parts.length >= 2) {
+                    // Primeiro geralmente é a pessoa, segundo é a empresa
+                    const first = parts[0];
+                    const second = parts[1];
+                    
+                    // Se o primeiro parece empresa, inverter
+                    if (looksLikeCompany(first) && !looksLikeCompany(second)) {
+                      return { personName: second, companyName: first };
+                    }
+                    return { personName: first, companyName: second };
+                  }
+                }
+              }
+              return {};
             };
 
             if (nomeCompleto) {
-              // Se tiver "Nome completo", é definitivamente o nome do lead
-              name = nomeCompleto;
+              // Verificar se Nome completo contém separador (nome | empresa)
+              const parsed = splitNameCompany(nomeCompleto);
+              if (parsed.personName) {
+                name = parsed.personName;
+                if (!company && parsed.companyName) {
+                  company = parsed.companyName;
+                }
+              } else if (looksLikeCompany(nomeCompleto) && leadTitulo && !isLeadCode(leadTitulo) && !looksLikeCompany(leadTitulo)) {
+                // Nome completo parece empresa, Lead título parece pessoa
+                name = leadTitulo;
+                company = company || nomeCompleto;
+              } else {
+                name = nomeCompleto;
+              }
               
-              // Se Lead título não é código e parece empresa, usar como empresa
-              if (leadTitulo && !isLeadCode(leadTitulo) && !company) {
-                if (looksLikeCompany(leadTitulo) || leadTitulo !== nomeCompleto) {
+              // Se ainda não tem empresa, tentar usar Lead título
+              if (!company && leadTitulo && !isLeadCode(leadTitulo) && leadTitulo !== name) {
+                if (looksLikeCompany(leadTitulo)) {
                   company = leadTitulo;
                 }
               }
             } else if (leadTitulo && !isLeadCode(leadTitulo)) {
               // Não tem Nome completo, usar Lead título
-              // Verificar se contém "/" que separa nome/empresa
-              if (leadTitulo.includes("/")) {
-                const parts = leadTitulo.split("/").map(p => p.trim());
-                name = parts[0];
-                if (!company && parts[1]) {
-                  company = parts[1];
+              const parsed = splitNameCompany(leadTitulo);
+              if (parsed.personName) {
+                name = parsed.personName;
+                if (!company && parsed.companyName) {
+                  company = parsed.companyName;
                 }
               } else {
                 name = leadTitulo;
@@ -809,10 +843,92 @@ export function useImportLeads() {
     setResult(null);
   };
 
+  // Função para corrigir leads existentes extraindo nome da pessoa do bloco Kommo
+  const fixExistingLeadNames = async (campanhaId: string): Promise<{ fixed: number; errors: number }> => {
+    let fixed = 0;
+    let errors = 0;
+
+    try {
+      // Buscar todos os leads da campanha
+      const { data: campanhaLeads, error: fetchError } = await supabase
+        .from("campanha_leads")
+        .select("lead_id, lead:leads(*)")
+        .eq("campanha_id", campanhaId);
+
+      if (fetchError || !campanhaLeads) {
+        console.error("Error fetching campaign leads:", fetchError);
+        return { fixed: 0, errors: 1 };
+      }
+
+      const looksLikeCompany = (v: string) => {
+        const lower = v.toLowerCase();
+        return /\b(ltda|eireli|me|epp|sa|s\.a\.|comercio|comércio|indústria|industria|distribuidora|fabrica|fábrica|loja|store|shop|consultoria|agência|agencia|clinic|clínica|restaurante|bar|padaria|mercado|supermercado|atacado|varejo|cosmet|alimentos|foods|sorvetes|beauty|gourmet|agroalimentos|panificadora|linguica|linguiça)\b/i.test(lower);
+      };
+
+      for (const cl of campanhaLeads) {
+        const lead = cl.lead as any;
+        if (!lead || !lead.notes) continue;
+
+        // Extrair nome do bloco Kommo
+        const kommoMatch = lead.notes.match(/--- Kommo \(campos\) ---[\s\S]*?Nome\(s\):\s*([^\n]+)/);
+        if (!kommoMatch) continue;
+
+        const namesLine = kommoMatch[1].trim();
+        // Separar por | e pegar os nomes
+        const names = namesLine.split('|').map((n: string) => n.trim()).filter(Boolean);
+        
+        if (names.length === 0) continue;
+
+        // Encontrar o nome da pessoa (não é empresa)
+        let personName: string | undefined;
+        let companyName: string | undefined;
+
+        for (const name of names) {
+          if (looksLikeCompany(name)) {
+            if (!companyName) companyName = name;
+          } else {
+            if (!personName) personName = name;
+          }
+        }
+
+        // Se o nome atual parece empresa e encontramos um nome de pessoa, corrigir
+        if (personName && looksLikeCompany(lead.name) && personName !== lead.name) {
+          const updates: Record<string, string> = {
+            name: personName,
+          };
+          
+          // Se não tem empresa, usar o nome atual (que é a empresa)
+          if (!lead.company) {
+            updates.company = lead.name;
+          }
+
+          const { error: updateError } = await supabase
+            .from("leads")
+            .update(updates)
+            .eq("id", lead.id);
+
+          if (updateError) {
+            console.error(`Error updating lead ${lead.id}:`, updateError);
+            errors++;
+          } else {
+            console.log(`Fixed lead: ${lead.name} → ${personName} (company: ${updates.company || lead.company})`);
+            fixed++;
+          }
+        }
+      }
+
+      return { fixed, errors };
+    } catch (error) {
+      console.error("Error fixing lead names:", error);
+      return { fixed, errors: errors + 1 };
+    }
+  };
+
   return {
     parseCSV,
     importLeads,
     resetImport,
+    fixExistingLeadNames,
     isImporting,
     progress,
     result,
