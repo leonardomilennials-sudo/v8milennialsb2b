@@ -9,13 +9,14 @@ export type PipeWhatsappInsert = TablesInsert<"pipe_whatsapp">;
 export type PipeWhatsappUpdate = TablesUpdate<"pipe_whatsapp">;
 
 // Using database enum values
-export type PipeWhatsappStatus = "novo" | "em_contato" | "agendado" | "compareceu";
+export type PipeWhatsappStatus = "novo" | "abordado" | "respondeu" | "esfriou" | "agendado";
 
 export const statusColumns: { id: PipeWhatsappStatus; title: string; color: string }[] = [
   { id: "novo", title: "Novo", color: "#6366f1" },
-  { id: "em_contato", title: "Em Contato", color: "#f59e0b" },
+  { id: "abordado", title: "Abordado", color: "#f59e0b" },
+  { id: "respondeu", title: "Respondeu", color: "#3b82f6" },
+  { id: "esfriou", title: "Esfriou", color: "#ef4444" },
   { id: "agendado", title: "Agendado ✓", color: "#22c55e" },
-  { id: "compareceu", title: "Compareceu ✓", color: "#16a34a" },
 ];
 
 export function usePipeWhatsapp() {

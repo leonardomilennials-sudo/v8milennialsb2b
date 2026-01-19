@@ -445,16 +445,17 @@ export default function PipeWhatsapp() {
 
   // Calculate stats based on FILTERED data
   const stats = useMemo(() => {
-    if (!pipeData) return { total: 0, emContato: 0, scheduled: 0, pending: 0 };
+    if (!pipeData) return { total: 0, abordado: 0, respondeu: 0, scheduled: 0, pending: 0 };
 
     const filteredData = pipeData.filter(filterItems);
     
     const total = filteredData.length;
-    const emContato = filteredData.filter(item => item.status === "em_contato").length;
+    const abordado = filteredData.filter(item => item.status === "abordado").length;
+    const respondeu = filteredData.filter(item => item.status === "respondeu").length;
     const scheduled = filteredData.filter(item => item.status === "agendado").length;
     const pending = filteredData.filter(item => item.status === "novo").length;
 
-    return { total, emContato, scheduled, pending };
+    return { total, abordado, respondeu, scheduled, pending };
   }, [pipeData, searchTerm, filterSdr, filterOrigin]);
 
   // Handle status change from drag-and-drop
@@ -568,16 +569,16 @@ export default function PipeWhatsapp() {
           <p className="text-2xl font-bold mt-1">{stats.total}</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-4">
-          <p className="text-sm text-muted-foreground">Em Contato</p>
-          <p className="text-2xl font-bold text-success mt-1">{stats.emContato}</p>
+          <p className="text-sm text-muted-foreground">Abordados</p>
+          <p className="text-2xl font-bold text-success mt-1">{stats.abordado}</p>
+        </div>
+        <div className="bg-card rounded-lg border border-border p-4">
+          <p className="text-sm text-muted-foreground">Respondeu</p>
+          <p className="text-2xl font-bold text-blue-500 mt-1">{stats.respondeu}</p>
         </div>
         <div className="bg-card rounded-lg border border-border p-4">
           <p className="text-sm text-muted-foreground">Agendados</p>
           <p className="text-2xl font-bold text-primary mt-1">{stats.scheduled}</p>
-        </div>
-        <div className="bg-card rounded-lg border border-border p-4">
-          <p className="text-sm text-muted-foreground">Pendentes</p>
-          <p className="text-2xl font-bold text-warning mt-1">{stats.pending}</p>
         </div>
       </motion.div>
 

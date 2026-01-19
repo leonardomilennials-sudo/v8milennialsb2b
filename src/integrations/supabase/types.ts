@@ -900,7 +900,12 @@ export type Database = {
         | "futuro"
         | "vendido"
         | "perdido"
-      pipe_whatsapp_status: "novo" | "em_contato" | "agendado" | "compareceu"
+      pipe_whatsapp_status:
+        | "novo"
+        | "abordado"
+        | "respondeu"
+        | "esfriou"
+        | "agendado"
       product_type: "mrr" | "projeto"
     }
     CompositeTypes: {
@@ -1067,7 +1072,13 @@ export const Constants = {
         "vendido",
         "perdido",
       ],
-      pipe_whatsapp_status: ["novo", "em_contato", "agendado", "compareceu"],
+      pipe_whatsapp_status: [
+        "novo",
+        "abordado",
+        "respondeu",
+        "esfriou",
+        "agendado",
+      ],
       product_type: ["mrr", "projeto"],
     },
   },
