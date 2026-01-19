@@ -130,6 +130,187 @@ export type Database = {
         }
         Relationships: []
       }
+      campanha_leads: {
+        Row: {
+          campanha_id: string
+          created_at: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          sdr_id: string | null
+          stage_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          campanha_id: string
+          created_at?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          sdr_id?: string | null
+          stage_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          campanha_id?: string
+          created_at?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          sdr_id?: string | null
+          stage_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_leads_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_leads_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_leads_sdr_id_fkey"
+            columns: ["sdr_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_leads_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "campanha_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanha_members: {
+        Row: {
+          bonus_earned: boolean | null
+          campanha_id: string
+          created_at: string | null
+          id: string
+          meetings_count: number | null
+          team_member_id: string
+        }
+        Insert: {
+          bonus_earned?: boolean | null
+          campanha_id: string
+          created_at?: string | null
+          id?: string
+          meetings_count?: number | null
+          team_member_id: string
+        }
+        Update: {
+          bonus_earned?: boolean | null
+          campanha_id?: string
+          created_at?: string | null
+          id?: string
+          meetings_count?: number | null
+          team_member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_members_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campanha_members_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanha_stages: {
+        Row: {
+          campanha_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          is_reuniao_marcada: boolean | null
+          name: string
+          position: number
+        }
+        Insert: {
+          campanha_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_reuniao_marcada?: boolean | null
+          name: string
+          position?: number
+        }
+        Update: {
+          campanha_id?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          is_reuniao_marcada?: boolean | null
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanha_stages_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "campanhas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campanhas: {
+        Row: {
+          bonus_value: number | null
+          created_at: string | null
+          deadline: string
+          description: string | null
+          id: string
+          individual_goal: number | null
+          is_active: boolean | null
+          name: string
+          team_goal: number
+          updated_at: string | null
+        }
+        Insert: {
+          bonus_value?: number | null
+          created_at?: string | null
+          deadline: string
+          description?: string | null
+          id?: string
+          individual_goal?: number | null
+          is_active?: boolean | null
+          name: string
+          team_goal?: number
+          updated_at?: string | null
+        }
+        Update: {
+          bonus_value?: number | null
+          created_at?: string | null
+          deadline?: string
+          description?: string | null
+          id?: string
+          individual_goal?: number | null
+          is_active?: boolean | null
+          name?: string
+          team_goal?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       commissions: {
         Row: {
           amount: number
