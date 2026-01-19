@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,8 +38,16 @@ export function CompareceuModal({
   isLoading,
 }: CompareceuModalProps) {
   const { data: teamMembers } = useTeamMembers();
-  const [sdrId, setSdrId] = useState<string | null>(currentSdrId || null);
-  const [closerId, setCloserId] = useState<string | null>(currentCloserId || null);
+  const [sdrId, setSdrId] = useState<string | null>(null);
+  const [closerId, setCloserId] = useState<string | null>(null);
+
+  // Sync state when modal opens or currentIds change
+  useEffect(() => {
+    if (open) {
+      setSdrId(currentSdrId || null);
+      setCloserId(currentCloserId || null);
+    }
+  }, [open, currentSdrId, currentCloserId]);
 
   const sdrs = teamMembers?.filter((m) => m.role === "sdr" && m.is_active) || [];
   const closers = teamMembers?.filter((m) => m.role === "closer" && m.is_active) || [];
