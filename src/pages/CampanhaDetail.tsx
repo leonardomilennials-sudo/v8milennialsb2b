@@ -4,28 +4,56 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCampanha, useCampanhaStages, useCampanhaLeads, useCampanhaMembers, useUpdateCampanhaMember } from "@/hooks/useCampanhas";
 import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
+import { useImportLeads } from "@/hooks/useImportLeads";
 import { CampanhaKanban } from "@/components/campanhas/CampanhaKanban";
 import { CampanhaAnalytics } from "@/components/campanhas/CampanhaAnalytics";
 import { AddLeadToCampanhaModal } from "@/components/campanhas/AddLeadToCampanhaModal";
 import { ImportLeadsModal } from "@/components/campanhas/ImportLeadsModal";
-import { ArrowLeft, Plus, BarChart3, Kanban, Loader2, Upload } from "lucide-react";
+import { ArrowLeft, Plus, BarChart3, Kanban, Loader2, Upload, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CampanhaDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [addLeadOpen, setAddLeadOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("kanban");
+  const [isFixingNames, setIsFixingNames] = useState(false);
   const { data: campanha, isLoading: loadingCampanha } = useCampanha(id);
   const { data: stages = [] } = useCampanhaStages(id);
   const { data: leads = [] } = useCampanhaLeads(id);
   const { data: members = [] } = useCampanhaMembers(id);
   const createConfirmacao = useCreatePipeConfirmacao();
   const updateMember = useUpdateCampanhaMember();
+  const { fixExistingLeadNames } = useImportLeads();
+
+  const handleFixNames = async () => {
+    if (!id) return;
+    
+    setIsFixingNames(true);
+    try {
+      const result = await fixExistingLeadNames(id);
+      if (result.fixed > 0) {
+        toast.success(`${result.fixed} lead(s) corrigido(s)!`);
+        queryClient.invalidateQueries({ queryKey: ["campanha-leads"] });
+      } else {
+        toast.info("Nenhum lead precisou ser corrigido");
+      }
+      if (result.errors > 0) {
+        toast.warning(`${result.errors} erro(s) durante a correção`);
+      }
+    } catch (error) {
+      console.error("Error fixing names:", error);
+      toast.error("Erro ao corrigir nomes");
+    } finally {
+      setIsFixingNames(false);
+    }
+  };
 
   const handleMoveToConfirmacao = async (lead: any) => {
     try {
@@ -137,6 +165,19 @@ export default function CampanhaDetail() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleFixNames}
+            disabled={isFixingNames}
+          >
+            {isFixingNames ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Wrench className="w-4 h-4 mr-2" />
+            )}
+            Corrigir Nomes
+          </Button>
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Importar Leads
