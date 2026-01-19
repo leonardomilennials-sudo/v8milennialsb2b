@@ -26,6 +26,8 @@ interface ParsedLead {
   utm_medium?: string;
   utm_content?: string;
   utm_term?: string;
+  rating?: number; // From "Prioridade do lead"
+  origin?: string; // From "Público de origem"
 }
 
 export function useImportLeads() {
@@ -53,6 +55,29 @@ export function useImportLeads() {
     return notes.replace(re, "").trim();
   };
 
+  // Normalize faturamento value for consistent storage
+  const normalizeFaturamento = (value: string): string => {
+    if (!value) return "";
+    
+    // Convert snake_case and clean up
+    let normalized = value
+      .replace(/_/g, " ")
+      .replace(/r\$/gi, "R$")
+      .replace(/\s+/g, " ")
+      .trim();
+    
+    // Map common patterns to standardized format
+    const lower = normalized.toLowerCase();
+    
+    if (lower.includes("+1") && lower.includes("milhão")) return "+1 Milhão";
+    if (lower.includes("500") && lower.includes("1 milh")) return "R$500 mil a R$1 milhão";
+    if (lower.includes("250") && lower.includes("500")) return "R$250 mil a R$500 mil";
+    if (lower.includes("100") && lower.includes("250")) return "R$100 mil a R$250 mil";
+    if (lower.includes("50") && lower.includes("100")) return "R$50 mil a R$100 mil";
+    
+    return normalized;
+  };
+
   const chooseBestValue = (
     field: "name" | "company" | "email" | "phone" | "faturamento" | "segment" | "utm",
     values: string[]
@@ -73,6 +98,10 @@ export function useImportLeads() {
       } else if (field === "phone") {
         s += digits.length * 10 + v.length;
       } else if (field === "faturamento") {
+        // Prefer values with "R$" or currency indicators
+        s += (v.toLowerCase().includes("r$") ? 500 : 0);
+        // Prefer values that look like ranges
+        s += (v.toLowerCase().includes("mil") ? 300 : 0);
         s += digits.length * 20 + v.length;
       } else {
         s += v.length;
@@ -81,7 +110,14 @@ export function useImportLeads() {
       return s;
     };
 
-    return cleaned.reduce((best, cur) => (score(cur) > score(best) ? cur : best), cleaned[0]);
+    const best = cleaned.reduce((best, cur) => (score(cur) > score(best) ? cur : best), cleaned[0]);
+    
+    // Normalize faturamento values before returning
+    if (field === "faturamento" && best) {
+      return normalizeFaturamento(best);
+    }
+    
+    return best;
   };
 
   const collectFieldValues = (
@@ -287,11 +323,15 @@ export function useImportLeads() {
             companyField.matchedKeys.forEach(k => usedKeys.add(k));
             const company = chooseBestValue("company", companyField.values);
 
-            // FATURAMENTO
+            // FATURAMENTO - multiple columns, choose best
             const faturamentoField = collectFieldValues(
               row,
               [
                 "Qual o faturamento atual?",
+                "Faixa de faturamento (b2b)",
+                "Faixa de faturamento (b2b)*",
+                "Faixa $$",
+                "Faixa de faturamento (vendas)",
                 "Faturamento",
                 "Faturamento atual",
                 "Faturamento mensal",
@@ -301,19 +341,45 @@ export function useImportLeads() {
                 "Faixa de faturamento",
                 "Revenue",
               ],
-              [/faturamento/, /receita/, /revenue/, /billing/]
+              [/faturamento/, /faixa.*faturamento/, /faixa.*\$/, /receita/, /revenue/, /billing/]
             );
             faturamentoField.matchedKeys.forEach(k => usedKeys.add(k));
             const faturamento = chooseBestValue("faturamento", faturamentoField.values);
 
-            // SEGMENTO
+            // SEGMENTO - also look for "Segmento de Atuação" and "Tipo de empresa"
             const segmentField = collectFieldValues(
               row,
-              ["Segmento", "Setor", "Ramo", "Área de atuação", "Nicho"],
-              [/segmento/, /setor/, /ramo/, /nicho/, /area/, /área/]
+              ["Segmento de Atuação", "Segmento", "Setor", "Ramo", "Área de atuação", "Nicho", "Tipo de empresa"],
+              [/segmento/, /setor/, /ramo/, /nicho/, /area/, /área/, /tipo.*empresa/]
             );
             segmentField.matchedKeys.forEach(k => usedKeys.add(k));
             const segment = chooseBestValue("segment", segmentField.values);
+
+            // PRIORIDADE → RATING (Máxima=10, Alta=8, Média=5, Baixa=2)
+            const prioridadeField = collectFieldValues(
+              row,
+              ["Prioridade do lead", "Prioridade"],
+              [/prioridade/]
+            );
+            prioridadeField.matchedKeys.forEach(k => usedKeys.add(k));
+            const prioridadeValue = chooseBestValue("name", prioridadeField.values);
+            let rating: number | undefined;
+            if (prioridadeValue) {
+              const pLower = prioridadeValue.toLowerCase();
+              if (pLower.includes("máxima") || pLower.includes("maxima")) rating = 10;
+              else if (pLower.includes("alta")) rating = 8;
+              else if (pLower.includes("média") || pLower.includes("media")) rating = 5;
+              else if (pLower.includes("baixa")) rating = 2;
+            }
+
+            // ORIGEM (Público de origem)
+            const origemField = collectFieldValues(
+              row,
+              ["Público de origem"],
+              [/publico.*origem/]
+            );
+            origemField.matchedKeys.forEach(k => usedKeys.add(k));
+            const origemValue = chooseBestValue("name", origemField.values);
 
             // UTM (variações de header)
             const utm_campaign = chooseBestValue(
@@ -386,6 +452,8 @@ export function useImportLeads() {
               utm_medium: utm_medium || undefined,
               utm_content: utm_content || undefined,
               utm_term: utm_term || undefined,
+              rating,
+              origin: origemValue,
             });
           }
 
@@ -443,7 +511,7 @@ export function useImportLeads() {
       
       const { data: existingLeads } = await supabase
         .from("leads")
-        .select("id, phone, name, company, email, faturamento, segment, notes, utm_campaign, utm_source, utm_medium, utm_content, utm_term")
+        .select("id, phone, name, company, email, faturamento, segment, notes, rating, utm_campaign, utm_source, utm_medium, utm_content, utm_term")
         .in("phone", phones);
 
       // Create a map for quick lookup and update
@@ -510,7 +578,7 @@ export function useImportLeads() {
           try {
             if (existingLead) {
               // Update existing lead with better/missing data
-              const updates: Record<string, string | undefined> = {};
+              const updates: Record<string, string | number | undefined> = {};
 
               if (shouldReplaceValue(existingLead.name, lead.name, "name")) updates.name = lead.name;
               if (shouldReplaceValue(existingLead.company, lead.company, "company")) updates.company = lead.company;
@@ -523,6 +591,11 @@ export function useImportLeads() {
               if (shouldReplaceValue((existingLead as any).utm_medium, lead.utm_medium, "utm")) updates.utm_medium = lead.utm_medium;
               if (shouldReplaceValue((existingLead as any).utm_content, lead.utm_content, "utm")) updates.utm_content = lead.utm_content;
               if (shouldReplaceValue((existingLead as any).utm_term, lead.utm_term, "utm")) updates.utm_term = lead.utm_term;
+
+              // Update rating if incoming is higher or existing is empty/0
+              if (lead.rating && (!existingLead.rating || existingLead.rating < lead.rating)) {
+                updates.rating = lead.rating;
+              }
 
               // Merge notes (keeps existing notes + updates Kommo block without duplicating)
               const mergedNotes = mergeNotes(existingLead.notes, lead.notes, lead.kommoBlock);
@@ -599,6 +672,7 @@ export function useImportLeads() {
                 segment: lead.segment,
                 notes: mergeNotes(undefined, lead.notes, lead.kommoBlock),
                 origin: "outro" as const,
+                rating: lead.rating || 0,
                 utm_campaign: lead.utm_campaign,
                 utm_source: lead.utm_source,
                 utm_medium: lead.utm_medium,
