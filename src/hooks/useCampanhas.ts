@@ -55,6 +55,7 @@ export interface CampanhaLead {
     company: string | null;
     phone: string | null;
     email: string | null;
+    faturamento: string | null;
   };
   sdr?: {
     id: string;
@@ -170,7 +171,7 @@ export function useCampanhaLeads(campanhaId: string | undefined) {
         .from("campanha_leads")
         .select(`
           *,
-          lead:leads(id, name, company, phone, email),
+          lead:leads(id, name, company, phone, email, faturamento),
           sdr:team_members!campanha_leads_sdr_id_fkey(id, name),
           stage:campanha_stages(*)
         `)

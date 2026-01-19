@@ -17,9 +17,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CampanhaStage, CampanhaLead, useUpdateCampanhaLead } from "@/hooks/useCampanhas";
-import { Phone, Mail, Building2, GripVertical, User } from "lucide-react";
+import { Phone, Mail, Building2, GripVertical, User, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { LeadDetailModal } from "@/components/leads/LeadDetailModal";
 
 interface CampanhaKanbanProps {
   campanhaId: string;
@@ -32,9 +33,10 @@ interface KanbanCardProps {
   lead: CampanhaLead;
   isReuniao: boolean;
   onMoveToConfirmacao: (lead: CampanhaLead) => void;
+  onCardClick: (leadId: string) => void;
 }
 
-function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProps) {
+function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick }: KanbanCardProps) {
   const {
     attributes,
     listeners,
@@ -50,14 +52,29 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProp
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't open modal if clicking on buttons or drag handle
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[data-drag-handle]')) {
+      return;
+    }
+    if (lead.lead_id) {
+      onCardClick(lead.lead_id);
+    }
+  };
+
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="bg-card hover:border-primary/30 transition-colors">
+      <Card 
+        className="bg-card hover:border-primary/30 transition-colors cursor-pointer"
+        onClick={handleCardClick}
+      >
         <CardContent className="p-3 space-y-2">
           <div className="flex items-start gap-2">
             <div
               {...attributes}
               {...listeners}
+              data-drag-handle
               className="cursor-grab active:cursor-grabbing mt-1"
             >
               <GripVertical className="w-4 h-4 text-muted-foreground" />
@@ -74,6 +91,14 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProp
             </div>
           </div>
 
+          {/* Faturamento Badge */}
+          {lead.lead?.faturamento && (
+            <Badge variant="outline" className="text-xs bg-chart-5/10 text-chart-5 border-chart-5/20">
+              <DollarSign className="w-3 h-3 mr-1" />
+              {lead.lead.faturamento}
+            </Badge>
+          )}
+
           {/* Contact Info */}
           <div className="flex items-center gap-2 text-xs">
             {lead.lead?.phone && (
@@ -81,7 +106,10 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProp
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => openWhatsApp(lead.lead!.phone!)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openWhatsApp(lead.lead!.phone!);
+                }}
               >
                 <Phone className="w-3 h-3" />
               </Button>
@@ -91,7 +119,10 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProp
                 variant="ghost"
                 size="icon"
                 className="h-6 w-6"
-                onClick={() => window.open(`mailto:${lead.lead!.email}`)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(`mailto:${lead.lead!.email}`);
+                }}
               >
                 <Mail className="w-3 h-3" />
               </Button>
@@ -110,7 +141,10 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao }: KanbanCardProp
               variant="outline"
               size="sm"
               className="w-full mt-2 text-xs h-7"
-              onClick={() => onMoveToConfirmacao(lead)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToConfirmacao(lead);
+              }}
             >
               Enviar para Confirmação
             </Button>
@@ -126,11 +160,13 @@ function KanbanColumn({
   leads,
   isReuniao,
   onMoveToConfirmacao,
+  onCardClick,
 }: {
   stage: CampanhaStage;
   leads: CampanhaLead[];
   isReuniao: boolean;
   onMoveToConfirmacao: (lead: CampanhaLead) => void;
+  onCardClick: (leadId: string) => void;
 }) {
   return (
     <div className="flex flex-col min-w-[280px] max-w-[280px] bg-muted/30 rounded-lg">
@@ -161,6 +197,7 @@ function KanbanColumn({
               lead={lead}
               isReuniao={isReuniao}
               onMoveToConfirmacao={onMoveToConfirmacao}
+              onCardClick={onCardClick}
             />
           ))}
         </SortableContext>
@@ -182,6 +219,7 @@ export function CampanhaKanban({
   onMoveToConfirmacao,
 }: CampanhaKanbanProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const updateLead = useUpdateCampanhaLead();
 
   const sensors = useSensors(
@@ -247,38 +285,51 @@ export function CampanhaKanban({
     // Can be used for visual feedback
   };
 
+  const handleCardClick = (leadId: string) => {
+    setSelectedLeadId(leadId);
+  };
+
   const activeLead = activeId ? leads.find((l) => l.id === activeId) : null;
   const reuniaoStage = stages.find((s) => s.is_reuniao_marcada);
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={rectIntersection}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragOver={handleDragOver}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {stages.map((stage) => (
-          <KanbanColumn
-            key={stage.id}
-            stage={stage}
-            leads={leads.filter((l) => l.stage_id === stage.id)}
-            isReuniao={stage.id === reuniaoStage?.id}
-            onMoveToConfirmacao={onMoveToConfirmacao}
-          />
-        ))}
-      </div>
+    <>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={rectIntersection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+      >
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {stages.map((stage) => (
+            <KanbanColumn
+              key={stage.id}
+              stage={stage}
+              leads={leads.filter((l) => l.stage_id === stage.id)}
+              isReuniao={stage.id === reuniaoStage?.id}
+              onMoveToConfirmacao={onMoveToConfirmacao}
+              onCardClick={handleCardClick}
+            />
+          ))}
+        </div>
 
-      <DragOverlay>
-        {activeLead && (
-          <Card className="bg-card shadow-lg">
-            <CardContent className="p-3">
-              <h4 className="font-medium text-sm">{activeLead.lead?.name}</h4>
-            </CardContent>
-          </Card>
-        )}
-      </DragOverlay>
-    </DndContext>
+        <DragOverlay>
+          {activeLead && (
+            <Card className="bg-card shadow-lg">
+              <CardContent className="p-3">
+                <h4 className="font-medium text-sm">{activeLead.lead?.name}</h4>
+              </CardContent>
+            </Card>
+          )}
+        </DragOverlay>
+      </DndContext>
+
+      <LeadDetailModal
+        open={!!selectedLeadId}
+        onOpenChange={(open) => !open && setSelectedLeadId(null)}
+        leadId={selectedLeadId}
+      />
+    </>
   );
 }
