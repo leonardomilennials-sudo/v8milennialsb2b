@@ -460,21 +460,10 @@ export default function PipeWhatsapp() {
 
   // Handle status change from drag-and-drop
   const handleStatusChange = async (itemId: string, newStatus: string) => {
-    console.log("handleStatusChange called:", { itemId, newStatus });
     const item = pipeData?.find(p => p.id === itemId);
-    console.log("Found item:", item);
-    if (!item) {
-      console.error("Item not found for id:", itemId);
-      return;
-    }
+    if (!item) return;
 
     try {
-      console.log("Calling updatePipeWhatsapp with:", { 
-        id: itemId, 
-        status: newStatus,
-        leadId: item.lead_id,
-        sdrId: item.sdr_id,
-      });
       await updatePipeWhatsapp.mutateAsync({ 
         id: itemId, 
         status: newStatus as PipeWhatsappStatus,
@@ -496,7 +485,7 @@ export default function PipeWhatsapp() {
       }
     } catch (error) {
       toast.error("Erro ao atualizar status");
-      console.error("Error updating status:", error);
+      console.error(error);
     }
   };
 
