@@ -129,8 +129,10 @@ export interface CommissionSummary {
   oteBase: number;
   oteBonus: number;
   calculatedBonus: number;
+  campaignBonuses: number;
   totalEarnings: number;
   goalProgress: number;
+  campaignBonusList: { campaignName: string; bonusValue: number }[];
 }
 
 export function useCommissionSummary(teamMemberId: string, month: number, year: number) {
@@ -279,6 +281,37 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
       const oteBonus = Number(member.ote_bonus) || 0;
       const calculatedBonus = calculateOTEBonus(goalProgress, oteBonus);
 
+      // Fetch campaign bonuses earned by this team member for this month
+      const { data: campaignBonuses } = await supabase
+        .from("campanha_members")
+        .select(`
+          bonus_earned,
+          campanha:campanhas(
+            id, name, bonus_value, deadline, is_active
+          )
+        `)
+        .eq("team_member_id", teamMemberId)
+        .eq("bonus_earned", true);
+
+      // Filter bonuses for campaigns that ended in the selected month
+      const campaignBonusList: { campaignName: string; bonusValue: number }[] = [];
+      let totalCampaignBonuses = 0;
+
+      campaignBonuses?.forEach((cb: any) => {
+        if (cb.campanha && cb.campanha.bonus_value) {
+          const deadline = new Date(cb.campanha.deadline);
+          // Check if campaign deadline is in the selected month/year
+          if (deadline.getMonth() + 1 === month && deadline.getFullYear() === year) {
+            const bonusValue = Number(cb.campanha.bonus_value) || 0;
+            totalCampaignBonuses += bonusValue;
+            campaignBonusList.push({
+              campaignName: cb.campanha.name,
+              bonusValue: bonusValue,
+            });
+          }
+        }
+      });
+
       const summary: CommissionSummary = {
         totalMRR,
         totalProjeto,
@@ -288,8 +321,10 @@ export function useCommissionSummary(teamMemberId: string, month: number, year: 
         oteBase,
         oteBonus,
         calculatedBonus,
-        totalEarnings: oteBase + calculatedBonus + totalCommission,
+        campaignBonuses: totalCampaignBonuses,
+        totalEarnings: oteBase + calculatedBonus + totalCommission + totalCampaignBonuses,
         goalProgress,
+        campaignBonusList,
       };
 
       return summary;
