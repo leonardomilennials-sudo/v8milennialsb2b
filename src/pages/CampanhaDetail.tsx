@@ -7,7 +7,8 @@ import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { CampanhaKanban } from "@/components/campanhas/CampanhaKanban";
 import { CampanhaAnalytics } from "@/components/campanhas/CampanhaAnalytics";
 import { AddLeadToCampanhaModal } from "@/components/campanhas/AddLeadToCampanhaModal";
-import { ArrowLeft, Plus, BarChart3, Kanban, Loader2 } from "lucide-react";
+import { ImportLeadsModal } from "@/components/campanhas/ImportLeadsModal";
+import { ArrowLeft, Plus, BarChart3, Kanban, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -17,8 +18,8 @@ export default function CampanhaDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("kanban");
-
   const { data: campanha, isLoading: loadingCampanha } = useCampanha(id);
   const { data: stages = [] } = useCampanhaStages(id);
   const { data: leads = [] } = useCampanhaLeads(id);
@@ -135,10 +136,16 @@ export default function CampanhaDetail() {
           </div>
         </div>
         
-        <Button onClick={() => setAddLeadOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Adicionar Lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Importar Leads
+          </Button>
+          <Button onClick={() => setAddLeadOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Lead
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -181,6 +188,15 @@ export default function CampanhaDetail() {
         stages={stages}
         members={members}
         existingLeadIds={leads.map((l) => l.lead_id)}
+      />
+
+      {/* Import Leads Modal */}
+      <ImportLeadsModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        campanhaId={id!}
+        stages={stages}
+        members={members}
       />
     </div>
   );
