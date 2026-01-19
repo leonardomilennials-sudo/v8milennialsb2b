@@ -56,6 +56,22 @@ export interface CampanhaLead {
     phone: string | null;
     email: string | null;
     faturamento: string | null;
+    segment: string | null;
+    rating: number | null;
+    origin: string;
+    notes: string | null;
+    closer_id: string | null;
+    closer?: {
+      id: string;
+      name: string;
+    };
+    lead_tags?: Array<{
+      tag: {
+        id: string;
+        name: string;
+        color: string | null;
+      };
+    }>;
   };
   sdr?: {
     id: string;
@@ -171,7 +187,11 @@ export function useCampanhaLeads(campanhaId: string | undefined) {
         .from("campanha_leads")
         .select(`
           *,
-          lead:leads(id, name, company, phone, email, faturamento),
+          lead:leads(
+            id, name, company, phone, email, faturamento, segment, rating, origin, notes, closer_id,
+            closer:team_members!leads_closer_id_fkey(id, name),
+            lead_tags(tag:tags(id, name, color))
+          ),
           sdr:team_members!campanha_leads_sdr_id_fkey(id, name),
           stage:campanha_stages(*)
         `)
