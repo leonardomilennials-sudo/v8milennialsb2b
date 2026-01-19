@@ -380,6 +380,48 @@ export function LeadDetailModal({ open, onOpenChange, leadId, onEdit }: LeadDeta
                     </div>
                   </div>
 
+                  {/* Marketing (UTM) */}
+                  {(lead.utm_campaign || lead.utm_source || lead.utm_medium || lead.utm_content || lead.utm_term) && (
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                        <History className="w-4 h-4 text-muted-foreground" />
+                        Marketing (UTM)
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {lead.utm_campaign && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">utm_campaign</p>
+                            <p className="font-medium text-sm break-words">{lead.utm_campaign}</p>
+                          </div>
+                        )}
+                        {lead.utm_source && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">utm_source</p>
+                            <p className="font-medium text-sm break-words">{lead.utm_source}</p>
+                          </div>
+                        )}
+                        {lead.utm_medium && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">utm_medium</p>
+                            <p className="font-medium text-sm break-words">{lead.utm_medium}</p>
+                          </div>
+                        )}
+                        {lead.utm_content && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">utm_content</p>
+                            <p className="font-medium text-sm break-words">{lead.utm_content}</p>
+                          </div>
+                        )}
+                        {lead.utm_term && (
+                          <div className="p-3 bg-muted rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">utm_term</p>
+                            <p className="font-medium text-sm break-words">{lead.utm_term}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Notes */}
                   {lead.notes && (
                     <div>
