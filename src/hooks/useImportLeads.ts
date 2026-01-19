@@ -8,6 +8,7 @@ interface ImportResult {
   imported: number;
   duplicates: number;
   invalid: number;
+  distribution?: Record<string, number>; // SDR ID -> count of leads assigned
 }
 
 interface ParsedLead {
@@ -104,7 +105,9 @@ export function useImportLeads() {
     file: File,
     campanhaId: string,
     stageId: string,
-    sdrId?: string
+    sdrId?: string,
+    autoDistribute?: boolean,
+    memberIds?: string[]
   ): Promise<ImportResult> => {
     setIsImporting(true);
     setProgress(0);
@@ -159,6 +162,15 @@ export function useImportLeads() {
       let imported = 0;
       let duplicates = 0;
       let invalid = 0;
+      const distribution: Record<string, number> = {};
+      let memberIndex = 0;
+
+      // Initialize distribution counter for all members
+      if (autoDistribute && memberIds && memberIds.length > 0) {
+        memberIds.forEach(id => {
+          distribution[id] = 0;
+        });
+      }
 
       for (let i = 0; i < parsedLeads.length; i += BATCH_SIZE) {
         const batch = parsedLeads.slice(i, i + BATCH_SIZE);
@@ -199,12 +211,22 @@ export function useImportLeads() {
               continue;
             }
 
+            // Determine SDR for this lead
+            let assignedSdrId: string | null = null;
+            if (autoDistribute && memberIds && memberIds.length > 0) {
+              assignedSdrId = memberIds[memberIndex % memberIds.length];
+              memberIndex++;
+              distribution[assignedSdrId] = (distribution[assignedSdrId] || 0) + 1;
+            } else if (sdrId) {
+              assignedSdrId = sdrId;
+            }
+
             // Add to campaign
             await supabase.from("campanha_leads").insert({
               campanha_id: campanhaId,
               lead_id: newLead.id,
               stage_id: stageId,
-              sdr_id: sdrId || null,
+              sdr_id: assignedSdrId,
             });
 
             // Add tag
@@ -235,6 +257,7 @@ export function useImportLeads() {
         imported,
         duplicates,
         invalid,
+        distribution: autoDistribute ? distribution : undefined,
       };
 
       setResult(result);
