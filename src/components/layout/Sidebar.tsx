@@ -18,6 +18,7 @@ import {
   Zap,
   Flag,
   Tv,
+  Target,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
 import v8Logo from "@/assets/v8-logo.png";
@@ -36,6 +37,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: "Central de Comando", icon: Gauge, path: "/" },
+  { label: "Campanhas", icon: Target, path: "/campanhas" },
   { label: "Revisão", icon: Wrench, path: "/follow-ups" },
   { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },

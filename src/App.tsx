@@ -22,6 +22,8 @@ import Comissoes from "./pages/Comissoes";
 import Leads from "./pages/Leads";
 import Configuracoes from "./pages/Configuracoes";
 import TVDashboard from "./pages/TVDashboard";
+import Campanhas from "./pages/Campanhas";
+import CampanhaDetail from "./pages/CampanhaDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +54,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <LayoutWrapper>
               <Dashboard />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campanhas"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Campanhas />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/campanhas/:id"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <CampanhaDetail />
             </LayoutWrapper>
           </ProtectedRoute>
         }
