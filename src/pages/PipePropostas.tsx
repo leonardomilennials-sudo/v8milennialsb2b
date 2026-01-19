@@ -294,9 +294,17 @@ export default function PipePropostas() {
           return matchesSearch && matchesCloser && matchesType && matchesPriority && matchesCalor;
         })
         .map(transformToCard)
-        // Sort by calor (highest first)
-        .sort((a, b) => b.calor - a.calor);
-
+        // Sort: compromisso_marcado by commitment date (closest first), others by calor
+        .sort((a, b) => {
+          if (col.id === "compromisso_marcado") {
+            // Sort by commitment date - closest meetings first
+            const dateA = a.commitmentDate ? a.commitmentDate.getTime() : Infinity;
+            const dateB = b.commitmentDate ? b.commitmentDate.getTime() : Infinity;
+            return dateA - dateB;
+          }
+          // Default: sort by calor (highest first)
+          return b.calor - a.calor;
+        });
       return {
         ...col,
         items: columnItems,
