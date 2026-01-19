@@ -77,6 +77,30 @@ const originColors: Record<string, string> = {
   outro: "bg-muted text-muted-foreground border-border",
 };
 
+// Format faturamento for display - converts snake_case values to readable format
+const formatFaturamento = (value: string): string => {
+  if (!value) return "";
+  
+  // Handle snake_case format from CSV (e.g., "r$100_mil_a_r$250_mil" → "R$100 mil a R$250 mil")
+  let formatted = value
+    .replace(/_/g, " ")
+    .replace(/r\$/gi, "R$")
+    .replace(/\s+/g, " ")
+    .trim();
+  
+  // Capitalize properly if starts with R$
+  if (formatted.toLowerCase().startsWith("r$")) {
+    formatted = "R$" + formatted.substring(2);
+  }
+  
+  // Handle common patterns
+  if (formatted.includes("1 milhão") || formatted.includes("+1 milhão")) {
+    return "+1 Milhão";
+  }
+  
+  return formatted;
+};
+
 function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onEdit, onDelete }: KanbanCardProps) {
   const {
     attributes,
@@ -210,14 +234,20 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onE
             )}
           </div>
 
-          {/* Badges Row - Faturamento, Segment, Origin */}
+          {/* Faturamento - Highlighted */}
+          {leadData?.faturamento && (
+            <div className="bg-gradient-to-r from-chart-5/20 to-chart-5/5 rounded-md px-2 py-1.5 border border-chart-5/30">
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-chart-5" />
+                <span className="text-xs font-semibold text-chart-5">
+                  {formatFaturamento(leadData.faturamento)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Badges Row - Segment, Origin */}
           <div className="flex flex-wrap gap-1">
-            {leadData?.faturamento && (
-              <Badge variant="outline" className="text-xs bg-chart-5/10 text-chart-5 border-chart-5/20">
-                <DollarSign className="w-2.5 h-2.5 mr-0.5" />
-                {leadData.faturamento}
-              </Badge>
-            )}
             {leadData?.segment && (
               <Badge variant="secondary" className="text-xs">
                 {leadData.segment}
