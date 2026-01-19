@@ -20,6 +20,7 @@ interface ParsedLead {
   faturamento?: string;
   segment?: string;
   notes?: string;
+  kommoBlock?: string;
   utm_campaign?: string;
   utm_source?: string;
   utm_medium?: string;
@@ -32,51 +33,193 @@ export function useImportLeads() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
 
-  // Helper to get first non-empty value from multiple columns
-  const getFirstValue = (row: Record<string, string>, ...columns: string[]): string | undefined => {
-    for (const col of columns) {
-      const value = row[col]?.trim();
-      if (value) return value;
-    }
-    return undefined;
+  const KOMMO_BLOCK_START = "--- Kommo (campos) ---";
+  const KOMMO_BLOCK_END = "--- /Kommo (campos) ---";
+
+  const normalizeHeader = (value: string) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+
+  const stripKommoBlock = (notes: string) => {
+    if (!notes) return notes;
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(
+      `${escape(KOMMO_BLOCK_START)}[\\s\\S]*?${escape(KOMMO_BLOCK_END)}\\n?`,
+      "g"
+    );
+    return notes.replace(re, "").trim();
   };
 
-  // Helper to get all non-empty values from columns matching a pattern
-  const getValuesMatchingPattern = (row: Record<string, string>, patterns: RegExp[]): string[] => {
+  const chooseBestValue = (
+    field: "name" | "company" | "email" | "phone" | "faturamento" | "segment" | "utm",
+    values: string[]
+  ): string | undefined => {
+    const cleaned = values.map(v => v.trim()).filter(Boolean);
+    if (cleaned.length === 0) return undefined;
+
+    const score = (v: string) => {
+      const lower = v.toLowerCase();
+      const isPlaceholder = /^(?:-+|n\/a|na|nao informado|não informado|sem info|sem informação|0)$/.test(lower);
+      const digits = v.replace(/\D/g, "");
+
+      let s = 0;
+      if (isPlaceholder) s -= 1000;
+
+      if (field === "email") {
+        s += (v.includes("@") ? 1000 : 0) + v.length;
+      } else if (field === "phone") {
+        s += digits.length * 10 + v.length;
+      } else if (field === "faturamento") {
+        s += digits.length * 20 + v.length;
+      } else {
+        s += v.length;
+      }
+
+      return s;
+    };
+
+    return cleaned.reduce((best, cur) => (score(cur) > score(best) ? cur : best), cleaned[0]);
+  };
+
+  const collectFieldValues = (
+    row: Record<string, string>,
+    exactColumns: string[],
+    patternsOnNormalizedHeader: RegExp[]
+  ) => {
+    const keys = Object.keys(row);
+    const matchedKeys = new Set<string>();
     const values: string[] = [];
-    for (const key of Object.keys(row)) {
-      for (const pattern of patterns) {
-        if (pattern.test(key)) {
-          const value = row[key]?.trim();
-          if (value && !values.includes(value)) {
-            values.push(value);
-          }
-          break;
-        }
+
+    const tryAdd = (key: string) => {
+      const value = row[key]?.trim();
+      if (!value) return;
+      matchedKeys.add(key);
+      if (!values.includes(value)) values.push(value);
+    };
+
+    // 1) Exact column matches (priority order)
+    for (const col of exactColumns) {
+      const target = normalizeHeader(col);
+      const found = keys.find(k => normalizeHeader(k) === target);
+      if (found) tryAdd(found);
+    }
+
+    // 2) Pattern matches
+    for (const key of keys) {
+      const normalized = normalizeHeader(key);
+      if (patternsOnNormalizedHeader.some(p => p.test(normalized))) {
+        tryAdd(key);
       }
     }
-    return values;
+
+    return { values, matchedKeys: Array.from(matchedKeys) };
   };
 
-  // Helper to consolidate values - returns first non-empty from array of values
-  const consolidateField = (row: Record<string, string>, exactColumns: string[], patterns: RegExp[]): string | undefined => {
-    // First try exact column matches in priority order
-    for (const col of exactColumns) {
-      const value = row[col]?.trim();
-      if (value) return value;
+  const buildKommoBlock = (input: {
+    nameValues: string[];
+    companyValues: string[];
+    emailValues: string[];
+    phoneValues: string[];
+    faturamentoValues: string[];
+    segmentValues: string[];
+    utm: {
+      utm_campaign?: string;
+      utm_source?: string;
+      utm_medium?: string;
+      utm_content?: string;
+      utm_term?: string;
+    };
+    otherFields: Array<{ key: string; value: string }>;
+  }) => {
+    const lines: string[] = [KOMMO_BLOCK_START];
+
+    const addList = (label: string, values: string[]) => {
+      const cleaned = values.map(v => v.trim()).filter(Boolean);
+      if (cleaned.length === 0) return;
+      lines.push(`${label}: ${cleaned.join(" | ")}`);
+    };
+
+    addList("Nome(s)", input.nameValues);
+    addList("Empresa(s)", input.companyValues);
+    addList("Email(s)", input.emailValues);
+    addList("Telefone(s)", input.phoneValues);
+    addList("Faturamento(s)", input.faturamentoValues);
+    addList("Segmento(s)", input.segmentValues);
+
+    const utmPairs = Object.entries(input.utm).filter(([, v]) => !!v);
+    if (utmPairs.length > 0) {
+      lines.push("UTM:");
+      for (const [k, v] of utmPairs) lines.push(`- ${k}: ${v}`);
     }
-    
-    // Then try pattern matching
-    for (const key of Object.keys(row)) {
-      for (const pattern of patterns) {
-        if (pattern.test(key)) {
-          const value = row[key]?.trim();
-          if (value) return value;
-        }
+
+    if (input.otherFields.length > 0) {
+      lines.push("Outros campos:");
+      for (const { key, value } of input.otherFields) {
+        lines.push(`- ${key}: ${value}`);
       }
     }
-    
-    return undefined;
+
+    lines.push(KOMMO_BLOCK_END);
+    return lines.join("\n");
+  };
+
+  const mergeNotes = (
+    existingNotes?: string | null,
+    rawNotes?: string,
+    kommoBlock?: string
+  ): string | undefined => {
+    let out = stripKommoBlock((existingNotes || "").trim());
+
+    if (rawNotes?.trim()) {
+      const incoming = rawNotes.trim();
+      if (!out.includes(incoming)) {
+        out = out
+          ? `${out}\n\n--- Notas Kommo ---\n\n${incoming}`
+          : incoming;
+      }
+    }
+
+    if (kommoBlock?.trim()) {
+      const incomingBlock = kommoBlock.trim();
+      out = out ? `${out}\n\n${incomingBlock}` : incomingBlock;
+    }
+
+    return out.trim() || undefined;
+  };
+
+  const shouldReplaceValue = (
+    existingValue: string | null | undefined,
+    incomingValue: string | undefined,
+    field: "name" | "company" | "email" | "phone" | "faturamento" | "segment" | "utm"
+  ) => {
+    if (!incomingValue?.trim()) return false;
+
+    const isEmptyLike = (v: string | null | undefined) => {
+      if (!v) return true;
+      const t = v.trim();
+      if (!t) return true;
+      return /^(?:-+|n\/a|na|nao informado|não informado|sem info|sem informação|0)$/i.test(t);
+    };
+
+    if (isEmptyLike(existingValue)) return true;
+
+    const existing = (existingValue || "").trim();
+    const incoming = incomingValue.trim();
+    if (existing === incoming) return false;
+
+    if (field === "email") return !existing.includes("@") && incoming.includes("@");
+    if (field === "phone") return existing.replace(/\D/g, "").length < incoming.replace(/\D/g, "").length;
+    if (field === "faturamento") {
+      const eDigits = existing.replace(/\D/g, "").length;
+      const iDigits = incoming.replace(/\D/g, "").length;
+      return iDigits > eDigits || incoming.length > existing.length;
+    }
+
+    // Name/company/segment/utm: prefer the more complete value
+    return incoming.length > existing.length;
   };
 
   const parseCSV = (file: File): Promise<ParsedLead[]> => {
@@ -94,67 +237,141 @@ export function useImportLeads() {
           }
           
           for (const row of results.data as Record<string, string>[]) {
-            // NOME - consolidate multiple name columns
-            const name = consolidateField(row, 
+            const usedKeys = new Set<string>();
+
+            // NOME
+            const nameField = collectFieldValues(
+              row,
               ["Nome completo", "Lead título", "Nome", "Nome do contato", "Contato"],
-              [/nome/i, /name/i, /contato/i, /título/i]
+              [/\bnome\b/, /\bname\b/, /contato/, /titulo/, /t[ií]tulo/]
             );
-            
-            // Skip if no name
+            nameField.matchedKeys.forEach(k => usedKeys.add(k));
+            const name = chooseBestValue("name", nameField.values);
+
             if (!name) continue;
-            
-            // TELEFONE - consolidate all phone columns
-            const phone = consolidateField(row,
+
+            // TELEFONE
+            const phoneField = collectFieldValues(
+              row,
               ["Celular", "Telefone comercial", "Telefone", "Telefone pessoal", "WhatsApp", "Fone"],
-              [/celular/i, /telefone/i, /phone/i, /whatsapp/i, /fone/i, /tel/i]
+              [/celular/, /telefone/, /\bphone\b/, /whatsapp/, /\bfone\b/, /\btel\b/]
             );
-            
-            // EMAIL - consolidate all email columns
-            const email = consolidateField(row,
-              ["Email comercial", "Email pessoal", "Email", "E-mail", "E-mail comercial", "E-mail pessoal"],
-              [/email/i, /e-mail/i, /mail/i]
+            phoneField.matchedKeys.forEach(k => usedKeys.add(k));
+            const phone = chooseBestValue("phone", phoneField.values);
+
+            // EMAIL
+            const emailField = collectFieldValues(
+              row,
+              [
+                "Email comercial",
+                "Email pessoal",
+                "Email",
+                "E-mail",
+                "E-mail comercial",
+                "E-mail pessoal",
+              ],
+              [/\bemail\b/, /e-mail/, /\bmail\b/]
             );
-            
+            emailField.matchedKeys.forEach(k => usedKeys.add(k));
+            const email = chooseBestValue("email", emailField.values);
+
             // Skip if no contact info
             if (!phone && !email) continue;
-            
-            // EMPRESA - consolidate company columns
-            const company = consolidateField(row,
+
+            // EMPRESA
+            const companyField = collectFieldValues(
+              row,
               ["Nome da empresa", "Empresa", "Company", "Razão Social", "Nome fantasia"],
-              [/empresa/i, /company/i, /razão/i, /fantasia/i]
+              [/empresa/, /\bcompany\b/, /razao/, /raz[aã]o/, /fantasia/]
             );
-            
-            // FATURAMENTO - consolidate all revenue/billing columns
-            const faturamento = consolidateField(row,
+            companyField.matchedKeys.forEach(k => usedKeys.add(k));
+            const company = chooseBestValue("company", companyField.values);
+
+            // FATURAMENTO
+            const faturamentoField = collectFieldValues(
+              row,
               [
-                "Qual o faturamento atual?", 
-                "Faturamento", 
+                "Qual o faturamento atual?",
+                "Faturamento",
                 "Faturamento atual",
                 "Faturamento mensal",
                 "Receita",
                 "Receita mensal",
                 "Qual é o faturamento mensal atual da sua empresa?",
                 "Faixa de faturamento",
-                "Revenue"
+                "Revenue",
               ],
-              [/faturamento/i, /receita/i, /revenue/i, /billing/i]
+              [/faturamento/, /receita/, /revenue/, /billing/]
             );
-            
-            // NOTES - concatenate all note columns
-            const noteColumns = Object.keys(row).filter(key => 
-              /nota/i.test(key) || /note/i.test(key) || /observa/i.test(key) || /comentário/i.test(key)
+            faturamentoField.matchedKeys.forEach(k => usedKeys.add(k));
+            const faturamento = chooseBestValue("faturamento", faturamentoField.values);
+
+            // SEGMENTO
+            const segmentField = collectFieldValues(
+              row,
+              ["Segmento", "Setor", "Ramo", "Área de atuação", "Nicho"],
+              [/segmento/, /setor/, /ramo/, /nicho/, /area/, /área/]
             );
+            segmentField.matchedKeys.forEach(k => usedKeys.add(k));
+            const segment = chooseBestValue("segment", segmentField.values);
+
+            // UTM (variações de header)
+            const utm_campaign = chooseBestValue(
+              "utm",
+              collectFieldValues(row, ["utm_campaign", "UTM Campaign", "UTM campaign"], [/utm.*campaign/]).values
+            );
+            const utm_source = chooseBestValue(
+              "utm",
+              collectFieldValues(row, ["utm_source", "UTM Source", "UTM source"], [/utm.*source/]).values
+            );
+            const utm_medium = chooseBestValue(
+              "utm",
+              collectFieldValues(row, ["utm_medium", "UTM Medium", "UTM medium"], [/utm.*medium/]).values
+            );
+            const utm_content = chooseBestValue(
+              "utm",
+              collectFieldValues(row, ["utm_content", "UTM Content", "UTM content"], [/utm.*content/]).values
+            );
+            const utm_term = chooseBestValue(
+              "utm",
+              collectFieldValues(row, ["utm_term", "UTM Term", "UTM term"], [/utm.*term/]).values
+            );
+
+            // NOTES - concatena colunas de nota/observação
+            const noteColumns = Object.keys(row).filter(key =>
+              /nota|note|observa|comentario|comentário/.test(normalizeHeader(key))
+            );
+            noteColumns.forEach(k => usedKeys.add(k));
             const notes = noteColumns
               .map(col => row[col]?.trim())
               .filter(Boolean)
               .join("\n\n");
-            
-            // SEGMENTO
-            const segment = consolidateField(row,
-              ["Segmento", "Setor", "Ramo", "Área de atuação", "Nicho"],
-              [/segmento/i, /setor/i, /ramo/i, /nicho/i, /área/i]
-            );
-            
+
+            // Outros campos: tudo o que tem valor e não foi mapeado acima
+            const otherFields = Object.keys(row)
+              .filter(key => {
+                const value = row[key]?.trim();
+                return !!value && !usedKeys.has(key);
+              })
+              .map(key => ({ key, value: row[key].trim() }));
+
+            const kommoBlock = buildKommoBlock({
+              nameValues: nameField.values,
+              companyValues: companyField.values,
+              emailValues: emailField.values,
+              phoneValues: phoneField.values,
+              faturamentoValues: faturamentoField.values,
+              segmentValues: segmentField.values,
+              utm: {
+                utm_campaign,
+                utm_source,
+                utm_medium,
+                utm_content,
+                utm_term,
+              },
+              otherFields,
+            });
+
             leads.push({
               name,
               company: company || undefined,
@@ -163,14 +380,15 @@ export function useImportLeads() {
               faturamento: faturamento || undefined,
               segment: segment || undefined,
               notes: notes || undefined,
-              utm_campaign: getFirstValue(row, "utm_campaign", "UTM Campaign") || undefined,
-              utm_source: getFirstValue(row, "utm_source", "UTM Source") || undefined,
-              utm_medium: getFirstValue(row, "utm_medium", "UTM Medium") || undefined,
-              utm_content: getFirstValue(row, "utm_content", "UTM Content") || undefined,
-              utm_term: getFirstValue(row, "utm_term", "UTM Term") || undefined,
+              kommoBlock,
+              utm_campaign: utm_campaign || undefined,
+              utm_source: utm_source || undefined,
+              utm_medium: utm_medium || undefined,
+              utm_content: utm_content || undefined,
+              utm_term: utm_term || undefined,
             });
           }
-          
+
           resolve(leads);
         },
         error: (error) => {
@@ -225,7 +443,7 @@ export function useImportLeads() {
       
       const { data: existingLeads } = await supabase
         .from("leads")
-        .select("id, phone, name, company, email, faturamento, segment, notes")
+        .select("id, phone, name, company, email, faturamento, segment, notes, utm_campaign, utm_source, utm_medium, utm_content, utm_term")
         .in("phone", phones);
 
       // Create a map for quick lookup and update
@@ -291,19 +509,25 @@ export function useImportLeads() {
 
           try {
             if (existingLead) {
-              // Update existing lead with missing data only
+              // Update existing lead with better/missing data
               const updates: Record<string, string | undefined> = {};
-              
-              if (!existingLead.company && lead.company) updates.company = lead.company;
-              if (!existingLead.email && lead.email) updates.email = lead.email;
-              if (!existingLead.faturamento && lead.faturamento) updates.faturamento = lead.faturamento;
-              if (!existingLead.segment && lead.segment) updates.segment = lead.segment;
-              
-              // Append notes if new notes exist
-              if (lead.notes) {
-                const existingNotes = existingLead.notes || "";
-                const separator = existingNotes ? "\n\n--- Importação Kommo ---\n\n" : "";
-                updates.notes = existingNotes + separator + lead.notes;
+
+              if (shouldReplaceValue(existingLead.name, lead.name, "name")) updates.name = lead.name;
+              if (shouldReplaceValue(existingLead.company, lead.company, "company")) updates.company = lead.company;
+              if (shouldReplaceValue(existingLead.email, lead.email, "email")) updates.email = lead.email;
+              if (shouldReplaceValue(existingLead.faturamento, lead.faturamento, "faturamento")) updates.faturamento = lead.faturamento;
+              if (shouldReplaceValue(existingLead.segment, lead.segment, "segment")) updates.segment = lead.segment;
+
+              if (shouldReplaceValue((existingLead as any).utm_campaign, lead.utm_campaign, "utm")) updates.utm_campaign = lead.utm_campaign;
+              if (shouldReplaceValue((existingLead as any).utm_source, lead.utm_source, "utm")) updates.utm_source = lead.utm_source;
+              if (shouldReplaceValue((existingLead as any).utm_medium, lead.utm_medium, "utm")) updates.utm_medium = lead.utm_medium;
+              if (shouldReplaceValue((existingLead as any).utm_content, lead.utm_content, "utm")) updates.utm_content = lead.utm_content;
+              if (shouldReplaceValue((existingLead as any).utm_term, lead.utm_term, "utm")) updates.utm_term = lead.utm_term;
+
+              // Merge notes (keeps existing notes + updates Kommo block without duplicating)
+              const mergedNotes = mergeNotes(existingLead.notes, lead.notes, lead.kommoBlock);
+              if (mergedNotes && mergedNotes !== (existingLead.notes || "")) {
+                updates.notes = mergedNotes;
               }
 
               if (Object.keys(updates).length > 0) {
@@ -373,7 +597,7 @@ export function useImportLeads() {
                 email: lead.email,
                 faturamento: lead.faturamento,
                 segment: lead.segment,
-                notes: lead.notes,
+                notes: mergeNotes(undefined, lead.notes, lead.kommoBlock),
                 origin: "outro" as const,
                 utm_campaign: lead.utm_campaign,
                 utm_source: lead.utm_source,
