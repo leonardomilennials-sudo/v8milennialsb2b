@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { CampanhaStage, CampanhaMember } from "@/hooks/useCampanhas";
 import { useImportLeads } from "@/hooks/useImportLeads";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, Users } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, Users, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ImportLeadsModalProps {
@@ -363,7 +363,7 @@ export function ImportLeadsModal({
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -373,6 +373,17 @@ export function ImportLeadsModal({
                   <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-500" />
                   <p className="text-2xl font-bold text-green-500">{result.imported}</p>
                   <p className="text-xs text-muted-foreground">Importados</p>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="p-4 bg-blue-500/10 rounded-xl text-center"
+                >
+                  <RefreshCw className="w-6 h-6 mx-auto mb-2 text-blue-500" />
+                  <p className="text-2xl font-bold text-blue-500">{result.updated}</p>
+                  <p className="text-xs text-muted-foreground">Atualizados</p>
                 </motion.div>
 
                 <motion.div
@@ -389,7 +400,7 @@ export function ImportLeadsModal({
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
+                  transition={{ delay: 0.45 }}
                   className="p-4 bg-red-500/10 rounded-xl text-center"
                 >
                   <XCircle className="w-6 h-6 mx-auto mb-2 text-red-500" />
