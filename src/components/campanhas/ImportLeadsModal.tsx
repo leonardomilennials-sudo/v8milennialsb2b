@@ -107,7 +107,7 @@ export function ImportLeadsModal({
         file,
         campanhaId,
         selectedStageId,
-        selectedSdrId || undefined
+        selectedSdrId === "none" ? undefined : selectedSdrId || undefined
       );
       setStep("complete");
     } catch (error) {
@@ -247,14 +247,14 @@ export function ImportLeadsModal({
                   <SelectTrigger>
                     <SelectValue placeholder="Sem atribuição" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Sem atribuição</SelectItem>
-                    {members.map((member) => (
-                      <SelectItem key={member.team_member_id} value={member.team_member_id}>
-                        {member.team_member?.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+              <SelectContent>
+                <SelectItem value="none">Sem atribuição</SelectItem>
+                {members.map((member) => (
+                  <SelectItem key={member.team_member_id} value={member.team_member_id}>
+                    {member.team_member?.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
                 </Select>
               </div>
 
