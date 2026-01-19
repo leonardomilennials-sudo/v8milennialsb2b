@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useCampanha, useCampanhaStages, useCampanhaLeads, useCampanhaMembers } from "@/hooks/useCampanhas";
+import { useCampanha, useCampanhaStages, useCampanhaLeads, useCampanhaMembers, useUpdateCampanhaMember } from "@/hooks/useCampanhas";
 import { useCreatePipeConfirmacao } from "@/hooks/usePipeConfirmacao";
 import { CampanhaKanban } from "@/components/campanhas/CampanhaKanban";
 import { CampanhaAnalytics } from "@/components/campanhas/CampanhaAnalytics";
@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, BarChart3, Kanban, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CampanhaDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,17 +24,78 @@ export default function CampanhaDetail() {
   const { data: leads = [] } = useCampanhaLeads(id);
   const { data: members = [] } = useCampanhaMembers(id);
   const createConfirmacao = useCreatePipeConfirmacao();
+  const updateMember = useUpdateCampanhaMember();
 
   const handleMoveToConfirmacao = async (lead: any) => {
     try {
+      // 1. Create or get tag with campaign name
+      const tagName = `Campanha: ${campanha?.name}`;
+      let tagId: string;
+
+      // Check if tag already exists
+      const { data: existingTag } = await supabase
+        .from("tags")
+        .select("id")
+        .eq("name", tagName)
+        .maybeSingle();
+
+      if (existingTag) {
+        tagId = existingTag.id;
+      } else {
+        // Create new tag with campaign-specific color
+        const { data: newTag, error: tagError } = await supabase
+          .from("tags")
+          .insert({ name: tagName, color: "#8b5cf6" }) // Purple color for campaigns
+          .select("id")
+          .single();
+        
+        if (tagError) throw tagError;
+        tagId = newTag.id;
+      }
+
+      // 2. Associate tag with lead (if not already associated)
+      const { data: existingLeadTag } = await supabase
+        .from("lead_tags")
+        .select("id")
+        .eq("lead_id", lead.lead_id)
+        .eq("tag_id", tagId)
+        .maybeSingle();
+
+      if (!existingLeadTag) {
+        await supabase
+          .from("lead_tags")
+          .insert({ lead_id: lead.lead_id, tag_id: tagId });
+      }
+
+      // 3. Create confirmation entry
       await createConfirmacao.mutateAsync({
         lead_id: lead.lead_id,
         sdr_id: lead.sdr_id,
         status: "reuniao_marcada",
         notes: `Campanha: ${campanha?.name}`,
       });
-      toast.success("Lead enviado para Confirmação!");
+
+      // 4. Update member meetings count if SDR is a member
+      if (lead.sdr_id && campanha?.id) {
+        const member = members.find(m => m.team_member_id === lead.sdr_id);
+        if (member) {
+          const newCount = (member.meetings_count || 0) + 1;
+          const shouldEarnBonus = campanha.individual_goal 
+            ? newCount >= campanha.individual_goal 
+            : false;
+          
+          await updateMember.mutateAsync({
+            campanha_id: campanha.id,
+            team_member_id: lead.sdr_id,
+            meetings_count: newCount,
+            bonus_earned: shouldEarnBonus || member.bonus_earned,
+          });
+        }
+      }
+
+      toast.success("Lead enviado para Confirmação com tag da campanha!");
     } catch (error) {
+      console.error("Error moving to confirmação:", error);
       toast.error("Erro ao enviar para Confirmação");
     }
   };

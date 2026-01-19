@@ -11,6 +11,7 @@ import {
   PiggyBank,
   Percent,
   Lock,
+  Trophy,
 } from "lucide-react";
 import {
   Select,
@@ -159,6 +160,27 @@ function MemberCommissionCard({ memberId, memberName, memberRole, month, year }:
               <p className="text-sm font-medium text-chart-4">{formatCurrency(summary.commissionProjeto)}</p>
             </div>
           </div>
+
+          {/* Campaign Bonuses */}
+          {summary.campaignBonuses > 0 && (
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                <Trophy className="w-3 h-3 text-primary" /> Bônus de Campanhas
+              </p>
+              <div className="space-y-1">
+                {summary.campaignBonusList.map((cb, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground truncate max-w-[140px]">{cb.campaignName}</span>
+                    <span className="font-medium text-primary">{formatCurrency(cb.bonusValue)}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between text-sm font-semibold pt-1 border-t border-border/50">
+                  <span>Total Campanhas</span>
+                  <span className="text-primary">{formatCurrency(summary.campaignBonuses)}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Sales breakdown */}
           <div className="pt-2 border-t border-border">
