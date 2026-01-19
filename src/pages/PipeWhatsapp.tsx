@@ -86,9 +86,10 @@ interface WhatsappCardComponentProps {
   onDelete: (pipeId: string, leadId: string) => void;
   isAdmin: boolean;
   onQuickAdd: (leadId: string, leadName: string, title: string) => void;
+  onCardClick?: () => void;
 }
 
-function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: WhatsappCardComponentProps) {
+function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd, onCardClick }: WhatsappCardComponentProps) {
   const originInfo = originLabels[card.origin || "outro"] || originLabels.outro;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [customTitle, setCustomTitle] = useState("");
@@ -140,6 +141,7 @@ function WhatsappCardComponent({ card, onDelete, isAdmin, onQuickAdd }: Whatsapp
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
       className="kanban-card group cursor-pointer relative"
+      onClick={onCardClick}
     >
       {/* Actions Menu */}
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -627,22 +629,21 @@ export default function PipeWhatsapp() {
         columns={columns}
         onStatusChange={handleStatusChange}
         renderCard={(card) => (
-          <div onClick={() => {
-            const item = pipeData?.find(p => p.id === card.id);
-            if (item?.lead) {
-              setEditingLead(item.lead);
-              setIsLeadModalOpen(true);
-            }
-          }}>
-            <WhatsappCardComponent 
-              card={card} 
-              onDelete={handleOpenDeleteDialog}
-              isAdmin={isAdmin}
-              onQuickAdd={(leadId, leadName, title) => {
-                createAcaoDoDia.mutate({ title, lead_id: leadId });
-              }}
-            />
-          </div>
+          <WhatsappCardComponent 
+            card={card} 
+            onDelete={handleOpenDeleteDialog}
+            isAdmin={isAdmin}
+            onQuickAdd={(leadId, leadName, title) => {
+              createAcaoDoDia.mutate({ title, lead_id: leadId });
+            }}
+            onCardClick={() => {
+              const item = pipeData?.find(p => p.id === card.id);
+              if (item?.lead) {
+                setEditingLead(item.lead);
+                setIsLeadModalOpen(true);
+              }
+            }}
+          />
         )}
       />
 
