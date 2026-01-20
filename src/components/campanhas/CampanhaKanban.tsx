@@ -9,6 +9,7 @@ import {
   DragStartEvent,
   DragEndEvent,
   DragOverEvent,
+  useDroppable,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
@@ -345,8 +346,17 @@ function KanbanColumn({
   onEdit: (leadId: string) => void;
   onDelete: (lead: CampanhaLead) => void;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: stage.id,
+  });
+
   return (
-    <div className="flex flex-col min-w-[300px] max-w-[300px] bg-muted/30 rounded-lg">
+    <div 
+      ref={setNodeRef}
+      className={`flex flex-col min-w-[300px] max-w-[300px] bg-muted/30 rounded-lg transition-all duration-200 ${
+        isOver ? "ring-2 ring-primary/50 bg-primary/5" : ""
+      }`}
+    >
       <div
         className="p-3 border-b flex items-center justify-between"
         style={{ borderBottomColor: stage.color || "#3B82F6" }}
