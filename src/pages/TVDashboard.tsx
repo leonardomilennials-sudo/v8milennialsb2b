@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useTVDashboardData } from "@/hooks/useTVDashboardData";
 import { AICoachSection } from "@/components/tv/AICoachSection";
+import { SalesFunnel } from "@/components/tv/SalesFunnel";
 import { Button } from "@/components/ui/button";
 import v8Logo from "@/assets/v8-logo.png";
 import logoDark from "@/assets/logo-dark.png";
@@ -351,34 +352,48 @@ export default function TVDashboard() {
           </div>
 
           {/* Main Content Area - Grid */}
-          <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
-            {/* Left Side - Individual Goals (More Space) */}
+          <div className="flex-1 grid grid-cols-3 gap-4 min-h-0">
+            {/* Left Side - Sales Funnel */}
+            <TVCard className="flex flex-col">
+              <SalesFunnel
+                reunioesMarcadas={data?.funnel?.reunioesMarcadas || 0}
+                comparecidas={data?.funnel?.comparecidas || 0}
+                marcandoR2={data?.funnel?.marcandoR2 || 0}
+                marcandoR2Value={data?.funnel?.marcandoR2Value || 0}
+                r2Marcadas={data?.funnel?.r2Marcadas || 0}
+                r2MarcadasValue={data?.funnel?.r2MarcadasValue || 0}
+                vendido={data?.funnel?.vendido || 0}
+                vendidoValue={data?.funnel?.vendidoValue || 0}
+              />
+            </TVCard>
+
+            {/* Middle - Individual Goals */}
             <TVCard className="flex flex-col">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-primary" />
                 <span className="text-sm font-bold text-white uppercase tracking-wider">Metas Individuais</span>
               </div>
 
-              <div className="flex-1 grid grid-cols-2 gap-6 overflow-y-auto">
+              <div className="flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
                 {/* Closers */}
                 <div className="flex flex-col">
-                  <p className="text-xs text-white/50 uppercase tracking-wider mb-3 font-semibold">Closers</p>
-                  <div className="space-y-3 flex-1">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-2 font-semibold">Closers</p>
+                  <div className="space-y-2 flex-1">
                     {closers.map((closer: any, i: number) => (
                       <GoalBar key={closer.id} data={closer} index={i} type="closer" formatCurrency={formatCurrency} />
                     ))}
-                    {closers.length === 0 && <p className="text-sm text-white/30">Sem metas configuradas</p>}
+                    {closers.length === 0 && <p className="text-xs text-white/30">Sem metas</p>}
                   </div>
                 </div>
 
                 {/* SDRs */}
                 <div className="flex flex-col">
-                  <p className="text-xs text-white/50 uppercase tracking-wider mb-3 font-semibold">SDRs</p>
-                  <div className="space-y-3 flex-1">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-2 font-semibold">SDRs</p>
+                  <div className="space-y-2 flex-1">
                     {sdrs.map((sdr: any, i: number) => (
                       <GoalBar key={sdr.id} data={sdr} index={i} type="sdr" formatCurrency={formatCurrency} />
                     ))}
-                    {sdrs.length === 0 && <p className="text-sm text-white/30">Sem metas configuradas</p>}
+                    {sdrs.length === 0 && <p className="text-xs text-white/30">Sem metas</p>}
                   </div>
                 </div>
               </div>
