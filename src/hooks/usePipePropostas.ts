@@ -43,7 +43,8 @@ export function usePipePropostas() {
             closer:team_members!leads_closer_id_fkey(id, name),
             lead_tags(tag:tags(id, name, color))
           ),
-          closer:team_members!pipe_propostas_closer_id_fkey(id, name)
+          closer:team_members!pipe_propostas_closer_id_fkey(id, name),
+          product:products(id, name, type, ticket, ticket_minimo)
         `)
         .order("updated_at", { ascending: false });
       

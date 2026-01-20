@@ -471,6 +471,7 @@ export type Database = {
           id: string
           month: number
           name: string
+          product_id: string | null
           target_value: number
           team_member_id: string | null
           type: string
@@ -483,6 +484,7 @@ export type Database = {
           id?: string
           month: number
           name: string
+          product_id?: string | null
           target_value: number
           team_member_id?: string | null
           type: string
@@ -495,6 +497,7 @@ export type Database = {
           id?: string
           month?: number
           name?: string
+          product_id?: string | null
           target_value?: number
           team_member_id?: string | null
           type?: string
@@ -502,6 +505,13 @@ export type Database = {
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "goals_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "goals_team_member_id_fkey"
             columns: ["team_member_id"]
@@ -820,6 +830,7 @@ export type Database = {
           id: string
           lead_id: string
           notes: string | null
+          product_id: string | null
           product_type: Database["public"]["Enums"]["product_type"] | null
           sale_value: number | null
           status: Database["public"]["Enums"]["pipe_propostas_status"]
@@ -835,6 +846,7 @@ export type Database = {
           id?: string
           lead_id: string
           notes?: string | null
+          product_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"] | null
           sale_value?: number | null
           status?: Database["public"]["Enums"]["pipe_propostas_status"]
@@ -850,6 +862,7 @@ export type Database = {
           id?: string
           lead_id?: string
           notes?: string | null
+          product_id?: string | null
           product_type?: Database["public"]["Enums"]["product_type"] | null
           sale_value?: number | null
           status?: Database["public"]["Enums"]["pipe_propostas_status"]
@@ -868,6 +881,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_propostas_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -919,6 +939,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          contrato_minimo_url: string | null
+          contrato_padrao_url: string | null
+          created_at: string
+          entregaveis: string | null
+          id: string
+          is_active: boolean
+          links: string[] | null
+          logo_url: string | null
+          materiais: string | null
+          name: string
+          ticket: number | null
+          ticket_minimo: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          contrato_minimo_url?: string | null
+          contrato_padrao_url?: string | null
+          created_at?: string
+          entregaveis?: string | null
+          id?: string
+          is_active?: boolean
+          links?: string[] | null
+          logo_url?: string | null
+          materiais?: string | null
+          name: string
+          ticket?: number | null
+          ticket_minimo?: number | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          contrato_minimo_url?: string | null
+          contrato_padrao_url?: string | null
+          created_at?: string
+          entregaveis?: string | null
+          id?: string
+          is_active?: boolean
+          links?: string[] | null
+          logo_url?: string | null
+          materiais?: string | null
+          name?: string
+          ticket?: number | null
+          ticket_minimo?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

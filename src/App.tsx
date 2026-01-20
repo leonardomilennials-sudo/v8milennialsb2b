@@ -24,6 +24,7 @@ import Configuracoes from "./pages/Configuracoes";
 import TVDashboard from "./pages/TVDashboard";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetail from "./pages/CampanhaDetail";
+import Produtos from "./pages/Produtos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -193,6 +194,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <TVDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/produtos"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Produtos />
+            </LayoutWrapper>
           </ProtectedRoute>
         }
       />

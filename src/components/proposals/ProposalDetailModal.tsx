@@ -31,6 +31,7 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useUpdatePipeProposta, useDeletePipeProposta, PipePropostasStatus, statusColumns } from "@/hooks/usePipePropostas";
 import { useLeadHistory, useCreateLeadHistory } from "@/hooks/useLeadHistory";
 import { useDeleteLead } from "@/hooks/useLeads";
+import { useActiveProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -83,6 +84,7 @@ export function ProposalDetailModal({
   const [formData, setFormData] = useState({
     status: proposta?.status || "marcar_compromisso",
     product_type: proposta?.product_type || "",
+    product_id: proposta?.product_id || "",
     sale_value: proposta?.sale_value || "",
     contract_duration: proposta?.contract_duration || "",
     closer_id: proposta?.closer_id || "",
@@ -95,6 +97,7 @@ export function ProposalDetailModal({
   const [isAddingNote, setIsAddingNote] = useState(false);
 
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: products = [] } = useActiveProducts();
   const updateProposta = useUpdatePipeProposta();
   const deleteProposta = useDeletePipeProposta();
   const deleteLead = useDeleteLead();
@@ -107,6 +110,7 @@ export function ProposalDetailModal({
       setFormData({
         status: proposta.status || "marcar_compromisso",
         product_type: proposta.product_type || "",
+        product_id: proposta.product_id || "",
         sale_value: proposta.sale_value || "",
         contract_duration: proposta.contract_duration || "",
         closer_id: proposta.closer_id || "",
@@ -157,6 +161,7 @@ export function ProposalDetailModal({
         id: proposta.id,
         status: formData.status as PipePropostasStatus,
         product_type: formData.product_type as "mrr" | "projeto",
+        product_id: formData.product_id || null,
         sale_value: Number(formData.sale_value),
         contract_duration: formData.contract_duration ? Number(formData.contract_duration) : null,
         closer_id: formData.closer_id,
@@ -401,6 +406,39 @@ export function ProposalDetailModal({
               </div>
 
               <Separator />
+
+              {/* Product Selection */}
+              <div className="grid gap-2">
+                <Label>Produto</Label>
+                <Select
+                  value={formData.product_id || "none"}
+                  onValueChange={(v) => {
+                    const selectedProduct = products.find(p => p.id === v);
+                    setFormData({ 
+                      ...formData, 
+                      product_id: v === "none" ? "" : v,
+                      product_type: selectedProduct?.type || formData.product_type,
+                    });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    {products.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={p.type === "mrr" ? "default" : "secondary"} className="text-xs">
+                            {p.type === "mrr" ? "MRR" : "Projeto"}
+                          </Badge>
+                          {p.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
               {/* Form Fields */}
               <div className="grid grid-cols-2 gap-4">
