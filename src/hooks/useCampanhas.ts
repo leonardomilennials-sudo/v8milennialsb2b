@@ -338,6 +338,12 @@ export function useUpdateCampanhaLead() {
         .eq("id", id)
         .select(`
           *,
+          lead:leads(
+            id, name, company, phone, email, faturamento, segment, rating, origin, notes, closer_id,
+            closer:team_members!leads_closer_id_fkey(id, name),
+            lead_tags(tag:tags(id, name, color))
+          ),
+          sdr:team_members!campanha_leads_sdr_id_fkey(id, name),
           stage:campanha_stages(*)
         `)
         .single();
@@ -345,7 +351,35 @@ export function useUpdateCampanhaLead() {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["campanha_leads", variables.campanha_id] });
+
+      // Snapshot the previous value
+      const previousLeads = queryClient.getQueryData<CampanhaLead[]>(["campanha_leads", variables.campanha_id]);
+
+      // Optimistically update to the new value
+      if (previousLeads) {
+        queryClient.setQueryData<CampanhaLead[]>(
+          ["campanha_leads", variables.campanha_id],
+          previousLeads.map((lead) =>
+            lead.id === variables.id
+              ? { ...lead, stage_id: variables.stage_id || lead.stage_id, sdr_id: variables.sdr_id ?? lead.sdr_id, notes: variables.notes ?? lead.notes }
+              : lead
+          )
+        );
+      }
+
+      return { previousLeads };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, rollback to the previous value
+      if (context?.previousLeads) {
+        queryClient.setQueryData(["campanha_leads", variables.campanha_id], context.previousLeads);
+      }
+    },
+    onSettled: (data, error, variables) => {
+      // Always refetch after error or success to sync with server state
       queryClient.invalidateQueries({ queryKey: ["campanha_leads", variables.campanha_id] });
       queryClient.invalidateQueries({ queryKey: ["campanha_members", variables.campanha_id] });
     },
