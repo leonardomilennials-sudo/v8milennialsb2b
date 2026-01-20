@@ -47,6 +47,18 @@ export interface TVDashboardMetrics {
     closers: { name: string; id: string; current: number; goal: number; percentage: number }[];
     sdrs: { name: string; id: string; current: number; goal: number; percentage: number }[];
   };
+  
+  // Funnel data
+  funnel: {
+    reunioesMarcadas: number;
+    comparecidas: number;
+    marcandoR2: number;
+    marcandoR2Value: number;
+    r2Marcadas: number;
+    r2MarcadasValue: number;
+    vendido: number;
+    vendidoValue: number;
+  };
 }
 
 export function useTVDashboardData() {
@@ -233,6 +245,29 @@ export function useTVDashboardData() {
         };
       });
       
+      // ========== FUNNEL DATA ==========
+      // Reuniões Marcadas: All leads in confirmation pipe
+      const reunioesMarcadasFunnel = confirmacoes?.length || 0;
+      
+      // Comparecidas: Leads with status "compareceu"
+      const comparecidasFunnel = confirmacoes?.filter(c => c.status === "compareceu").length || 0;
+      
+      // Marcando R2: Leads in "marcar_compromisso" or "reativar" stage in proposals
+      const marcandoR2Propostas = propostas?.filter(p => 
+        p.status === "marcar_compromisso" || p.status === "reativar"
+      ) || [];
+      const marcandoR2 = marcandoR2Propostas.length;
+      const marcandoR2Value = marcandoR2Propostas.reduce((sum, p) => sum + (p.sale_value || 0), 0);
+      
+      // R2 Marcadas: Leads in "compromisso_marcado" stage in proposals
+      const r2MarcadasPropostas = propostas?.filter(p => p.status === "compromisso_marcado") || [];
+      const r2Marcadas = r2MarcadasPropostas.length;
+      const r2MarcadasValue = r2MarcadasPropostas.reduce((sum, p) => sum + (p.sale_value || 0), 0);
+      
+      // Vendido: Leads in "vendido" stage (current month)
+      const vendidoFunnel = currentMonthPropostas.length;
+      const vendidoValue = vendasRealizadas;
+      
       return {
         metaVendasMes,
         vendasRealizadas,
@@ -256,6 +291,16 @@ export function useTVDashboardData() {
         individualGoals: {
           closers: closerGoals,
           sdrs: sdrGoals
+        },
+        funnel: {
+          reunioesMarcadas: reunioesMarcadasFunnel,
+          comparecidas: comparecidasFunnel,
+          marcandoR2,
+          marcandoR2Value,
+          r2Marcadas,
+          r2MarcadasValue,
+          vendido: vendidoFunnel,
+          vendidoValue
         }
       } as TVDashboardMetrics;
     },
