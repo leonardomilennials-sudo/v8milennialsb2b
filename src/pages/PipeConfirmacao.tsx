@@ -14,7 +14,7 @@ import { ConfirmacaoCard } from "@/components/confirmacao/ConfirmacaoCard";
 import { ConfirmacaoFilters, OriginFilter, TimeFilter, UrgencyFilter } from "@/components/confirmacao/ConfirmacaoFilters";
 import { MeetingTimeline } from "@/components/confirmacao/MeetingTimeline";
 import { CompareceuModal } from "@/components/confirmacao/CompareceuModal";
-import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast, differenceInDays } from "date-fns";
+import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast, startOfDay, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
@@ -41,7 +41,7 @@ interface ConfirmacaoCardData extends DraggableItem {
   isConfirmed?: boolean;
 }
 
-// Calculate correct status based on meeting date
+// Calculate correct status based on meeting date using CALENDAR DAYS (not hours)
 // Note: pre_confirmada and confirmada_no_dia are NOT used as statuses anymore
 // They are visual states controlled by is_confirmed field
 function calculateStatusByDate(meetingDate: Date | null, currentStatus: PipeConfirmacaoStatus): PipeConfirmacaoStatus | null {
@@ -51,7 +51,7 @@ function calculateStatusByDate(meetingDate: Date | null, currentStatus: PipeConf
   if (["compareceu", "perdido", "remarcar"].includes(currentStatus)) {
     // Check if remarcar should be updated (meeting date was changed to future)
     if (currentStatus === "remarcar") {
-      if (!isPast(meetingDate) || isToday(meetingDate)) {
+      if (!isPast(startOfDay(meetingDate)) || isToday(meetingDate)) {
         // Meeting is no longer overdue, recalculate
       } else {
         return null; // Still overdue
@@ -61,36 +61,44 @@ function calculateStatusByDate(meetingDate: Date | null, currentStatus: PipeConf
     }
   }
   
-  const now = new Date();
-  const days = differenceInDays(meetingDate, now);
+  const today = startOfDay(new Date());
+  const meetingDay = startOfDay(meetingDate);
   
-  // If meeting is in the past (and not today), it's overdue - should remarcar
-  if (isPast(meetingDate) && !isToday(meetingDate)) {
+  // Use differenceInCalendarDays to count actual calendar days, not 24h periods
+  const calendarDays = differenceInCalendarDays(meetingDay, today);
+  
+  // If meeting day is in the past (negative days), it's overdue - should remarcar
+  if (calendarDays < 0) {
     return "remarcar";
   }
   
-  // If meeting is today
-  if (isToday(meetingDate)) {
+  // If meeting is today (0 days)
+  if (calendarDays === 0) {
     return "confirmacao_no_dia";
   }
   
-  // If meeting is tomorrow (D-1)
-  if (days === 1 || isTomorrow(meetingDate)) {
+  // If meeting is tomorrow (1 day) - D-1
+  if (calendarDays === 1) {
     return "confirmar_d1";
   }
   
-  // If meeting is in 2-3 days (D-3)
-  if (days >= 2 && days <= 3) {
+  // If meeting is in 2 days - D-2
+  if (calendarDays === 2) {
+    return "confirmar_d2";
+  }
+  
+  // If meeting is in 3 days - D-3
+  if (calendarDays === 3) {
     return "confirmar_d3";
   }
   
-  // If meeting is in 4-5 days (D-5)
-  if (days >= 4 && days <= 5) {
+  // If meeting is in 4-5 days - D-5
+  if (calendarDays === 4 || calendarDays === 5) {
     return "confirmar_d5";
   }
   
   // If meeting is more than 5 days away
-  if (days > 5) {
+  if (calendarDays > 5) {
     return "reuniao_marcada";
   }
   

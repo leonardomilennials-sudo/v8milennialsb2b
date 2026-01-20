@@ -12,6 +12,7 @@ export type PipeConfirmacaoStatus =
   | "reuniao_marcada"
   | "confirmar_d5"
   | "confirmar_d3"
+  | "confirmar_d2"
   | "confirmar_d1"
   | "pre_confirmada"
   | "confirmacao_no_dia"
@@ -25,9 +26,10 @@ export type PipeConfirmacaoStatus =
 export const statusColumns: { id: PipeConfirmacaoStatus; title: string; color: string }[] = [
   { id: "reuniao_marcada", title: "Reunião Marcada", color: "#6366f1" },
   { id: "confirmar_d5", title: "Confirmar D-5", color: "#8b5cf6" },
-  { id: "confirmar_d3", title: "Confirmar D-3", color: "#f59e0b" },
+  { id: "confirmar_d3", title: "Confirmar D-3", color: "#a855f7" },
+  { id: "confirmar_d2", title: "Confirmar D-2", color: "#f59e0b" },
   { id: "confirmar_d1", title: "Confirmar D-1", color: "#f97316" },
-  { id: "confirmacao_no_dia", title: "Confirmação no Dia", color: "#f59e0b" },
+  { id: "confirmacao_no_dia", title: "Confirmação no Dia", color: "#ef4444" },
   { id: "remarcar", title: "Remarcar 📅", color: "#f97316" },
   { id: "compareceu", title: "Compareceu ✓", color: "#22c55e" },
   { id: "perdido", title: "Perdido ✗", color: "#ef4444" },
