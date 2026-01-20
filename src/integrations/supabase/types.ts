@@ -1137,6 +1137,7 @@ export type Database = {
         | "reuniao_marcada"
         | "confirmar_d5"
         | "confirmar_d3"
+        | "confirmar_d2"
         | "confirmar_d1"
         | "pre_confirmada"
         | "confirmacao_no_dia"
@@ -1307,6 +1308,7 @@ export const Constants = {
         "reuniao_marcada",
         "confirmar_d5",
         "confirmar_d3",
+        "confirmar_d2",
         "confirmar_d1",
         "pre_confirmada",
         "confirmacao_no_dia",
