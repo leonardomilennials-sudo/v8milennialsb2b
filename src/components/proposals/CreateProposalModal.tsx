@@ -23,6 +23,7 @@ import {
 import { useLeads } from "@/hooks/useLeads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
+import { useActiveProducts } from "@/hooks/useProducts";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,7 @@ export function CreateProposalModal({
   
   const [formData, setFormData] = useState({
     product_type: "" as "mrr" | "projeto" | "",
+    product_id: "",
     sale_value: "",
     contract_duration: "",
     closer_id: "",
@@ -56,6 +58,7 @@ export function CreateProposalModal({
 
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: products = [] } = useActiveProducts();
   const createProposta = useCreatePipeProposta();
 
   const closers = teamMembers.filter(m => m.role === "closer" && m.is_active);
@@ -82,6 +85,7 @@ export function CreateProposalModal({
         if (!preselectedLeadId) setSelectedLeadId(null);
         setFormData({
           product_type: "",
+          product_id: "",
           sale_value: "",
           contract_duration: "",
           closer_id: "",
@@ -130,6 +134,7 @@ export function CreateProposalModal({
         lead_id: selectedLeadId,
         status: "marcar_compromisso",
         product_type: formData.product_type as "mrr" | "projeto",
+        product_id: formData.product_id || null,
         sale_value: Number(formData.sale_value),
         contract_duration: formData.contract_duration ? Number(formData.contract_duration) : null,
         closer_id: formData.closer_id,
@@ -291,6 +296,39 @@ export function CreateProposalModal({
 
               {/* Proposal Form */}
               <div className="space-y-4">
+                {/* Product Selection */}
+                <div className="grid gap-2">
+                  <Label>Produto *</Label>
+                  <Select
+                    value={formData.product_id}
+                    onValueChange={(v) => {
+                      const selectedProduct = products.find(p => p.id === v);
+                      setFormData({ 
+                        ...formData, 
+                        product_id: v,
+                        product_type: selectedProduct?.type || "",
+                        sale_value: selectedProduct?.ticket?.toString() || formData.sale_value,
+                      });
+                    }}
+                  >
+                    <SelectTrigger className={!formData.product_id ? "border-destructive/50" : ""}>
+                      <SelectValue placeholder="Selecionar produto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={p.type === "mrr" ? "default" : "secondary"} className="text-xs">
+                              {p.type === "mrr" ? "MRR" : "Projeto"}
+                            </Badge>
+                            {p.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>Tipo de Produto *</Label>
