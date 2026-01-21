@@ -39,7 +39,7 @@ interface ProposalItem {
   product?: {
     id: string;
     name: string;
-    type: "mrr" | "projeto";
+    type: "mrr" | "projeto" | "unitario";
   };
 }
 
@@ -143,10 +143,12 @@ function ProposalCardComponent({
                       "text-[10px] px-1.5 py-0 h-4 shrink-0",
                       item.product.type === "mrr"
                         ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                        : item.product.type === "unitario"
+                        ? "bg-warning/10 text-warning border-warning/20"
                         : "bg-primary/10 text-primary border-primary/20"
                     )}
                   >
-                    {item.product.type === "mrr" ? "MRR" : "Proj"}
+                    {item.product.type === "mrr" ? "MRR" : item.product.type === "unitario" ? "Unit" : "Proj"}
                   </Badge>
                 )}
                 <span className="text-xs truncate">{item.product?.name || "Produto"}</span>

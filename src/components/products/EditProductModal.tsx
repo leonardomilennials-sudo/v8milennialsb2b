@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useUpdateProduct, Product } from "@/hooks/useProducts";
+import { useUpdateProduct, Product, ProductType } from "@/hooks/useProducts";
 import { Plus, X } from "lucide-react";
 
 interface EditProductModalProps {
@@ -30,7 +30,7 @@ export function EditProductModal({ product, open, onOpenChange }: EditProductMod
   const updateProduct = useUpdateProduct();
   const [formData, setFormData] = useState({
     name: "",
-    type: "mrr" as "mrr" | "projeto",
+    type: "mrr" as ProductType,
     ticket: "",
     ticket_minimo: "",
     entregaveis: "",
@@ -122,7 +122,7 @@ export function EditProductModal({ product, open, onOpenChange }: EditProductMod
               <Label htmlFor="type">Tipo *</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value: "mrr" | "projeto") =>
+                onValueChange={(value: ProductType) =>
                   setFormData((prev) => ({ ...prev, type: value }))
                 }
               >
@@ -132,6 +132,7 @@ export function EditProductModal({ product, open, onOpenChange }: EditProductMod
                 <SelectContent>
                   <SelectItem value="mrr">MRR (Recorrente)</SelectItem>
                   <SelectItem value="projeto">Projeto</SelectItem>
+                  <SelectItem value="unitario">Unitário (Pontual)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

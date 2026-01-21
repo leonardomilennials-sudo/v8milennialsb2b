@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useCreateProduct } from "@/hooks/useProducts";
+import { useCreateProduct, ProductType } from "@/hooks/useProducts";
 import { Plus, X } from "lucide-react";
 
 interface CreateProductModalProps {
@@ -29,7 +29,7 @@ export function CreateProductModal({ open, onOpenChange }: CreateProductModalPro
   const createProduct = useCreateProduct();
   const [formData, setFormData] = useState({
     name: "",
-    type: "mrr" as "mrr" | "projeto",
+    type: "mrr" as ProductType,
     ticket: "",
     ticket_minimo: "",
     entregaveis: "",
@@ -115,7 +115,7 @@ export function CreateProductModal({ open, onOpenChange }: CreateProductModalPro
               <Label htmlFor="type">Tipo *</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value: "mrr" | "projeto") =>
+                onValueChange={(value: ProductType) =>
                   setFormData((prev) => ({ ...prev, type: value }))
                 }
               >
@@ -125,6 +125,7 @@ export function CreateProductModal({ open, onOpenChange }: CreateProductModalPro
                 <SelectContent>
                   <SelectItem value="mrr">MRR (Recorrente)</SelectItem>
                   <SelectItem value="projeto">Projeto</SelectItem>
+                  <SelectItem value="unitario">Unitário (Pontual)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

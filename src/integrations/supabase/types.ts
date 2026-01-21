@@ -1198,7 +1198,7 @@ export type Database = {
         | "respondeu"
         | "esfriou"
         | "agendado"
-      product_type: "mrr" | "projeto"
+      product_type: "mrr" | "projeto" | "unitario"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1372,7 +1372,7 @@ export const Constants = {
         "esfriou",
         "agendado",
       ],
-      product_type: ["mrr", "projeto"],
+      product_type: ["mrr", "projeto", "unitario"],
     },
   },
 } as const
