@@ -32,6 +32,17 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+interface ProposalItem {
+  id: string;
+  product_id: string | null;
+  sale_value: number | null;
+  product?: {
+    id: string;
+    name: string;
+    type: "mrr" | "projeto";
+  };
+}
+
 interface ProposalCard extends DraggableItem {
   name: string;
   company: string;
@@ -49,6 +60,7 @@ interface ProposalCard extends DraggableItem {
   segment?: string;
   commitmentDate?: Date;
   leadId?: string;
+  items: ProposalItem[];
 }
 
 import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
@@ -69,6 +81,9 @@ function ProposalCardComponent({
   };
 
   const formattedPhone = formatPhoneForWhatsApp(proposal.phone);
+  const hasMultipleProducts = proposal.items.length > 1;
+  const hasMixedTypes = proposal.items.some(i => i.product?.type === "mrr") && 
+                        proposal.items.some(i => i.product?.type === "projeto");
 
   return (
     <motion.div
@@ -112,29 +127,77 @@ function ProposalCardComponent({
         </div>
       </div>
 
-      {/* Product Type & Value */}
-      <div className="flex items-center gap-2 mb-3">
-        {proposal.productType && (
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-xs",
-              proposal.productType === "mrr"
-                ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
-                : "bg-primary/10 text-primary border-primary/20"
-            )}
-          >
-            {proposal.productType === "mrr" ? "MRR" : "Projeto"}
-          </Badge>
-        )}
-        <div className="flex items-center gap-1 text-success font-semibold text-sm">
-          <DollarSign className="w-3.5 h-3.5" />
-          {formatCurrency(proposal.value)}
-          {proposal.productType === "mrr" && (
-            <span className="text-xs font-normal text-muted-foreground">/mês</span>
+      {/* Product Items - Show each product with type badge and value */}
+      {proposal.items.length > 0 ? (
+        <div className="space-y-1.5 mb-3">
+          {proposal.items.slice(0, 3).map((item) => (
+            <div 
+              key={item.id} 
+              className="flex items-center justify-between gap-2 p-1.5 rounded bg-muted/50"
+            >
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                {item.product?.type && (
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] px-1.5 py-0 h-4 shrink-0",
+                      item.product.type === "mrr"
+                        ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                        : "bg-primary/10 text-primary border-primary/20"
+                    )}
+                  >
+                    {item.product.type === "mrr" ? "MRR" : "Proj"}
+                  </Badge>
+                )}
+                <span className="text-xs truncate">{item.product?.name || "Produto"}</span>
+              </div>
+              <span className="text-xs font-medium text-success shrink-0">
+                {formatCurrency(item.sale_value || 0)}
+              </span>
+            </div>
+          ))}
+          {proposal.items.length > 3 && (
+            <p className="text-[10px] text-muted-foreground text-center">
+              +{proposal.items.length - 3} produto(s)
+            </p>
           )}
         </div>
-      </div>
+      ) : (
+        /* Fallback for old proposals without items */
+        <div className="flex items-center gap-2 mb-3">
+          {proposal.productType && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-xs",
+                proposal.productType === "mrr"
+                  ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                  : "bg-primary/10 text-primary border-primary/20"
+              )}
+            >
+              {proposal.productType === "mrr" ? "MRR" : "Projeto"}
+            </Badge>
+          )}
+          <div className="flex items-center gap-1 text-success font-semibold text-sm">
+            <DollarSign className="w-3.5 h-3.5" />
+            {formatCurrency(proposal.value)}
+            {proposal.productType === "mrr" && (
+              <span className="text-xs font-normal text-muted-foreground">/mês</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Total Value - Show when multiple products */}
+      {proposal.items.length > 0 && (
+        <div className="flex items-center justify-between mb-3 pt-2 border-t border-border/50">
+          <span className="text-xs text-muted-foreground">Total:</span>
+          <div className="flex items-center gap-1 text-success font-semibold text-sm">
+            <DollarSign className="w-3.5 h-3.5" />
+            {formatCurrency(proposal.value)}
+          </div>
+        </div>
+      )}
 
       {/* Contract Duration */}
       {proposal.contractDuration > 0 && (
@@ -225,6 +288,19 @@ export default function PipePropostas() {
   // Transform pipe data to ProposalCard format
   const transformToCard = (item: any): ProposalCard => {
     const lead = item.lead;
+    const items = item.items || [];
+    
+    // Calculate total value from items, fallback to sale_value for backwards compatibility
+    const totalValue = items.length > 0 
+      ? items.reduce((sum: number, i: any) => sum + (i.sale_value || 0), 0)
+      : (item.sale_value || 0);
+    
+    // Determine product types from items
+    const hasItems = items.length > 0;
+    const productTypes = hasItems 
+      ? [...new Set(items.map((i: any) => i.product?.type).filter(Boolean))]
+      : item.product_type ? [item.product_type] : [];
+    
     return {
       id: item.id,
       name: lead?.name || "Sem nome",
@@ -235,8 +311,8 @@ export default function PipePropostas() {
       calor: item.calor ?? 5,
       closer: item.closer?.name || lead?.closer?.name,
       closerId: item.closer_id,
-      productType: item.product_type,
-      value: item.sale_value || 0,
+      productType: productTypes.length === 1 ? productTypes[0] : (productTypes.length > 0 ? null : item.product_type),
+      value: totalValue,
       contractDuration: item.contract_duration || 0,
       tags: lead?.lead_tags?.map((lt: any) => lt.tag?.name).filter(Boolean) || [],
       lastContact: item.commitment_date 
@@ -245,6 +321,16 @@ export default function PipePropostas() {
       segment: lead?.segment,
       commitmentDate: item.commitment_date ? new Date(item.commitment_date) : undefined,
       leadId: lead?.id,
+      items: items.map((i: any) => ({
+        id: i.id,
+        product_id: i.product_id,
+        sale_value: i.sale_value,
+        product: i.product ? {
+          id: i.product.id,
+          name: i.product.name,
+          type: i.product.type,
+        } : undefined,
+      })),
     };
   };
 

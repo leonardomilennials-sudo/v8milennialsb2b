@@ -819,6 +819,45 @@ export type Database = {
           },
         ]
       }
+      pipe_proposta_items: {
+        Row: {
+          created_at: string
+          id: string
+          pipe_proposta_id: string
+          product_id: string | null
+          sale_value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pipe_proposta_id: string
+          product_id?: string | null
+          sale_value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pipe_proposta_id?: string
+          product_id?: string | null
+          sale_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipe_proposta_items_pipe_proposta_id_fkey"
+            columns: ["pipe_proposta_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pipe_proposta_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipe_propostas: {
         Row: {
           calor: number | null
