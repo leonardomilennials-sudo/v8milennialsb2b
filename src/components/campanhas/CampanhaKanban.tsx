@@ -447,6 +447,12 @@ export function CampanhaKanban({
     setActiveId(event.active.id as string);
   };
 
+  // Helper to check if a stage is a "reunião marcada" stage
+  const isReuniaoMarcadaStage = (stageName: string): boolean => {
+    const normalized = stageName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return normalized.includes("reuniao") || normalized.includes("meeting") || normalized.includes("marcada");
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -464,13 +470,22 @@ export function CampanhaKanban({
       const lead = leads.find((l) => l.id === leadId);
       if (!lead || lead.stage_id === targetLead.stage_id) return;
 
+      // Get the target lead's stage to check if it's reunião marcada
+      const targetLeadStage = stages.find((s) => s.id === targetLead.stage_id);
+
       try {
         await updateLead.mutateAsync({
           id: leadId,
           campanha_id: campanhaId,
           stage_id: targetLead.stage_id,
         });
-        toast.success("Lead movido com sucesso");
+        
+        // If moved to a "reunião marcada" stage, automatically trigger move to confirmação
+        if (targetLeadStage && isReuniaoMarcadaStage(targetLeadStage.name)) {
+          onMoveToConfirmacao(lead);
+        } else {
+          toast.success("Lead movido com sucesso");
+        }
       } catch (error) {
         toast.error("Erro ao mover lead");
       }
@@ -486,7 +501,13 @@ export function CampanhaKanban({
         campanha_id: campanhaId,
         stage_id: targetStage.id,
       });
-      toast.success("Lead movido com sucesso");
+      
+      // If moved to a "reunião marcada" stage, automatically trigger move to confirmação
+      if (isReuniaoMarcadaStage(targetStage.name)) {
+        onMoveToConfirmacao(lead);
+      } else {
+        toast.success("Lead movido com sucesso");
+      }
     } catch (error) {
       toast.error("Erro ao mover lead");
     }
