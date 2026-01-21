@@ -18,10 +18,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { CampanhaStage, CampanhaLead, useUpdateCampanhaLead, useDeleteCampanhaLead } from "@/hooks/useCampanhas";
 import { useDeleteLead } from "@/hooks/useLeads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { Phone, Mail, Building2, GripVertical, User, DollarSign, Star, Tag, Trash2, Edit2, Filter, MessageSquare } from "lucide-react";
+import { Phone, Mail, Building2, GripVertical, User, DollarSign, Star, Tag, Trash2, Edit2, Filter, MessageSquare, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { LeadDetailModal } from "@/components/leads/LeadDetailModal";
@@ -51,6 +52,7 @@ interface KanbanCardProps {
   onCardClick: (leadId: string) => void;
   onEdit: (leadId: string) => void;
   onDelete: (lead: CampanhaLead) => void;
+  onUpdateNotes: (leadId: string, notes: string) => Promise<void>;
 }
 
 const originLabels: Record<string, string> = {
@@ -102,7 +104,11 @@ const formatFaturamento = (value: string): string => {
   return formatted;
 };
 
-function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onEdit, onDelete }: KanbanCardProps) {
+function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onEdit, onDelete, onUpdateNotes }: KanbanCardProps) {
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState(lead.notes || "");
+  const [isSaving, setIsSaving] = useState(false);
+  
   const {
     attributes,
     listeners,
@@ -120,12 +126,27 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onE
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[data-drag-handle]')) {
+    if (target.closest('button') || target.closest('[data-drag-handle]') || target.closest('textarea')) {
       return;
     }
     if (lead.lead_id) {
       onCardClick(lead.lead_id);
     }
+  };
+
+  const handleSaveNotes = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateNotes(lead.id, notesValue);
+      setIsEditingNotes(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelNotes = () => {
+    setNotesValue(lead.notes || "");
+    setIsEditingNotes(false);
   };
 
   const leadData = lead.lead;
@@ -301,9 +322,57 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onE
             )}
           </div>
 
-          {/* Notes preview */}
+          {/* Campaign-specific Notes (editable) */}
+          <div className="space-y-1">
+            {isEditingNotes ? (
+              <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                <Textarea
+                  value={notesValue}
+                  onChange={(e) => setNotesValue(e.target.value)}
+                  placeholder="Adicionar observações sobre este lead..."
+                  className="text-xs min-h-[60px] resize-none"
+                  autoFocus
+                />
+                <div className="flex gap-1 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={handleCancelNotes}
+                    disabled={isSaving}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-success hover:text-success"
+                    onClick={handleSaveNotes}
+                    disabled={isSaving}
+                  >
+                    <Save className="w-3 h-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded p-1.5 cursor-pointer hover:bg-muted transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditingNotes(true);
+                }}
+              >
+                <MessageSquare className="w-3 h-3 mt-0.5 shrink-0" />
+                <span className={`line-clamp-2 ${!lead.notes ? "italic" : ""}`}>
+                  {lead.notes || "Clique para adicionar observações..."}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Lead notes from the lead table (read-only) */}
           {leadData?.notes && (
-            <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/50 rounded p-1.5">
+            <div className="flex items-start gap-1.5 text-xs text-muted-foreground/70 rounded p-1.5 border border-dashed border-border">
               <MessageSquare className="w-3 h-3 mt-0.5 shrink-0" />
               <span className="line-clamp-2">{leadData.notes}</span>
             </div>
@@ -337,6 +406,7 @@ function KanbanColumn({
   onCardClick,
   onEdit,
   onDelete,
+  onUpdateNotes,
 }: {
   stage: CampanhaStage;
   leads: CampanhaLead[];
@@ -345,6 +415,7 @@ function KanbanColumn({
   onCardClick: (leadId: string) => void;
   onEdit: (leadId: string) => void;
   onDelete: (lead: CampanhaLead) => void;
+  onUpdateNotes: (leadId: string, notes: string) => Promise<void>;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: stage.id,
@@ -387,6 +458,7 @@ function KanbanColumn({
               onCardClick={onCardClick}
               onEdit={onEdit}
               onDelete={onDelete}
+              onUpdateNotes={onUpdateNotes}
             />
           ))}
         </SortableContext>
@@ -451,6 +523,21 @@ export function CampanhaKanban({
   const isReuniaoMarcadaStage = (stageName: string): boolean => {
     const normalized = stageName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     return normalized.includes("reuniao") || normalized.includes("meeting") || normalized.includes("marcada");
+  };
+
+  // Handle updating notes for a campaign lead
+  const handleUpdateNotes = async (leadId: string, notes: string) => {
+    try {
+      await updateLead.mutateAsync({
+        id: leadId,
+        campanha_id: campanhaId,
+        notes,
+      });
+      toast.success("Observação salva");
+    } catch (error) {
+      toast.error("Erro ao salvar observação");
+      throw error;
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -599,6 +686,7 @@ export function CampanhaKanban({
               onCardClick={handleCardClick}
               onEdit={handleEdit}
               onDelete={setDeleteTarget}
+              onUpdateNotes={handleUpdateNotes}
             />
           ))}
         </div>
