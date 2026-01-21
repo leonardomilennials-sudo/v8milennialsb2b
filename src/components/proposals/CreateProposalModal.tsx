@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, User, Building2, Star, DollarSign, Clock, Calendar, Package, FileText } from "lucide-react";
+import { Search, User, Building2, Star, DollarSign, Clock, Calendar, Package, Plus, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Dialog,
@@ -24,8 +24,15 @@ import { useLeads } from "@/hooks/useLeads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
 import { useActiveProducts } from "@/hooks/useProducts";
+import { useCreateManyPipePropostaItems } from "@/hooks/usePipePropostaItems";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+interface ProductItem {
+  id: string;
+  product_id: string;
+  sale_value: string;
+}
 
 interface CreateProposalModalProps {
   open: boolean;
@@ -47,23 +54,25 @@ export function CreateProposalModal({
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(preselectedLeadId || null);
   
   const [formData, setFormData] = useState({
-    product_type: "" as "mrr" | "projeto" | "",
-    product_id: "",
-    sale_value: "",
-    contract_duration: "",
     closer_id: "",
+    contract_duration: "",
     commitment_date: "",
     notes: "",
   });
+
+  const [productItems, setProductItems] = useState<ProductItem[]>([
+    { id: crypto.randomUUID(), product_id: "", sale_value: "" }
+  ]);
 
   const { data: leads = [], isLoading: leadsLoading } = useLeads();
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: products = [] } = useActiveProducts();
   const createProposta = useCreatePipeProposta();
+  const createManyItems = useCreateManyPipePropostaItems();
 
   const closers = teamMembers.filter(m => m.role === "closer" && m.is_active);
 
-  // Filter leads that don't already have a proposal
+  // Filter leads
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
       const matchesSearch = searchTerm === "" || 
@@ -84,14 +93,12 @@ export function CreateProposalModal({
         setSearchTerm("");
         if (!preselectedLeadId) setSelectedLeadId(null);
         setFormData({
-          product_type: "",
-          product_id: "",
-          sale_value: "",
-          contract_duration: "",
           closer_id: "",
+          contract_duration: "",
           commitment_date: "",
           notes: "",
         });
+        setProductItems([{ id: crypto.randomUUID(), product_id: "", sale_value: "" }]);
       }, 200);
     }
   }, [open, preselectedLeadId]);
@@ -108,19 +115,42 @@ export function CreateProposalModal({
     setStep("proposal-details");
   };
 
+  const handleAddProduct = () => {
+    setProductItems([...productItems, { id: crypto.randomUUID(), product_id: "", sale_value: "" }]);
+  };
+
+  const handleRemoveProduct = (id: string) => {
+    if (productItems.length === 1) return;
+    setProductItems(productItems.filter(item => item.id !== id));
+  };
+
+  const handleProductChange = (id: string, field: "product_id" | "sale_value", value: string) => {
+    setProductItems(productItems.map(item => {
+      if (item.id !== id) return item;
+      
+      // Auto-fill value when product is selected
+      if (field === "product_id") {
+        const selectedProduct = products.find(p => p.id === value);
+        return {
+          ...item,
+          product_id: value,
+          sale_value: selectedProduct?.ticket?.toString() || item.sale_value,
+        };
+      }
+      
+      return { ...item, [field]: value };
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!selectedLeadId) {
       toast.error("Selecione um lead");
       return;
     }
 
-    if (!formData.product_type) {
-      toast.error("Tipo de produto é obrigatório");
-      return;
-    }
-
-    if (!formData.sale_value) {
-      toast.error("Valor da venda é obrigatório");
+    const validProducts = productItems.filter(item => item.product_id && item.sale_value);
+    if (validProducts.length === 0) {
+      toast.error("Adicione pelo menos um produto com valor");
       return;
     }
 
@@ -130,17 +160,38 @@ export function CreateProposalModal({
     }
 
     try {
-      await createProposta.mutateAsync({
+      // Calculate total value and determine product type
+      const totalValue = validProducts.reduce((sum, item) => sum + Number(item.sale_value), 0);
+      const productTypes = validProducts.map(item => {
+        const product = products.find(p => p.id === item.product_id);
+        return product?.type;
+      }).filter(Boolean);
+      
+      const hasOnlyMrr = productTypes.every(t => t === "mrr");
+      const hasOnlyProjeto = productTypes.every(t => t === "projeto");
+      const mainProductType = hasOnlyMrr ? "mrr" : hasOnlyProjeto ? "projeto" : null;
+
+      // Create the proposal
+      const proposta = await createProposta.mutateAsync({
         lead_id: selectedLeadId,
         status: "marcar_compromisso",
-        product_type: formData.product_type as "mrr" | "projeto",
-        product_id: formData.product_id || null,
-        sale_value: Number(formData.sale_value),
+        product_type: mainProductType,
+        product_id: validProducts.length === 1 ? validProducts[0].product_id : null,
+        sale_value: totalValue,
         contract_duration: formData.contract_duration ? Number(formData.contract_duration) : null,
         closer_id: formData.closer_id,
         commitment_date: formData.commitment_date ? new Date(formData.commitment_date).toISOString() : null,
         notes: formData.notes || null,
       });
+
+      // Create the product items
+      await createManyItems.mutateAsync(
+        validProducts.map(item => ({
+          pipe_proposta_id: proposta.id,
+          product_id: item.product_id,
+          sale_value: Number(item.sale_value),
+        }))
+      );
 
       toast.success("🎉 Proposta criada com sucesso!");
       onOpenChange(false);
@@ -159,9 +210,11 @@ export function CreateProposalModal({
     }).format(value);
   };
 
+  const totalValue = productItems.reduce((sum, item) => sum + (Number(item.sale_value) || 0), 0);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
@@ -294,57 +347,115 @@ export function CreateProposalModal({
                 </div>
               )}
 
-              {/* Proposal Form */}
-              <div className="space-y-4">
-                {/* Product Selection */}
-                <div className="grid gap-2">
-                  <Label>Produto *</Label>
-                  <Select
-                    value={formData.product_id}
-                    onValueChange={(v) => {
-                      const selectedProduct = products.find(p => p.id === v);
-                      setFormData({ 
-                        ...formData, 
-                        product_id: v,
-                        product_type: selectedProduct?.type || "",
-                        sale_value: selectedProduct?.ticket?.toString() || formData.sale_value,
-                      });
-                    }}
+              {/* Products Section */}
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Produtos *</Label>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAddProduct}
+                    className="gap-1.5"
                   >
-                    <SelectTrigger className={!formData.product_id ? "border-destructive/50" : ""}>
-                      <SelectValue placeholder="Selecionar produto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={p.type === "mrr" ? "default" : "secondary"} className="text-xs">
-                              {p.type === "mrr" ? "MRR" : "Projeto"}
-                            </Badge>
-                            {p.name}
+                    <Plus className="w-3.5 h-3.5" />
+                    Adicionar Produto
+                  </Button>
+                </div>
+                
+                <div className="space-y-3">
+                  {productItems.map((item, index) => {
+                    const selectedProduct = products.find(p => p.id === item.product_id);
+                    return (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="flex gap-3 items-start p-3 border rounded-lg bg-muted/30"
+                      >
+                        <div className="flex-1 grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Produto</Label>
+                            <Select
+                              value={item.product_id}
+                              onValueChange={(v) => handleProductChange(item.id, "product_id", v)}
+                            >
+                              <SelectTrigger className={!item.product_id ? "border-destructive/50" : ""}>
+                                <SelectValue placeholder="Selecionar produto" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map(p => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    <div className="flex items-center gap-2">
+                                      <Badge 
+                                        variant={p.type === "mrr" ? "default" : "secondary"} 
+                                        className="text-xs"
+                                      >
+                                        {p.type === "mrr" ? "MRR" : "Projeto"}
+                                      </Badge>
+                                      {p.name}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Valor (R$)</Label>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                type="number"
+                                value={item.sale_value}
+                                onChange={(e) => handleProductChange(item.id, "sale_value", e.target.value)}
+                                placeholder="10000"
+                                className={cn("pl-9", !item.sale_value && "border-destructive/50")}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        {productItems.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10 mt-5"
+                            onClick={() => handleRemoveProduct(item.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
+                {/* Total Value Summary */}
+                {totalValue > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-success/10 border border-success/20 rounded-lg"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        {productItems.filter(i => i.product_id && i.sale_value).length} produto(s)
+                      </span>
+                      <div className="flex items-center gap-2 text-success">
+                        <DollarSign className="w-5 h-5" />
+                        <span className="font-semibold text-lg">
+                          {formatCurrency(totalValue)}
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Other Form Fields */}
+              <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Tipo de Produto *</Label>
-                    <Select
-                      value={formData.product_type}
-                      onValueChange={(v) => setFormData({ ...formData, product_type: v as any })}
-                    >
-                      <SelectTrigger className={!formData.product_type ? "border-destructive/50" : ""}>
-                        <SelectValue placeholder="Selecionar tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mrr">MRR (Recorrente)</SelectItem>
-                        <SelectItem value="projeto">Projeto (Único)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                   <div className="grid gap-2">
                     <Label>Closer Responsável *</Label>
                     <Select
@@ -360,28 +471,6 @@ export function CreateProposalModal({
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="sale_value">Valor da Venda (R$) *</Label>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="sale_value"
-                        type="number"
-                        value={formData.sale_value}
-                        onChange={(e) => setFormData({ ...formData, sale_value: e.target.value })}
-                        placeholder="10000"
-                        className={cn("pl-9", !formData.sale_value && "border-destructive/50")}
-                      />
-                    </div>
-                    {formData.product_type === "mrr" && formData.sale_value && (
-                      <p className="text-xs text-muted-foreground">
-                        Valor mensal recorrente
-                      </p>
-                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="duration">Duração do Contrato (meses)</Label>
@@ -423,28 +512,6 @@ export function CreateProposalModal({
                     rows={3}
                   />
                 </div>
-
-                {/* Value Summary */}
-                {formData.sale_value && formData.product_type && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-success/10 border border-success/20 rounded-lg"
-                  >
-                    <div className="flex items-center gap-2 text-success">
-                      <DollarSign className="w-5 h-5" />
-                      <span className="font-semibold text-lg">
-                        {formatCurrency(Number(formData.sale_value))}
-                        {formData.product_type === "mrr" && "/mês"}
-                      </span>
-                    </div>
-                    {formData.product_type === "mrr" && formData.contract_duration && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Valor total do contrato: {formatCurrency(Number(formData.sale_value) * Number(formData.contract_duration))}
-                      </p>
-                    )}
-                  </motion.div>
-                )}
               </div>
             </motion.div>
           )}
@@ -464,9 +531,9 @@ export function CreateProposalModal({
             {step === "proposal-details" && (
               <Button 
                 onClick={handleSubmit}
-                disabled={createProposta.isPending}
+                disabled={createProposta.isPending || createManyItems.isPending}
               >
-                {createProposta.isPending ? "Criando..." : "Criar Proposta"}
+                {createProposta.isPending || createManyItems.isPending ? "Criando..." : "Criar Proposta"}
               </Button>
             )}
           </div>
