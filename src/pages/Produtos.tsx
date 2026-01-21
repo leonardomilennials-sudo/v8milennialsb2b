@@ -88,10 +88,10 @@ export default function Produtos() {
                       <div>
                         <CardTitle className="text-lg">{product.name}</CardTitle>
                         <Badge
-                          variant={product.type === "mrr" ? "default" : "secondary"}
+                          variant={product.type === "mrr" ? "default" : product.type === "unitario" ? "outline" : "secondary"}
                           className="mt-1"
                         >
-                          {product.type === "mrr" ? "MRR" : "Projeto"}
+                          {product.type === "mrr" ? "MRR" : product.type === "unitario" ? "Unitário" : "Projeto"}
                         </Badge>
                       </div>
                     </div>

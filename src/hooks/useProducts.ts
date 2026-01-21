@@ -2,10 +2,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type ProductType = "mrr" | "projeto" | "unitario";
+
 export interface Product {
   id: string;
   name: string;
-  type: "mrr" | "projeto";
+  type: ProductType;
   ticket: number | null;
   ticket_minimo: number | null;
   entregaveis: string | null;
