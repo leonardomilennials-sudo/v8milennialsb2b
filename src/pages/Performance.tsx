@@ -716,6 +716,7 @@ export default function Performance() {
       target_value: data.target_value,
       current_value: 0,
       team_member_id: data.team_member_id || null,
+      product_id: null,
       month: data.month,
       year: data.year,
     };

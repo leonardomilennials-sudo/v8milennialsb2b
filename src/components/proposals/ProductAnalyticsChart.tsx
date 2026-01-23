@@ -249,7 +249,7 @@ export function ProductAnalyticsChart({ data }: ProductAnalyticsChartProps) {
         </Card>
       </div>
 
-      {/* Product Table */}
+      {/* Detailed Product Table */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -258,58 +258,113 @@ export function ProductAnalyticsChart({ data }: ProductAnalyticsChartProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {data
-              .sort((a, b) => b.soldValue - a.soldValue)
-              .map((product, index) => (
-                <motion.div
-                  key={product.productId}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <div>
-                      <p className="font-medium">{product.productName}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] px-1.5 py-0 h-4",
-                            product.productType === "mrr"
-                              ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-2 font-medium text-muted-foreground">Produto</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Tipo</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Propostas</th>
+                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor em Proposta</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Vendas</th>
+                  <th className="text-right py-3 px-2 font-medium text-muted-foreground">Valor Vendido</th>
+                  <th className="text-center py-3 px-2 font-medium text-muted-foreground">Conversão</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data
+                  .sort((a, b) => b.soldValue - a.soldValue)
+                  .map((product, index) => {
+                    const conversionRate = product.proposalCount > 0 
+                      ? Math.round((product.soldCount / product.proposalCount) * 100)
+                      : 0;
+                    return (
+                      <motion.tr
+                        key={product.productId}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                      >
+                        <td className="py-3 px-2">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-2.5 h-2.5 rounded-full shrink-0"
+                              style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                            />
+                            <span className="font-medium">{product.productName}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-[10px] px-1.5 py-0 h-4",
+                              product.productType === "mrr"
+                                ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                                : product.productType === "unitario"
+                                ? "bg-warning/10 text-warning border-warning/20"
+                                : "bg-primary/10 text-primary border-primary/20"
+                            )}
+                          >
+                            {product.productType === "mrr"
+                              ? "MRR"
                               : product.productType === "unitario"
-                              ? "bg-warning/10 text-warning border-warning/20"
-                              : "bg-primary/10 text-primary border-primary/20"
-                          )}
-                        >
-                          {product.productType === "mrr"
-                            ? "MRR"
-                            : product.productType === "unitario"
-                            ? "Unitário"
-                            : "Projeto"}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {product.proposalCount} propostas
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-success">
-                      {formatCurrency(product.soldValue)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {product.soldCount} vendas
-                    </p>
-                  </div>
-                </motion.div>
-              ))}
+                              ? "Unitário"
+                              : "Projeto"}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="font-medium">{product.proposalCount}</span>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <span className="text-chart-5 font-medium">
+                            {formatCurrency(product.proposalValue)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="font-medium text-success">{product.soldCount}</span>
+                        </td>
+                        <td className="py-3 px-2 text-right">
+                          <span className="text-success font-semibold">
+                            {formatCurrency(product.soldValue)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs",
+                              conversionRate >= 50 
+                                ? "bg-success/10 text-success border-success/20"
+                                : conversionRate >= 25
+                                ? "bg-warning/10 text-warning border-warning/20"
+                                : "bg-muted text-muted-foreground"
+                            )}
+                          >
+                            {conversionRate}%
+                          </Badge>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+              </tbody>
+              <tfoot>
+                <tr className="bg-muted/30 font-medium">
+                  <td className="py-3 px-2">Total</td>
+                  <td className="py-3 px-2 text-center">{data.length} produtos</td>
+                  <td className="py-3 px-2 text-center">{totals.proposals}</td>
+                  <td className="py-3 px-2 text-right text-chart-5">{formatCurrency(totals.proposalValue)}</td>
+                  <td className="py-3 px-2 text-center text-success">{totals.sold}</td>
+                  <td className="py-3 px-2 text-right text-success font-bold">{formatCurrency(totals.soldValue)}</td>
+                  <td className="py-3 px-2 text-center">
+                    <Badge variant="outline" className="text-xs">
+                      {totals.proposals > 0 ? Math.round((totals.sold / totals.proposals) * 100) : 0}%
+                    </Badge>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </CardContent>
       </Card>

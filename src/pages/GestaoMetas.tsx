@@ -33,6 +33,7 @@ import {
 import { useGoals, useCreateGoal, useUpdateGoal, Goal } from "@/hooks/useGoals";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { useIsAdmin } from "@/hooks/useUserRole";
+import { useActiveProducts } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -49,6 +50,7 @@ const goalTypes = [
   { value: "reunioes", label: "Reuniões", icon: "📅" },
   { value: "conversao", label: "Taxa de Conversão", icon: "📈" },
   { value: "vendas", label: "Vendas (Individual)", icon: "🎯" },
+  { value: "produto", label: "Meta por Produto", icon: "📦" },
 ];
 
 interface GoalFormData {
@@ -56,6 +58,7 @@ interface GoalFormData {
   type: string;
   target_value: number;
   team_member_id: string | null;
+  product_id: string | null;
   month: number;
   year: number;
 }
@@ -72,6 +75,7 @@ export default function GestaoMetas() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const { data: goals = [], isLoading: goalsLoading } = useGoals(selectedMonth, selectedYear);
   const { data: teamMembers = [] } = useTeamMembers();
+  const { data: products = [] } = useActiveProducts();
   const createGoal = useCreateGoal();
   const updateGoal = useUpdateGoal();
 
@@ -80,14 +84,16 @@ export default function GestaoMetas() {
     type: "faturamento",
     target_value: 0,
     team_member_id: null,
+    product_id: null,
     month: selectedMonth,
     year: selectedYear,
   });
 
   const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
 
-  const teamGoals = goals.filter(g => !g.team_member_id);
-  const individualGoals = goals.filter(g => g.team_member_id);
+  const teamGoals = goals.filter(g => !g.team_member_id && !g.product_id);
+  const individualGoals = goals.filter(g => g.team_member_id && !g.product_id);
+  const productGoals = goals.filter(g => g.product_id);
 
   const handleOpenDialog = (goal?: Goal) => {
     if (goal) {
@@ -97,6 +103,7 @@ export default function GestaoMetas() {
         type: goal.type,
         target_value: goal.target_value,
         team_member_id: goal.team_member_id,
+        product_id: goal.product_id,
         month: goal.month,
         year: goal.year,
       });
@@ -107,6 +114,7 @@ export default function GestaoMetas() {
         type: "faturamento",
         target_value: 0,
         team_member_id: null,
+        product_id: null,
         month: selectedMonth,
         year: selectedYear,
       });
@@ -123,6 +131,7 @@ export default function GestaoMetas() {
       target_value: formData.target_value,
       current_value: 0,
       team_member_id: formData.team_member_id || null,
+      product_id: formData.product_id || null,
       month: formData.month,
       year: formData.year,
     };
@@ -158,12 +167,22 @@ export default function GestaoMetas() {
     return teamMembers.find(m => m.id === memberId)?.name || "Desconhecido";
   };
 
+  const getProductName = (productId: string | null) => {
+    if (!productId) return null;
+    return products.find(p => p.id === productId)?.name || "Produto";
+  };
+
+  const getProductType = (productId: string | null) => {
+    if (!productId) return null;
+    return products.find(p => p.id === productId)?.type || "projeto";
+  };
+
   const getGoalTypeInfo = (type: string) => {
     return goalTypes.find(t => t.value === type) || { label: type, icon: "🎯" };
   };
 
   const formatValue = (type: string, value: number) => {
-    if (type === "faturamento" || type === "vendas") {
+    if (type === "faturamento" || type === "vendas" || type === "produto") {
       return `R$ ${value.toLocaleString("pt-BR")}`;
     }
     if (type === "conversao") return `${value}%`;
@@ -375,6 +394,87 @@ export default function GestaoMetas() {
               )}
             </CardContent>
           </Card>
+
+          {/* Product Goals */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="text-lg">📦</span>
+                Metas por Produto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {productGoals.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma meta por produto configurada para {months[selectedMonth - 1]} {selectedYear}.
+                </p>
+              ) : (
+                <div className="grid gap-3">
+                  {productGoals.map((goal) => {
+                    const productType = getProductType(goal.product_id);
+                    return (
+                      <div
+                        key={goal.id}
+                        className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-lg">📦</span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{getProductName(goal.product_id) || goal.name}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge 
+                                variant="outline" 
+                                className={
+                                  productType === "mrr"
+                                    ? "bg-chart-5/10 text-chart-5 border-chart-5/20"
+                                    : productType === "unitario"
+                                    ? "bg-warning/10 text-warning border-warning/20"
+                                    : "bg-primary/10 text-primary border-primary/20"
+                                }
+                              >
+                                {productType === "mrr" ? "MRR" : productType === "unitario" ? "Unitário" : "Projeto"}
+                              </Badge>
+                              {goal.team_member_id && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {getMemberName(goal.team_member_id)}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-primary">
+                              {formatValue(goal.type, goal.target_value)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Meta</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(goal)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteGoalId(goal.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -426,6 +526,31 @@ export default function GestaoMetas() {
                 required
               />
             </div>
+
+            {/* Product Selection - show when type is 'produto' */}
+            {formData.type === "produto" && (
+              <div className="grid gap-2">
+                <Label htmlFor="product_id">Produto</Label>
+                <Select
+                  value={formData.product_id || ""}
+                  onValueChange={(value) => setFormData({ 
+                    ...formData, 
+                    product_id: value || null 
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} ({product.type === "mrr" ? "MRR" : product.type === "unitario" ? "Unitário" : "Projeto"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="team_member_id">Membro do Time (opcional)</Label>
