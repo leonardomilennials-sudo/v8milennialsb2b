@@ -27,6 +27,7 @@ import { QuickAddDailyAction } from "@/components/proposals/QuickAddDailyAction"
 import { CommitmentDateModal } from "@/components/proposals/CommitmentDateModal";
 import { DaysUntilMeeting } from "@/components/proposals/DaysUntilMeeting";
 import { CalorAnalyticsChart } from "@/components/proposals/CalorAnalyticsChart";
+import { ProductAnalyticsChart } from "@/components/proposals/ProductAnalyticsChart";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -269,6 +270,7 @@ export default function PipePropostas() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedProposta, setSelectedProposta] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "analytics">("kanban");
+  const [analyticsTab, setAnalyticsTab] = useState<"propostas" | "produtos">("propostas");
   
   // State for commitment date modal
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -481,6 +483,54 @@ export default function PipePropostas() {
     });
 
     return Object.values(grouped);
+  }, [pipeData]);
+
+  // Product data for analytics
+  const productData = useMemo(() => {
+    if (!pipeData) return [];
+
+    const productMap = new Map<string, {
+      productId: string;
+      productName: string;
+      productType: "mrr" | "projeto" | "unitario";
+      proposalCount: number;
+      proposalValue: number;
+      soldCount: number;
+      soldValue: number;
+    }>();
+
+    pipeData.forEach((proposta) => {
+      const items = proposta.items || [];
+      const isSold = proposta.status === "vendido";
+
+      items.forEach((item: any) => {
+        if (!item.product) return;
+        
+        const productId = item.product.id;
+        const existing = productMap.get(productId);
+        
+        if (existing) {
+          existing.proposalCount += 1;
+          existing.proposalValue += item.sale_value || 0;
+          if (isSold) {
+            existing.soldCount += 1;
+            existing.soldValue += item.sale_value || 0;
+          }
+        } else {
+          productMap.set(productId, {
+            productId,
+            productName: item.product.name,
+            productType: item.product.type as "mrr" | "projeto" | "unitario",
+            proposalCount: 1,
+            proposalValue: item.sale_value || 0,
+            soldCount: isSold ? 1 : 0,
+            soldValue: isSold ? (item.sale_value || 0) : 0,
+          });
+        }
+      });
+    });
+
+    return Array.from(productMap.values());
   }, [pipeData]);
 
   const formatCurrency = (value: number) => {
@@ -846,121 +896,156 @@ export default function PipePropostas() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="grid md:grid-cols-2 gap-6"
+            className="space-y-6"
           >
-            {/* Funnel */}
-            <div className="glass-card p-6">
-              <h3 className="font-semibold mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-primary" />
-                Funil de Vendas
-              </h3>
-              <FunnelChart 
-                title="Pipeline"
-                steps={funnelData.map(stage => ({
-                  label: stage.name,
-                  value: stage.count,
-                  color: `bg-[${stage.color}]`,
-                }))}
-              />
-            </div>
+            {/* Analytics Tabs */}
+            <Tabs value={analyticsTab} onValueChange={(v) => setAnalyticsTab(v as any)}>
+              <TabsList className="bg-muted/50">
+                <TabsTrigger value="propostas" className="gap-1.5">
+                  <TrendingUp className="w-4 h-4" />
+                  Propostas
+                </TabsTrigger>
+                <TabsTrigger value="produtos" className="gap-1.5">
+                  <Package className="w-4 h-4" />
+                  Produtos
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-            {/* Calor Analysis */}
-            <div className="glass-card p-6">
-              <h3 className="font-semibold mb-6 flex items-center gap-2">
-                <Flame className="w-5 h-5 text-destructive" />
-                Propostas por Calor
-              </h3>
-              <CalorAnalyticsChart data={calorData} />
-            </div>
+            <AnimatePresence mode="wait">
+              {analyticsTab === "propostas" ? (
+                <motion.div
+                  key="propostas-analytics"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="grid md:grid-cols-2 gap-6"
+                >
+                  {/* Funnel */}
+                  <div className="glass-card p-6">
+                    <h3 className="font-semibold mb-6 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                      Funil de Vendas
+                    </h3>
+                    <FunnelChart 
+                      title="Pipeline"
+                      steps={funnelData.map(stage => ({
+                        label: stage.name,
+                        value: stage.count,
+                        color: `bg-[${stage.color}]`,
+                      }))}
+                    />
+                  </div>
 
-            {/* By Closer */}
-            <div className="glass-card p-6">
-              <h3 className="font-semibold mb-6 flex items-center gap-2">
-                <User className="w-5 h-5 text-primary" />
-                Performance por Closer
-              </h3>
-              <div className="space-y-4">
-                {closers.map(closer => {
-                  const closerProposals = pipeData?.filter(p => p.closer_id === closer.id) || [];
-                  const closerValue = closerProposals.reduce((sum, p) => sum + (p.sale_value || 0), 0);
-                  const closerSold = closerProposals.filter(p => p.status === "vendido");
-                  const closerSoldValue = closerSold.reduce((sum, p) => sum + (p.sale_value || 0), 0);
+                  {/* Calor Analysis */}
+                  <div className="glass-card p-6">
+                    <h3 className="font-semibold mb-6 flex items-center gap-2">
+                      <Flame className="w-5 h-5 text-destructive" />
+                      Propostas por Calor
+                    </h3>
+                    <CalorAnalyticsChart data={calorData} />
+                  </div>
 
-                  return (
-                    <div key={closer.id} className="flex items-center justify-between p-3 rounded-lg border">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{closer.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {closerProposals.length} propostas
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-success">{formatCurrency(closerSoldValue)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {closerSold.length} vendas
+                  {/* By Closer */}
+                  <div className="glass-card p-6">
+                    <h3 className="font-semibold mb-6 flex items-center gap-2">
+                      <User className="w-5 h-5 text-primary" />
+                      Performance por Closer
+                    </h3>
+                    <div className="space-y-4">
+                      {closers.map(closer => {
+                        const closerProposals = pipeData?.filter(p => p.closer_id === closer.id) || [];
+                        const closerValue = closerProposals.reduce((sum, p) => sum + (p.sale_value || 0), 0);
+                        const closerSold = closerProposals.filter(p => p.status === "vendido");
+                        const closerSoldValue = closerSold.reduce((sum, p) => sum + (p.sale_value || 0), 0);
+
+                        return (
+                          <div key={closer.id} className="flex items-center justify-between p-3 rounded-lg border">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <User className="w-5 h-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{closer.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {closerProposals.length} propostas
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-success">{formatCurrency(closerSoldValue)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {closerSold.length} vendas
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {closers.length === 0 && (
+                        <p className="text-center text-muted-foreground py-4">
+                          Nenhum closer cadastrado
                         </p>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
 
-                {closers.length === 0 && (
-                  <p className="text-center text-muted-foreground py-4">
-                    Nenhum closer cadastrado
-                  </p>
-                )}
-              </div>
-            </div>
+                  {/* Recent Sales */}
+                  <div className="glass-card p-6">
+                    <h3 className="font-semibold mb-6 flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-success" />
+                      Vendas Recentes
+                    </h3>
+                    <div className="space-y-3">
+                      {pipeData?.filter(p => p.status === "vendido")
+                        .sort((a, b) => new Date(b.closed_at || 0).getTime() - new Date(a.closed_at || 0).getTime())
+                        .slice(0, 5)
+                        .map(sale => (
+                          <motion.div
+                            key={sale.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex items-center justify-between p-4 rounded-lg border bg-success/5 border-success/20"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                                <TrendingUp className="w-5 h-5 text-success" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{sale.lead?.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {sale.lead?.company} • {sale.closer?.name}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-success">{formatCurrency(sale.sale_value || 0)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {sale.closed_at && format(new Date(sale.closed_at), "dd/MM/yyyy", { locale: ptBR })}
+                              </p>
+                            </div>
+                          </motion.div>
+                        ))}
 
-            {/* Recent Sales */}
-            <div className="glass-card p-6">
-              <h3 className="font-semibold mb-6 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-success" />
-                Vendas Recentes
-              </h3>
-              <div className="space-y-3">
-                {pipeData?.filter(p => p.status === "vendido")
-                  .sort((a, b) => new Date(b.closed_at || 0).getTime() - new Date(a.closed_at || 0).getTime())
-                  .slice(0, 5)
-                  .map(sale => (
-                    <motion.div
-                      key={sale.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-success/5 border-success/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                          <TrendingUp className="w-5 h-5 text-success" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{sale.lead?.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {sale.lead?.company} • {sale.closer?.name}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-success">{formatCurrency(sale.sale_value || 0)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {sale.closed_at && format(new Date(sale.closed_at), "dd/MM/yyyy", { locale: ptBR })}
+                      {!pipeData?.some(p => p.status === "vendido") && (
+                        <p className="text-center text-muted-foreground py-8">
+                          Nenhuma venda fechada ainda
                         </p>
-                      </div>
-                    </motion.div>
-                  ))}
-
-                {!pipeData?.some(p => p.status === "vendido") && (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nenhuma venda fechada ainda
-                  </p>
-                )}
-              </div>
-            </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="produtos-analytics"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <ProductAnalyticsChart data={productData} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
