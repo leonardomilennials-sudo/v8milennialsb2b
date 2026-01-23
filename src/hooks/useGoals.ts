@@ -11,6 +11,7 @@ export interface Goal {
   month: number;
   year: number;
   team_member_id: string | null;
+  product_id: string | null;
   created_at: string;
   updated_at: string;
 }
