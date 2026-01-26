@@ -7,9 +7,9 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { CampanhaStage, CampanhaMember } from "@/hooks/useCampanhas";
-import { useImportLeads } from "@/hooks/useImportLeads";
+import { useImportLeads, LeadType, ParsedLead } from "@/hooks/useImportLeads";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, Users, RefreshCw } from "lucide-react";
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Loader2, Sparkles, Users, RefreshCw, FileText, Image } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface ImportLeadsModalProps {
@@ -25,9 +25,11 @@ interface PreviewLead {
   company?: string;
   phone?: string;
   email?: string;
+  faturamento?: string;
+  origin?: string;
 }
 
-type Step = "upload" | "preview" | "importing" | "complete";
+type Step = "type" | "upload" | "preview" | "importing" | "complete";
 
 export function ImportLeadsModal({
   open,
@@ -36,7 +38,8 @@ export function ImportLeadsModal({
   stages,
   members,
 }: ImportLeadsModalProps) {
-  const [step, setStep] = useState<Step>("upload");
+  const [step, setStep] = useState<Step>("type");
+  const [leadType, setLeadType] = useState<LeadType>("kommo");
   const [file, setFile] = useState<File | null>(null);
   const [previewLeads, setPreviewLeads] = useState<PreviewLead[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
@@ -46,13 +49,22 @@ export function ImportLeadsModal({
   const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { parseCSV, importLeads, resetImport, isImporting, progress, result } = useImportLeads();
+  const { parseCSV, parseMetaExcel, importLeads, resetImport, isImporting, progress, result } = useImportLeads();
 
   // Set default stage to first stage (Lead)
   const defaultStage = stages.find(s => s.position === 0) || stages[0];
 
+  const acceptedFormats = leadType === "meta" ? ".xlsx,.xls" : ".csv";
+
   const handleFileSelect = useCallback(async (selectedFile: File) => {
-    if (!selectedFile.name.endsWith(".csv")) {
+    const fileName = selectedFile.name.toLowerCase();
+    
+    if (leadType === "meta" && !fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
+      toast.error("Por favor, selecione um arquivo Excel (.xlsx)");
+      return;
+    }
+    
+    if (leadType === "kommo" && !fileName.endsWith(".csv")) {
       toast.error("Por favor, selecione um arquivo CSV");
       return;
     }
@@ -60,21 +72,26 @@ export function ImportLeadsModal({
     setFile(selectedFile);
     
     try {
-      const leads = await parseCSV(selectedFile);
+      const leads: ParsedLead[] = leadType === "meta" 
+        ? await parseMetaExcel(selectedFile)
+        : await parseCSV(selectedFile);
+      
       setTotalLeads(leads.length);
       setPreviewLeads(leads.slice(0, 10).map(l => ({
         name: l.name,
         company: l.company,
         phone: l.phone,
         email: l.email,
+        faturamento: l.faturamento,
+        origin: l.origin,
       })));
       setSelectedStageId(defaultStage?.id || "");
       setStep("preview");
     } catch (error) {
-      console.error("Error parsing CSV:", error);
-      toast.error("Erro ao processar arquivo CSV");
+      console.error("Error parsing file:", error);
+      toast.error(`Erro ao processar arquivo ${leadType === "meta" ? "Excel" : "CSV"}`);
     }
-  }, [parseCSV, defaultStage]);
+  }, [parseCSV, parseMetaExcel, defaultStage, leadType]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -112,7 +129,8 @@ export function ImportLeadsModal({
         selectedStageId,
         autoDistribute ? undefined : (selectedSdrId === "none" ? undefined : selectedSdrId || undefined),
         autoDistribute,
-        autoDistribute ? memberIds : undefined
+        autoDistribute ? memberIds : undefined,
+        leadType
       );
       setStep("complete");
     } catch (error) {
@@ -123,7 +141,8 @@ export function ImportLeadsModal({
   };
 
   const handleClose = () => {
-    setStep("upload");
+    setStep("type");
+    setLeadType("kommo");
     setFile(null);
     setPreviewLeads([]);
     setTotalLeads(0);
@@ -145,6 +164,66 @@ export function ImportLeadsModal({
         </DialogHeader>
 
         <AnimatePresence mode="wait">
+          {/* Step 1: Choose Lead Type */}
+          {step === "type" && (
+            <motion.div
+              key="type"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <p className="text-sm text-muted-foreground">
+                Selecione o tipo de lead que deseja importar:
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setLeadType("kommo")}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    leadType === "kommo"
+                      ? "border-primary bg-primary/10"
+                      : "border-muted hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${leadType === "kommo" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium">Lead Kommo</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Arquivo CSV exportado do Kommo CRM
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => setLeadType("meta")}
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    leadType === "meta"
+                      ? "border-primary bg-primary/10"
+                      : "border-muted hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${leadType === "meta" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                      <Image className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium">Lead Meta</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Arquivo Excel do Meta Ads (Facebook/Instagram)
+                  </p>
+                </button>
+              </div>
+
+              <Button className="w-full" onClick={() => setStep("upload")}>
+                Continuar
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Step 2: Upload File */}
           {step === "upload" && (
             <motion.div
               key="upload"
@@ -153,6 +232,18 @@ export function ImportLeadsModal({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4"
             >
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <div className={`p-1.5 rounded ${leadType === "meta" ? "bg-blue-500/20 text-blue-500" : "bg-amber-500/20 text-amber-500"}`}>
+                  {leadType === "meta" ? <Image className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                </div>
+                <span className="text-sm font-medium">
+                  {leadType === "meta" ? "Lead Meta (Excel)" : "Lead Kommo (CSV)"}
+                </span>
+                <Button variant="ghost" size="sm" className="ml-auto text-xs" onClick={() => setStep("type")}>
+                  Alterar
+                </Button>
+              </div>
+
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
@@ -165,7 +256,9 @@ export function ImportLeadsModal({
                 }`}
               >
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
-                <p className="font-medium">Arraste o arquivo CSV aqui</p>
+                <p className="font-medium">
+                  Arraste o arquivo {leadType === "meta" ? "Excel" : "CSV"} aqui
+                </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   ou clique para selecionar
                 </p>
@@ -174,19 +267,24 @@ export function ImportLeadsModal({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept={acceptedFormats}
                 onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
                 className="hidden"
               />
 
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">
-                  <strong>Formato esperado:</strong> CSV exportado do Kommo com colunas como "Nome completo", "Celular", "Email comercial", etc.
+                  {leadType === "meta" ? (
+                    <><strong>Formato esperado:</strong> Excel (.xlsx) exportado do Meta Ads com colunas como "nome_completo", "telefone", "qual_o_faturamento_mensal", etc.</>
+                  ) : (
+                    <><strong>Formato esperado:</strong> CSV exportado do Kommo com colunas como "Nome completo", "Celular", "Email comercial", etc.</>
+                  )}
                 </p>
               </div>
             </motion.div>
           )}
 
+          {/* Step 3: Preview */}
           {step === "preview" && (
             <motion.div
               key="preview"
@@ -196,12 +294,12 @@ export function ImportLeadsModal({
               className="space-y-4"
             >
               {/* File info */}
-              <div className="flex items-center gap-3 p-3 bg-primary/10 rounded-lg">
-                <FileSpreadsheet className="w-8 h-8 text-primary" />
+              <div className={`flex items-center gap-3 p-3 rounded-lg ${leadType === "meta" ? "bg-blue-500/10" : "bg-primary/10"}`}>
+                <FileSpreadsheet className={`w-8 h-8 ${leadType === "meta" ? "text-blue-500" : "text-primary"}`} />
                 <div>
                   <p className="font-medium text-sm">{file?.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {totalLeads} leads encontrados
+                    {totalLeads} leads encontrados • {leadType === "meta" ? "Meta Ads" : "Kommo"}
                   </p>
                 </div>
               </div>
@@ -215,7 +313,7 @@ export function ImportLeadsModal({
                       <div key={index} className="p-2 bg-muted/30 rounded text-sm">
                         <p className="font-medium">{lead.name}</p>
                         <p className="text-xs text-muted-foreground">
-                          {[lead.company, lead.phone, lead.email].filter(Boolean).join(" • ") || "Sem informações adicionais"}
+                          {[lead.company, lead.phone, lead.faturamento].filter(Boolean).join(" • ") || "Sem informações adicionais"}
                         </p>
                       </div>
                     ))}
