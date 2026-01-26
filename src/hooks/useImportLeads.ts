@@ -2,6 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
+
+export type LeadType = "kommo" | "meta";
 
 interface ImportResult {
   total: number;
@@ -12,7 +15,7 @@ interface ImportResult {
   distribution?: Record<string, number>;
 }
 
-interface ParsedLead {
+export interface ParsedLead {
   name: string;
   company?: string;
   phone?: string;
@@ -21,6 +24,7 @@ interface ParsedLead {
   segment?: string;
   notes?: string;
   kommoBlock?: string;
+  metaBlock?: string;
   utm_campaign?: string;
   utm_source?: string;
   utm_medium?: string;
@@ -37,6 +41,8 @@ export function useImportLeads() {
 
   const KOMMO_BLOCK_START = "--- Kommo (campos) ---";
   const KOMMO_BLOCK_END = "--- /Kommo (campos) ---";
+  const META_BLOCK_START = "--- Meta Ads (campos) ---";
+  const META_BLOCK_END = "--- /Meta Ads (campos) ---";
 
   const normalizeHeader = (value: string) =>
     value
@@ -64,16 +70,18 @@ export function useImportLeads() {
       .replace(/_/g, " ")
       .replace(/r\$/gi, "R$")
       .replace(/\s+/g, " ")
+      .replace(/\./g, "")
       .trim();
     
     // Map common patterns to standardized format
     const lower = normalized.toLowerCase();
     
-    if (lower.includes("+1") && lower.includes("milhão")) return "+1 Milhão";
+    if (lower.includes("+1") && lower.includes("milh")) return "+1 Milhão";
     if (lower.includes("500") && lower.includes("1 milh")) return "R$500 mil a R$1 milhão";
     if (lower.includes("250") && lower.includes("500")) return "R$250 mil a R$500 mil";
     if (lower.includes("100") && lower.includes("250")) return "R$100 mil a R$250 mil";
     if (lower.includes("50") && lower.includes("100")) return "R$50 mil a R$100 mil";
+    if (lower.includes("até") && lower.includes("50")) return "Até R$50 mil";
     
     return normalized;
   };
@@ -554,6 +562,166 @@ export function useImportLeads() {
     });
   };
 
+  // Parse Meta Ads Excel file
+  const parseMetaExcel = async (file: File): Promise<ParsedLead[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json<Record<string, string>>(worksheet, { defval: "" });
+          
+          console.log("Meta Excel Columns found:", rows.length > 0 ? Object.keys(rows[0]) : []);
+          
+          const leads: ParsedLead[] = [];
+          
+          for (const row of rows) {
+            // Helper to find column by pattern
+            const getColumn = (patterns: string[]): string => {
+              for (const pattern of patterns) {
+                const normalizedPattern = normalizeHeader(pattern);
+                const foundKey = Object.keys(row).find(k => normalizeHeader(k).includes(normalizedPattern));
+                if (foundKey && row[foundKey]?.trim()) return row[foundKey].trim();
+              }
+              return "";
+            };
+            
+            // NOME - from nome_completo, separating person/company if contains |
+            let rawName = getColumn(["nome_completo", "nome completo", "full_name"]);
+            let name: string | undefined;
+            let company: string | undefined;
+            
+            // Check for explicit company column first
+            const explicitCompany = getColumn(["qual_o_nome_da_sua_empresa", "nome_da_empresa", "empresa", "company"]);
+            if (explicitCompany) {
+              company = explicitCompany;
+            }
+            
+            // Parse name (may contain "Person | Company" format)
+            if (rawName) {
+              const separators = [" | ", "|", " l ", " L "];
+              let parsed = false;
+              for (const sep of separators) {
+                if (rawName.includes(sep)) {
+                  const parts = rawName.split(sep).map(p => p.trim()).filter(Boolean);
+                  if (parts.length >= 2) {
+                    // First is usually person, second is company
+                    name = parts[0];
+                    if (!company) company = parts[1];
+                    parsed = true;
+                    break;
+                  }
+                }
+              }
+              if (!parsed) {
+                name = rawName;
+              }
+            }
+            
+            if (!name) continue;
+            
+            // TELEFONE - remove p: prefix and format
+            let phone = getColumn(["telefone", "phone", "celular", "whatsapp"]);
+            if (phone) {
+              // Remove common prefixes like "p:" or "P:"
+              phone = phone.replace(/^p:/i, "").trim();
+            }
+            
+            // Skip if no phone
+            if (!phone) continue;
+            
+            // EMAIL
+            const email = getColumn(["email", "e-mail", "e_mail"]);
+            
+            // FATURAMENTO - normalize Meta's format
+            let faturamento = getColumn([
+              "qual_o_faturamento_mensal",
+              "faturamento_mensal",
+              "faturamento",
+              "qual o faturamento",
+              "qual é o faturamento"
+            ]);
+            if (faturamento) {
+              faturamento = normalizeFaturamento(faturamento);
+            }
+            
+            // PLATFORM → UTM_SOURCE
+            let platform = getColumn(["platform", "plataforma"]);
+            let utm_source = "meta_ads";
+            if (platform) {
+              if (platform.toLowerCase() === "ig") utm_source = "instagram";
+              else if (platform.toLowerCase() === "fb") utm_source = "facebook";
+              else utm_source = platform.toLowerCase();
+            }
+            
+            // CAMPAIGN → UTM_CAMPAIGN
+            const utm_campaign = getColumn(["campaign_name", "campaign", "campanha"]);
+            
+            // AD_NAME → UTM_CONTENT
+            const utm_content = getColumn(["ad_name", "ad", "anuncio"]);
+            
+            // ADSET_NAME → UTM_MEDIUM
+            const utm_medium = getColumn(["adset_name", "adset", "conjunto"]);
+            
+            // ID and created_time for notes
+            const metaId = getColumn(["id", "lead_id"]);
+            const createdTime = getColumn(["created_time", "created_at", "data_criacao"]);
+            
+            // Build Meta block for notes
+            const metaLines: string[] = [META_BLOCK_START];
+            if (metaId) metaLines.push(`ID: ${metaId}`);
+            if (createdTime) {
+              // Format date if possible
+              let dateStr = createdTime;
+              try {
+                const date = new Date(createdTime);
+                if (!isNaN(date.getTime())) {
+                  dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                }
+              } catch {
+                // Keep original
+              }
+              metaLines.push(`Data: ${dateStr}`);
+            }
+            if (utm_campaign) metaLines.push(`Campanha: ${utm_campaign}`);
+            if (utm_content) metaLines.push(`Anúncio: ${utm_content}`);
+            if (utm_medium) metaLines.push(`Conjunto: ${utm_medium}`);
+            if (platform) metaLines.push(`Plataforma: ${platform === "ig" ? "Instagram" : platform === "fb" ? "Facebook" : platform}`);
+            metaLines.push(META_BLOCK_END);
+            
+            const metaBlock = metaLines.length > 2 ? metaLines.join("\n") : undefined;
+            
+            leads.push({
+              name,
+              company,
+              phone,
+              email: email || undefined,
+              faturamento: faturamento || undefined,
+              origin: "meta_ads",
+              utm_source,
+              utm_campaign: utm_campaign || undefined,
+              utm_medium: utm_medium || undefined,
+              utm_content: utm_content || undefined,
+              metaBlock,
+            });
+          }
+          
+          resolve(leads);
+        } catch (error) {
+          console.error("Error parsing Meta Excel:", error);
+          reject(error);
+        }
+      };
+      
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
   const formatPhone = (phone: string): string => {
     // Remove all non-numeric characters
     const digits = phone.replace(/\D/g, "");
@@ -577,16 +745,19 @@ export function useImportLeads() {
     stageId: string,
     sdrId?: string,
     autoDistribute?: boolean,
-    memberIds?: string[]
+    memberIds?: string[],
+    leadType: LeadType = "kommo"
   ): Promise<ImportResult> => {
     setIsImporting(true);
     setProgress(0);
     setResult(null);
 
     try {
-      // 1. Parse CSV
-      const parsedLeads = await parseCSV(file);
-      console.log(`Parsed ${parsedLeads.length} leads from CSV`);
+      // 1. Parse file based on type
+      const parsedLeads = leadType === "meta" 
+        ? await parseMetaExcel(file)
+        : await parseCSV(file);
+      console.log(`Parsed ${parsedLeads.length} leads from ${leadType === "meta" ? "Excel" : "CSV"}`);
 
       if (parsedLeads.length === 0) {
         throw new Error("Nenhum lead válido encontrado no arquivo");
@@ -608,8 +779,14 @@ export function useImportLeads() {
         if (l.phone) existingLeadsMap.set(l.phone, l);
       });
 
-      // 3. Create or get import tag
-      const tagName = "Importação Kommo - Janeiro 2026";
+      // 3. Create or get import tag - dynamic based on type and month
+      const now = new Date();
+      const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", 
+                          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      const tagName = leadType === "meta"
+        ? `Importação Meta - ${monthNames[now.getMonth()]} ${now.getFullYear()}`
+        : `Importação Kommo - ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+      const tagColor = leadType === "meta" ? "#3b82f6" : "#f59e0b"; // Blue for Meta, Amber for Kommo
       let tagId: string;
 
       const { data: existingTag } = await supabase
@@ -623,7 +800,7 @@ export function useImportLeads() {
       } else {
         const { data: newTag, error: tagError } = await supabase
           .from("tags")
-          .insert({ name: tagName, color: "#f59e0b" })
+          .insert({ name: tagName, color: tagColor })
           .select("id")
           .single();
         
@@ -685,8 +862,9 @@ export function useImportLeads() {
                 updates.rating = lead.rating;
               }
 
-              // Merge notes (keeps existing notes + updates Kommo block without duplicating)
-              const mergedNotes = mergeNotes(existingLead.notes, lead.notes, lead.kommoBlock);
+              // Merge notes (keeps existing notes + updates Kommo/Meta block without duplicating)
+              const notesBlock = lead.kommoBlock || lead.metaBlock;
+              const mergedNotes = mergeNotes(existingLead.notes, lead.notes, notesBlock);
               if (mergedNotes && mergedNotes !== (existingLead.notes || "")) {
                 updates.notes = mergedNotes;
               }
@@ -749,6 +927,9 @@ export function useImportLeads() {
             }
 
             // Insert new lead
+            const notesBlock = lead.kommoBlock || lead.metaBlock;
+            const leadOrigin = lead.origin === "meta_ads" ? "meta_ads" as const : "outro" as const;
+            
             const { data: newLead, error: leadError } = await supabase
               .from("leads")
               .insert({
@@ -758,8 +939,8 @@ export function useImportLeads() {
                 email: lead.email,
                 faturamento: lead.faturamento,
                 segment: lead.segment,
-                notes: mergeNotes(undefined, lead.notes, lead.kommoBlock),
-                origin: "outro" as const,
+                notes: mergeNotes(undefined, lead.notes, notesBlock),
+                origin: leadOrigin,
                 rating: lead.rating || 0,
                 utm_campaign: lead.utm_campaign,
                 utm_source: lead.utm_source,
@@ -926,6 +1107,7 @@ export function useImportLeads() {
 
   return {
     parseCSV,
+    parseMetaExcel,
     importLeads,
     resetImport,
     fixExistingLeadNames,
