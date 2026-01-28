@@ -867,6 +867,7 @@ export type Database = {
           contract_duration: number | null
           created_at: string
           id: string
+          is_contract_signed: boolean | null
           lead_id: string
           notes: string | null
           product_id: string | null
@@ -883,6 +884,7 @@ export type Database = {
           contract_duration?: number | null
           created_at?: string
           id?: string
+          is_contract_signed?: boolean | null
           lead_id: string
           notes?: string | null
           product_id?: string | null
@@ -899,6 +901,7 @@ export type Database = {
           contract_duration?: number | null
           created_at?: string
           id?: string
+          is_contract_signed?: boolean | null
           lead_id?: string
           notes?: string | null
           product_id?: string | null
