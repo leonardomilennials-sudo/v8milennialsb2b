@@ -62,16 +62,23 @@ interface ProposalCard extends DraggableItem {
   commitmentDate?: Date;
   leadId?: string;
   items: ProposalItem[];
+  status?: string;
+  isContractSigned?: boolean;
 }
 
 import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { CheckCircle2, FileSignature } from "lucide-react";
 
 function ProposalCardComponent({ 
   proposal, 
-  onCalorChange 
+  onCalorChange,
+  onContractSign,
 }: { 
   proposal: ProposalCard; 
   onCalorChange: (calor: number) => void;
+  onContractSign?: (propostaId: string) => void;
 }) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -86,11 +93,30 @@ function ProposalCardComponent({
   const hasMixedTypes = proposal.items.some(i => i.product?.type === "mrr") && 
                         proposal.items.some(i => i.product?.type === "projeto");
 
+  const isSoldStatus = proposal.status === "vendido";
+  const isContractSigned = proposal.isContractSigned === true;
+
+  // Determine card styling based on contract status
+  const getCardStyle = () => {
+    if (!isSoldStatus) return "";
+    if (isContractSigned) return "ring-2 ring-green-500/50 border-green-500/30";
+    return "ring-2 ring-blue-500/50 border-blue-500/30";
+  };
+
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -2 }}
-      className="kanban-card group cursor-pointer"
+      className={cn("kanban-card group cursor-pointer relative overflow-hidden", getCardStyle())}
     >
+      {/* Contract status strip for sold proposals */}
+      {isSoldStatus && (
+        isContractSigned ? (
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-green-500 via-green-400 to-green-500" />
+        ) : (
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500" />
+        )
+      )}
+
       {/* Quick Actions Row */}
       <div className="flex items-center justify-between mb-2">
         <CalorSlider 
@@ -226,6 +252,41 @@ function ProposalCardComponent({
         </div>
       )}
 
+      {/* Contract Confirmation Button for Sold Status */}
+      {isSoldStatus && (
+        <div className="flex items-center gap-2 mb-3 pt-2 border-t border-border/50">
+          <Button
+            variant={isContractSigned ? "default" : "outline"}
+            size="sm"
+            className={cn(
+              "h-7 px-2 text-xs font-medium transition-all flex-1",
+              isContractSigned 
+                ? "bg-green-500 hover:bg-green-600 text-white"
+                : "border-blue-500/50 text-blue-500 hover:bg-blue-500/10"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isContractSigned && onContractSign) {
+                onContractSign(proposal.id);
+              }
+            }}
+            disabled={isContractSigned}
+          >
+            {isContractSigned ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Contrato Assinado
+              </>
+            ) : (
+              <>
+                <FileSignature className="w-3 h-3 mr-1" />
+                Assinar Contrato / Sinal
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Meeting Date & Days Until */}
       <div className="flex items-center justify-between pt-2 border-t border-border">
         <div className="flex items-center gap-2">
@@ -335,6 +396,8 @@ export default function PipePropostas() {
           type: i.product.type,
         } : undefined,
       })),
+      status: item.status,
+      isContractSigned: item.is_contract_signed ?? false,
     };
   };
 
@@ -646,6 +709,24 @@ export default function PipePropostas() {
     }
   };
 
+  // Handle contract sign
+  const handleContractSign = async (propostaId: string) => {
+    try {
+      const { error } = await supabase
+        .from("pipe_propostas")
+        .update({ is_contract_signed: true })
+        .eq("id", propostaId);
+
+      if (error) throw error;
+
+      refetch();
+      toast.success("✅ Contrato/Sinal confirmado!");
+    } catch (error) {
+      toast.error("Erro ao confirmar contrato");
+      console.error(error);
+    }
+  };
+
   // Render column footer with total value
   const renderColumnFooter = (column: KanbanColumn<ProposalCard>) => (
     <div className="mb-3 p-2 rounded-lg bg-background/50">
@@ -884,6 +965,7 @@ export default function PipePropostas() {
                   <ProposalCardComponent 
                     proposal={card} 
                     onCalorChange={(calor) => handleCalorChange(card.id, calor)}
+                    onContractSign={handleContractSign}
                   />
                 </div>
               )}
