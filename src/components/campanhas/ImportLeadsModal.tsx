@@ -49,22 +49,24 @@ export function ImportLeadsModal({
   const [isDragging, setIsDragging] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { parseCSV, parseMetaExcel, importLeads, resetImport, isImporting, progress, result } = useImportLeads();
+  const { parseCSV, parseMetaExcel, parseMetaCSV, importLeads, resetImport, isImporting, progress, result } = useImportLeads();
 
   // Set default stage to first stage (Lead)
   const defaultStage = stages.find(s => s.position === 0) || stages[0];
 
-  const acceptedFormats = leadType === "meta" ? ".xlsx,.xls" : ".csv";
+  const acceptedFormats = leadType === "meta" ? ".xlsx,.xls,.csv" : ".csv";
 
   const handleFileSelect = useCallback(async (selectedFile: File) => {
     const fileName = selectedFile.name.toLowerCase();
+    const isCSV = fileName.endsWith(".csv");
+    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
     
-    if (leadType === "meta" && !fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
-      toast.error("Por favor, selecione um arquivo Excel (.xlsx)");
+    if (leadType === "meta" && !isExcel && !isCSV) {
+      toast.error("Por favor, selecione um arquivo Excel (.xlsx) ou CSV");
       return;
     }
     
-    if (leadType === "kommo" && !fileName.endsWith(".csv")) {
+    if (leadType === "kommo" && !isCSV) {
       toast.error("Por favor, selecione um arquivo CSV");
       return;
     }
@@ -72,9 +74,13 @@ export function ImportLeadsModal({
     setFile(selectedFile);
     
     try {
-      const leads: ParsedLead[] = leadType === "meta" 
-        ? await parseMetaExcel(selectedFile)
-        : await parseCSV(selectedFile);
+      let leads: ParsedLead[];
+      if (leadType === "meta") {
+        // Meta can be Excel or CSV
+        leads = isExcel ? await parseMetaExcel(selectedFile) : await parseMetaCSV(selectedFile);
+      } else {
+        leads = await parseCSV(selectedFile);
+      }
       
       setTotalLeads(leads.length);
       setPreviewLeads(leads.slice(0, 10).map(l => ({
@@ -257,7 +263,7 @@ export function ImportLeadsModal({
               >
                 <Upload className={`w-12 h-12 mx-auto mb-4 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
                 <p className="font-medium">
-                  Arraste o arquivo {leadType === "meta" ? "Excel" : "CSV"} aqui
+                  Arraste o arquivo {leadType === "meta" ? "Excel ou CSV" : "CSV"} aqui
                 </p>
                 <p className="text-sm text-muted-foreground mt-1">
                   ou clique para selecionar
@@ -275,7 +281,7 @@ export function ImportLeadsModal({
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-xs text-muted-foreground">
                   {leadType === "meta" ? (
-                    <><strong>Formato esperado:</strong> Excel (.xlsx) exportado do Meta Ads com colunas como "nome_completo", "telefone", "qual_o_faturamento_mensal", etc.</>
+                    <><strong>Formato esperado:</strong> Excel (.xlsx) ou CSV exportado do Meta Ads com colunas como "full_name", "phone_number", "qual_o_faturamento_mensal", etc.</>
                   ) : (
                     <><strong>Formato esperado:</strong> CSV exportado do Kommo com colunas como "Nome completo", "Celular", "Email comercial", etc.</>
                   )}

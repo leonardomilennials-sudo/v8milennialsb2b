@@ -562,6 +562,144 @@ export function useImportLeads() {
     });
   };
 
+  // Shared logic for parsing Meta rows (used by both Excel and CSV parsers)
+  const parseMetaRows = (rows: Record<string, string>[]): ParsedLead[] => {
+    const leads: ParsedLead[] = [];
+    
+    for (const row of rows) {
+      // Helper to find column by pattern
+      const getColumn = (patterns: string[]): string => {
+        for (const pattern of patterns) {
+          const normalizedPattern = normalizeHeader(pattern);
+          const foundKey = Object.keys(row).find(k => normalizeHeader(k).includes(normalizedPattern));
+          if (foundKey && row[foundKey]?.trim()) return row[foundKey].trim();
+        }
+        return "";
+      };
+      
+      // NOME - from nome_completo, full_name, separating person/company if contains |
+      let rawName = getColumn(["nome_completo", "nome completo", "full_name", "name"]);
+      let name: string | undefined;
+      let company: string | undefined;
+      
+      // Check for explicit company column first
+      const explicitCompany = getColumn(["qual_o_nome_da_sua_empresa", "nome_da_empresa", "empresa", "company"]);
+      if (explicitCompany) {
+        company = explicitCompany;
+      }
+      
+      // Parse name (may contain "Person | Company" format)
+      if (rawName) {
+        const separators = [" | ", "|", " l ", " L "];
+        let parsed = false;
+        for (const sep of separators) {
+          if (rawName.includes(sep)) {
+            const parts = rawName.split(sep).map(p => p.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+              // First is usually person, second is company
+              name = parts[0];
+              if (!company) company = parts[1];
+              parsed = true;
+              break;
+            }
+          }
+        }
+        if (!parsed) {
+          name = rawName;
+        }
+      }
+      
+      if (!name) continue;
+      
+      // TELEFONE - remove p: prefix and format, support multiple column names
+      let phone = getColumn(["telefone", "phone", "phone_number", "celular", "whatsapp"]);
+      if (phone) {
+        // Remove common prefixes like "p:" or "P:" and "+" for standardization
+        phone = phone.replace(/^p:/i, "").trim();
+      }
+      
+      // Skip if no phone
+      if (!phone) continue;
+      
+      // EMAIL
+      const email = getColumn(["email", "e-mail", "e_mail"]);
+      
+      // FATURAMENTO - normalize Meta's format
+      let faturamento = getColumn([
+        "qual_o_faturamento_mensal",
+        "faturamento_mensal",
+        "faturamento",
+        "qual o faturamento",
+        "qual é o faturamento"
+      ]);
+      if (faturamento) {
+        faturamento = normalizeFaturamento(faturamento);
+      }
+      
+      // PLATFORM → UTM_SOURCE
+      let platform = getColumn(["platform", "plataforma"]);
+      let utm_source = "meta_ads";
+      if (platform) {
+        if (platform.toLowerCase() === "ig") utm_source = "instagram";
+        else if (platform.toLowerCase() === "fb") utm_source = "facebook";
+        else utm_source = platform.toLowerCase();
+      }
+      
+      // CAMPAIGN → UTM_CAMPAIGN
+      const utm_campaign = getColumn(["campaign_name", "campaign", "campanha"]);
+      
+      // AD_NAME → UTM_CONTENT
+      const utm_content = getColumn(["ad_name", "ad", "anuncio"]);
+      
+      // ADSET_NAME → UTM_MEDIUM
+      const utm_medium = getColumn(["adset_name", "adset", "conjunto"]);
+      
+      // ID and created_time for notes
+      const metaId = getColumn(["id", "lead_id"]);
+      const createdTime = getColumn(["created_time", "created_at", "data_criacao"]);
+      
+      // Build Meta block for notes
+      const metaLines: string[] = [META_BLOCK_START];
+      if (metaId) metaLines.push(`ID: ${metaId}`);
+      if (createdTime) {
+        // Format date if possible
+        let dateStr = createdTime;
+        try {
+          const date = new Date(createdTime);
+          if (!isNaN(date.getTime())) {
+            dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+          }
+        } catch {
+          // Keep original
+        }
+        metaLines.push(`Data: ${dateStr}`);
+      }
+      if (utm_campaign) metaLines.push(`Campanha: ${utm_campaign}`);
+      if (utm_content) metaLines.push(`Anúncio: ${utm_content}`);
+      if (utm_medium) metaLines.push(`Conjunto: ${utm_medium}`);
+      if (platform) metaLines.push(`Plataforma: ${platform === "ig" ? "Instagram" : platform === "fb" ? "Facebook" : platform}`);
+      metaLines.push(META_BLOCK_END);
+      
+      const metaBlock = metaLines.length > 2 ? metaLines.join("\n") : undefined;
+      
+      leads.push({
+        name,
+        company,
+        phone,
+        email: email || undefined,
+        faturamento: faturamento || undefined,
+        origin: "meta_ads",
+        utm_source,
+        utm_campaign: utm_campaign || undefined,
+        utm_medium: utm_medium || undefined,
+        utm_content: utm_content || undefined,
+        metaBlock,
+      });
+    }
+    
+    return leads;
+  };
+
   // Parse Meta Ads Excel file
   const parseMetaExcel = async (file: File): Promise<ParsedLead[]> => {
     return new Promise((resolve, reject) => {
@@ -577,139 +715,7 @@ export function useImportLeads() {
           
           console.log("Meta Excel Columns found:", rows.length > 0 ? Object.keys(rows[0]) : []);
           
-          const leads: ParsedLead[] = [];
-          
-          for (const row of rows) {
-            // Helper to find column by pattern
-            const getColumn = (patterns: string[]): string => {
-              for (const pattern of patterns) {
-                const normalizedPattern = normalizeHeader(pattern);
-                const foundKey = Object.keys(row).find(k => normalizeHeader(k).includes(normalizedPattern));
-                if (foundKey && row[foundKey]?.trim()) return row[foundKey].trim();
-              }
-              return "";
-            };
-            
-            // NOME - from nome_completo, separating person/company if contains |
-            let rawName = getColumn(["nome_completo", "nome completo", "full_name"]);
-            let name: string | undefined;
-            let company: string | undefined;
-            
-            // Check for explicit company column first
-            const explicitCompany = getColumn(["qual_o_nome_da_sua_empresa", "nome_da_empresa", "empresa", "company"]);
-            if (explicitCompany) {
-              company = explicitCompany;
-            }
-            
-            // Parse name (may contain "Person | Company" format)
-            if (rawName) {
-              const separators = [" | ", "|", " l ", " L "];
-              let parsed = false;
-              for (const sep of separators) {
-                if (rawName.includes(sep)) {
-                  const parts = rawName.split(sep).map(p => p.trim()).filter(Boolean);
-                  if (parts.length >= 2) {
-                    // First is usually person, second is company
-                    name = parts[0];
-                    if (!company) company = parts[1];
-                    parsed = true;
-                    break;
-                  }
-                }
-              }
-              if (!parsed) {
-                name = rawName;
-              }
-            }
-            
-            if (!name) continue;
-            
-            // TELEFONE - remove p: prefix and format
-            let phone = getColumn(["telefone", "phone", "celular", "whatsapp"]);
-            if (phone) {
-              // Remove common prefixes like "p:" or "P:"
-              phone = phone.replace(/^p:/i, "").trim();
-            }
-            
-            // Skip if no phone
-            if (!phone) continue;
-            
-            // EMAIL
-            const email = getColumn(["email", "e-mail", "e_mail"]);
-            
-            // FATURAMENTO - normalize Meta's format
-            let faturamento = getColumn([
-              "qual_o_faturamento_mensal",
-              "faturamento_mensal",
-              "faturamento",
-              "qual o faturamento",
-              "qual é o faturamento"
-            ]);
-            if (faturamento) {
-              faturamento = normalizeFaturamento(faturamento);
-            }
-            
-            // PLATFORM → UTM_SOURCE
-            let platform = getColumn(["platform", "plataforma"]);
-            let utm_source = "meta_ads";
-            if (platform) {
-              if (platform.toLowerCase() === "ig") utm_source = "instagram";
-              else if (platform.toLowerCase() === "fb") utm_source = "facebook";
-              else utm_source = platform.toLowerCase();
-            }
-            
-            // CAMPAIGN → UTM_CAMPAIGN
-            const utm_campaign = getColumn(["campaign_name", "campaign", "campanha"]);
-            
-            // AD_NAME → UTM_CONTENT
-            const utm_content = getColumn(["ad_name", "ad", "anuncio"]);
-            
-            // ADSET_NAME → UTM_MEDIUM
-            const utm_medium = getColumn(["adset_name", "adset", "conjunto"]);
-            
-            // ID and created_time for notes
-            const metaId = getColumn(["id", "lead_id"]);
-            const createdTime = getColumn(["created_time", "created_at", "data_criacao"]);
-            
-            // Build Meta block for notes
-            const metaLines: string[] = [META_BLOCK_START];
-            if (metaId) metaLines.push(`ID: ${metaId}`);
-            if (createdTime) {
-              // Format date if possible
-              let dateStr = createdTime;
-              try {
-                const date = new Date(createdTime);
-                if (!isNaN(date.getTime())) {
-                  dateStr = date.toLocaleDateString("pt-BR") + " " + date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                }
-              } catch {
-                // Keep original
-              }
-              metaLines.push(`Data: ${dateStr}`);
-            }
-            if (utm_campaign) metaLines.push(`Campanha: ${utm_campaign}`);
-            if (utm_content) metaLines.push(`Anúncio: ${utm_content}`);
-            if (utm_medium) metaLines.push(`Conjunto: ${utm_medium}`);
-            if (platform) metaLines.push(`Plataforma: ${platform === "ig" ? "Instagram" : platform === "fb" ? "Facebook" : platform}`);
-            metaLines.push(META_BLOCK_END);
-            
-            const metaBlock = metaLines.length > 2 ? metaLines.join("\n") : undefined;
-            
-            leads.push({
-              name,
-              company,
-              phone,
-              email: email || undefined,
-              faturamento: faturamento || undefined,
-              origin: "meta_ads",
-              utm_source,
-              utm_campaign: utm_campaign || undefined,
-              utm_medium: utm_medium || undefined,
-              utm_content: utm_content || undefined,
-              metaBlock,
-            });
-          }
-          
+          const leads = parseMetaRows(rows);
           resolve(leads);
         } catch (error) {
           console.error("Error parsing Meta Excel:", error);
@@ -719,6 +725,27 @@ export function useImportLeads() {
       
       reader.onerror = () => reject(reader.error);
       reader.readAsArrayBuffer(file);
+    });
+  };
+
+  // Parse Meta Ads CSV file
+  const parseMetaCSV = (file: File): Promise<ParsedLead[]> => {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        encoding: "UTF-8",
+        complete: (results) => {
+          console.log("Meta CSV Columns found:", results.data.length > 0 ? Object.keys(results.data[0] as Record<string, string>) : []);
+          
+          const leads = parseMetaRows(results.data as Record<string, string>[]);
+          resolve(leads);
+        },
+        error: (error) => {
+          console.error("Error parsing Meta CSV:", error);
+          reject(error);
+        },
+      });
     });
   };
 
@@ -1108,6 +1135,7 @@ export function useImportLeads() {
   return {
     parseCSV,
     parseMetaExcel,
+    parseMetaCSV,
     importLeads,
     resetImport,
     fixExistingLeadNames,
