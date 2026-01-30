@@ -563,16 +563,20 @@ export function useImportLeads() {
   };
 
   // Shared logic for parsing Meta rows (used by both Excel and CSV parsers)
-  const parseMetaRows = (rows: Record<string, string>[]): ParsedLead[] => {
+  const parseMetaRows = (rows: Record<string, unknown>[]): ParsedLead[] => {
     const leads: ParsedLead[] = [];
     
     for (const row of rows) {
-      // Helper to find column by pattern
+      // Helper to find column by pattern - handles non-string values
       const getColumn = (patterns: string[]): string => {
         for (const pattern of patterns) {
           const normalizedPattern = normalizeHeader(pattern);
           const foundKey = Object.keys(row).find(k => normalizeHeader(k).includes(normalizedPattern));
-          if (foundKey && row[foundKey]?.trim()) return row[foundKey].trim();
+          if (foundKey && row[foundKey] != null) {
+            // Convert to string and trim
+            const value = String(row[foundKey]).trim();
+            if (value) return value;
+          }
         }
         return "";
       };
