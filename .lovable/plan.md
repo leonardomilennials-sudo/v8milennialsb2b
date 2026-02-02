@@ -1,114 +1,161 @@
 
-# Plano: Importação de Leads Meta Ads
-
-## Objetivo
-Criar um modal de importação que suporte dois tipos de leads:
-1. **Lead Kommo** - Formato CSV atual (já existente)
-2. **Lead Meta** - Novo formato Excel do Meta Ads
-
-Permitir que todos os vendedores possam importar leads (não apenas admins).
+# Plano: Reestruturação Completa do Módulo Upsell
 
 ## Resumo das Mudanças
 
-### 1. Interface do Modal de Importação
-- Adicionar seletor de tipo de lead no primeiro passo (Kommo ou Meta)
-- Suporte a arquivos Excel (.xlsx) além de CSV
-- Preview adaptado ao tipo selecionado
-- Aceitar drag-and-drop para ambos os formatos
+Este plano reestrutura o módulo de Upsell em 4 grandes blocos:
 
-### 2. Parsing de Leads Meta
-Criar função `parseMetaExcel` que extrai:
-- **Nome**: da coluna `nome_completo` (separando pessoa/empresa se tiver `|`)
-- **Empresa**: da coluna `qual_o_nome_da_sua_empresa?`
-- **Telefone**: da coluna `telefone` (removendo prefixo `p:`)
-- **Faturamento**: da coluna `qual_o_faturamento_mensal...` (normalizando valores)
-- **UTMs**: extrair do `campaign_name` do Meta
-- **Origem**: setar como "Meta Ads"
-- **Data de criação**: da coluna `created_time`
-- **Plataforma**: da coluna `platform` (ig/fb)
-
-### 3. Normalização de Faturamento Meta
-Converter formatos:
-- `+1_milhão.` → `+1 Milhão`
-- `até_r$50_mil` → `Até R$50 mil`
-- `r$100_mil_a_r$250_mil` → `R$100 mil a R$250 mil`
+1. **Novo Pipeline de Campanhas** com foco em valores planejados (MRR e Projeto)
+2. **Base de Clientes em formato Kanban** organizada por estágio do cliente
+3. **Metas de Upsell** integradas ao sistema de metas existente
+4. **Analytics atualizado** com métricas de planejado vs vendido
 
 ---
 
-## Detalhamento Tecnico
+## Parte 1: Novo Pipeline de Campanhas
+
+### Novas Colunas do Kanban
+Atualizar o fluxo de status para incluir etapa inicial "Cliente":
+- **Cliente** (cinza) - Cliente selecionado, sem planejamento
+- **Planejado** (azul) - Produto e valores definidos
+- **Abordado** (amarelo) - Contato realizado
+- **Interesse Gerado** (laranja) - Cliente demonstrou interesse
+- **Proposta Enviada** (azul forte) - Proposta formal enviada
+- **Vendido** (verde) - Fechado com sucesso
+- **Futuro** (roxo) - Para próximo ciclo
+- **Perdido** (vermelho) - Não converteu
+
+### Novos Campos na Campanha (Database)
+Adicionar colunas em `upsell_campanhas`:
+- `product_id` (UUID, FK para products) - Produto planejado
+- `mrr_planejado` (numeric) - MRR esperado se for produto recorrente
+- `projeto_planejado` (numeric) - Valor projeto se for produto pontual
+- `valor_produto` (numeric) - Preço negociado do produto
+
+### Card do Kanban Atualizado
+O card agora mostra informações focadas no upsell:
+- Nome do cliente (compacto)
+- Produto planejado (se definido)
+- MRR Planejado ou Projeto Planejado
+- Tipo de ação e canal
+- Responsável pela abordagem
+
+---
+
+## Parte 2: Base de Clientes em Kanban
+
+### Nova Visualização
+Trocar a tabela atual por um Kanban organizado por `tipo_cliente_tempo`:
+- **Onboarding** (0-30 dias)
+- **Recentes** (30-60 dias)
+- **Iniciantes** (60-90 dias)
+- **Momento-chave** (90-180 dias)
+- **Fiéis** (180-360 dias)
+- **Mavericks** (+1 ano)
+
+### Cards de Cliente
+Cada card exibe:
+- Nome do cliente
+- Setor
+- MRR Atual
+- LTV Atual
+- Potencial de expansão (badge colorido)
+- Responsável
+
+### Ações no Card
+- Clique: Abre modal de detalhes
+- Drag & drop: Permite mover entre estágios (atualiza tipo_cliente_tempo)
+
+---
+
+## Parte 3: Metas de Upsell
+
+### Novo Tipo de Meta
+Adicionar tipo "upsell" no sistema de metas existente:
+- **Meta MRR Upsell** - Meta de MRR adicional via expansão
+- **Meta Projeto Upsell** - Meta de projetos pontuais via base
+
+### Onde Aparece
+1. Na página de Gestão de Metas (`/metas`) - Seção dedicada "Metas de Upsell"
+2. No dashboard de campanhas - Widget de progresso no topo
+
+### Progresso Automático
+O sistema calcula automaticamente:
+- MRR Vendido = soma de `valor_fechado` onde produto.type = "mrr"
+- Projeto Vendido = soma de `valor_fechado` onde produto.type != "mrr"
+
+---
+
+## Parte 4: Analytics Atualizado
+
+### Novas Métricas no Topo
+- **MRR Planejado** - Soma de mrr_planejado das campanhas do mês
+- **MRR Vendido** - Soma de valor_fechado (produtos MRR) com status "vendido"
+- **Projeto Planejado** - Soma de projeto_planejado
+- **Projeto Vendido** - Soma de valor_fechado (produtos não-MRR) com status "vendido"
+- **Meta MRR** (se existir) - Barra de progresso
+- **Meta Projeto** (se existir) - Barra de progresso
+
+### Gráficos
+- Planejado vs Vendido (barras comparativas)
+- Funil de conversão por etapa
+- Performance por canal e tipo de ação
+
+---
+
+## Fluxo de Criação de Campanha Atualizado
+
+1. **Selecionar Cliente** (busca na base)
+2. **Escolher Produto** (lista de produtos ativos)
+3. **Definir Valor** (preço negociado)
+4. **Sistema calcula**:
+   - Se produto.type = "mrr" → preenche mrr_planejado
+   - Se produto.type != "mrr" → preenche projeto_planejado
+5. **Definir tipo de ação, canal, responsável**
+6. **Criar** → Status inicial = "planejado"
+
+---
+
+## Detalhes Técnicos
+
+### Alteração no Banco de Dados
+```sql
+ALTER TABLE upsell_campanhas
+ADD COLUMN product_id UUID REFERENCES products(id),
+ADD COLUMN mrr_planejado NUMERIC DEFAULT 0,
+ADD COLUMN projeto_planejado NUMERIC DEFAULT 0,
+ADD COLUMN valor_produto NUMERIC DEFAULT 0;
+```
 
 ### Arquivos a Modificar
 
-#### 1. `src/hooks/useImportLeads.ts`
-- Adicionar dependência: biblioteca para parsing de Excel (usar `xlsx` ou SheetJS)
-- Criar função `parseMetaExcel(file: File): Promise<ParsedLead[]>`
-  - Ler arquivo Excel com SheetJS
-  - Mapear colunas Meta para estrutura `ParsedLead`
-  - Normalizar telefone (remover `p:` e formatar)
-  - Normalizar faturamento
-  - Extrair informacoes de campanha/anuncio para notas
-- Atualizar `importLeads` para aceitar parâmetro `leadType: "kommo" | "meta"`
-- Criar tag dinâmica baseada no tipo (ex: "Importação Meta - Janeiro 2026")
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/hooks/useUpsell.ts` | Atualizar tipos e status columns |
+| `src/components/upsell/UpsellKanban.tsx` | Adicionar coluna "Cliente" |
+| `src/components/upsell/UpsellCard.tsx` | Mostrar produto e valores planejados |
+| `src/components/upsell/CreateCampanhaUpsellModal.tsx` | Adicionar seleção de produto e cálculo automático |
+| `src/components/upsell/UpsellDetailModal.tsx` | Adicionar campos de produto e valores |
+| `src/components/upsell/ClientesList.tsx` | Trocar tabela por Kanban |
+| `src/components/upsell/CampanhaAnalyticsSection.tsx` | Adicionar métricas planejado/vendido |
+| `src/pages/GestaoMetas.tsx` | Adicionar seção de metas upsell |
+| `src/hooks/useGoals.ts` | Suportar tipo "upsell" |
 
-#### 2. `src/components/campanhas/ImportLeadsModal.tsx`
-- Adicionar estado `leadType: "kommo" | "meta"`
-- Modificar step "upload":
-  - Adicionar toggle/selector para tipo de lead
-  - Atualizar texto e formatos aceitos baseado no tipo
-  - Aceitar `.xlsx` quando tipo for "meta"
-- Atualizar `handleFileSelect`:
-  - Chamar parser correto baseado no tipo
-- Ajustar preview para mostrar campos relevantes do Meta
+### Novos Componentes
 
-#### 3. Permissões (RLS ja ok)
-- O botão de importar já está visível para todos na página `CampanhaDetail`
-- As políticas RLS das tabelas `leads`, `campanha_leads` e `lead_tags` já permitem INSERT para `is_team_member()`
+| Componente | Descrição |
+|------------|-----------|
+| `ClientesKanban.tsx` | Kanban de clientes por estágio |
+| `ClienteCard.tsx` | Card de cliente para o Kanban |
+| `UpsellGoalWidget.tsx` | Widget de progresso da meta no dashboard |
 
-### Dependência a Instalar
-```
-npm install xlsx
-```
+---
 
-### Fluxo do Usuario
+## Ordem de Implementação
 
-```text
-+------------------+     +-------------------+     +------------------+
-|  1. Selecionar   | --> |  2. Upload do     | --> |  3. Preview e    |
-|  Tipo de Lead    |     |  Arquivo          |     |  Configurar      |
-|  (Kommo/Meta)    |     |  (.csv ou .xlsx)  |     |  Etapa/SDR       |
-+------------------+     +-------------------+     +------------------+
-                                                           |
-                                                           v
-                         +------------------+     +------------------+
-                         |  5. Resultado    | <-- |  4. Importando   |
-                         |  Final           |     |  (Progress)      |
-                         +------------------+     +------------------+
-```
-
-### Mapeamento de Colunas Meta
-
-| Coluna Excel | Campo Lead | Transformacao |
-|--------------|------------|---------------|
-| `nome_completo` | `name` | Separar nome/empresa por `\|` ou `l` |
-| `qual_o_nome_da_sua_empresa?` | `company` | Direto |
-| `telefone` | `phone` | Remover `p:`, formatar |
-| `qual_o_faturamento_mensal...` | `faturamento` | Normalizar |
-| `platform` | `utm_source` | `ig` → `instagram`, `fb` → `facebook` |
-| `campaign_name` | `utm_campaign` | Direto |
-| `ad_name` | `utm_content` | Direto |
-| `adset_name` | `utm_medium` | Direto |
-| `created_time` | nota | Registrar data original |
-| `id` | nota | ID original do Meta |
-
-### Exemplo de Bloco de Notas Meta
-
-```
---- Meta Ads (campos) ---
-ID: l:2224925607996947
-Data: 26/01/2026 06:30
-Campanha: 04.08.25 [LEADS META] [CBO] 60 dia
-Anuncio: AD2
-Conjunto: 24.11.25 Teste de Criativos
-Plataforma: Instagram
---- /Meta Ads (campos) ---
-```
+1. Migração do banco (adicionar colunas)
+2. Atualizar hooks e tipos TypeScript
+3. Implementar Kanban de Clientes
+4. Atualizar pipeline de Campanhas
+5. Implementar metas de Upsell
+6. Atualizar Analytics
