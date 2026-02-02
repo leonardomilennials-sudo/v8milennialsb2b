@@ -16,6 +16,7 @@ import {
   Edit2,
   Eye,
   ChevronDown,
+  Download,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,7 @@ import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useExportLeads } from "@/hooks/useExportLeads";
 
 const originLabels: Record<string, string> = {
   remarketing: "Remarketing",
@@ -164,6 +166,7 @@ export default function Leads() {
   const createLead = useCreateLead();
   const updateLead = useUpdateLead();
   const deleteLead = useDeleteLead();
+  const { exportToExcel, isExporting } = useExportLeads();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
 
@@ -277,10 +280,21 @@ export default function Leads() {
           </p>
         </div>
 
-        <Button onClick={() => handleOpenDialog()} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Lead
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={exportToExcel} 
+            disabled={isExporting}
+            className="gap-2"
+          >
+            <Download className="w-4 h-4" />
+            {isExporting ? "Exportando..." : "Exportar Excel"}
+          </Button>
+          <Button onClick={() => handleOpenDialog()} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Lead
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
