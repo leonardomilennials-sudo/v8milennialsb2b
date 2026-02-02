@@ -17,6 +17,7 @@ export interface UpsellClient {
   ltv_projetado: number;
   tempo_contrato_meses: number;
   potencial_expansao: "baixo" | "medio" | "alto";
+  status: "ativo" | "inativo";
   data_primeira_venda: string | null;
   pipe_proposta_id: string | null;
   lead_id: string | null;
