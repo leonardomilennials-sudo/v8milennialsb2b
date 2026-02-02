@@ -344,6 +344,20 @@ export async function createOrUpdateUpsellFromProposal(
   saleValue: number,
   productId: string | null
 ) {
+  // Fetch full lead info to get company, segment, faturamento, etc.
+  const { data: leadData } = await supabase
+    .from("leads")
+    .select("id, name, company, segment, faturamento, email, phone, sdr_id, closer_id")
+    .eq("id", leadId)
+    .maybeSingle();
+
+  // Fetch product info to determine if it's MRR type
+  const { data: productData } = await supabase
+    .from("products")
+    .select("id, name, type, ticket")
+    .eq("id", productId || "")
+    .maybeSingle();
+
   // Check if client already exists for this lead
   const { data: existingClient } = await supabase
     .from("upsell_clients")
@@ -355,18 +369,46 @@ export async function createOrUpdateUpsellFromProposal(
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
+  // Calculate MRR (only for recurring products) and LTV
+  const isMrrProduct = productData?.type === "mrr";
+  const mrrToAdd = isMrrProduct ? saleValue : 0;
+
+  // Determine tipo_cliente based on segment/faturamento
+  let tipoCliente: "fabrica" | "distribuidora" | "outro" = "outro";
+  if (leadData?.segment?.toLowerCase().includes("fabrica") || leadData?.segment?.toLowerCase().includes("fábrica")) {
+    tipoCliente = "fabrica";
+  } else if (leadData?.segment?.toLowerCase().includes("distribuid")) {
+    tipoCliente = "distribuidora";
+  }
+
+  // Use company name if available, otherwise lead name
+  const clientName = leadData?.company || leadData?.name || leadName;
+
   if (existingClient) {
     // Update existing client
-    const newMrr = (existingClient.mrr_atual || 0) + saleValue;
+    const newMrr = (existingClient.mrr_atual || 0) + mrrToAdd;
     const newLtv = (existingClient.ltv_atual || 0) + saleValue;
     const newMonths = (existingClient.tempo_contrato_meses || 0) + 1;
+
+    // Calculate tipo_cliente_tempo based on months
+    let tipoClienteTempo = "onboarding";
+    if (newMonths > 12) tipoClienteTempo = "mavericks";
+    else if (newMonths > 6) tipoClienteTempo = "fieis";
+    else if (newMonths > 3) tipoClienteTempo = "momento_chave";
+    else if (newMonths > 2) tipoClienteTempo = "iniciantes";
+    else if (newMonths > 1) tipoClienteTempo = "recentes";
 
     await supabase
       .from("upsell_clients")
       .update({
+        nome_cliente: clientName,
         mrr_atual: newMrr,
         ltv_atual: newLtv,
         tempo_contrato_meses: newMonths,
+        tipo_cliente_tempo: tipoClienteTempo,
+        setor: leadData?.segment || undefined,
+        tipo_cliente: tipoCliente,
+        responsavel_interno: closerId || leadData?.closer_id || undefined,
         updated_at: now,
       })
       .eq("id", existingClient.id);
@@ -377,34 +419,57 @@ export async function createOrUpdateUpsellFromProposal(
       mes: currentMonth,
       ano: currentYear,
       status: "vendido",
+      tipo_acao: existingClient ? "upsell_ativacao" : "cross_sell",
       valor_fechado: saleValue,
+      receita_incremental: saleValue,
+      impacto_ltv: saleValue,
       data_abordagem: now,
       responsavel_fechamento: closerId,
       pipe_proposta_id: propostaId,
+      campanha_nome: `Venda - ${clientName}`,
     });
 
     // Add product as ativo if provided
     if (productId) {
-      await supabase.from("upsell_produtos").upsert({
-        upsell_client_id: existingClient.id,
-        product_id: productId,
-        status: "ativo",
-      });
+      // Check if product already exists for this client
+      const { data: existingProduto } = await supabase
+        .from("upsell_produtos")
+        .select("id")
+        .eq("upsell_client_id", existingClient.id)
+        .eq("product_id", productId)
+        .maybeSingle();
+
+      if (existingProduto) {
+        await supabase
+          .from("upsell_produtos")
+          .update({ status: "ativo" })
+          .eq("id", existingProduto.id);
+      } else {
+        await supabase.from("upsell_produtos").insert({
+          upsell_client_id: existingClient.id,
+          product_id: productId,
+          status: "ativo",
+        });
+      }
     }
   } else {
-    // Create new client
+    // Create new client with full info
     const { data: newClient } = await supabase
       .from("upsell_clients")
       .insert({
-        nome_cliente: leadName,
+        nome_cliente: clientName,
         lead_id: leadId,
         pipe_proposta_id: propostaId,
-        responsavel_interno: closerId,
-        mrr_atual: saleValue,
+        responsavel_interno: closerId || leadData?.closer_id,
+        setor: leadData?.segment,
+        tipo_cliente: tipoCliente,
+        mrr_atual: mrrToAdd,
         ltv_atual: saleValue,
+        ticket_medio_historico: saleValue,
         data_primeira_venda: now,
         tipo_cliente_tempo: "onboarding",
         tempo_contrato_meses: 1,
+        potencial_expansao: "medio",
       })
       .select()
       .single();
@@ -416,10 +481,14 @@ export async function createOrUpdateUpsellFromProposal(
         mes: currentMonth,
         ano: currentYear,
         status: "vendido",
+        tipo_acao: "cross_sell",
         valor_fechado: saleValue,
+        receita_incremental: saleValue,
+        impacto_ltv: saleValue,
         data_abordagem: now,
         responsavel_fechamento: closerId,
         pipe_proposta_id: propostaId,
+        campanha_nome: `Primeira Venda - ${clientName}`,
       });
 
       // Add product as ativo if provided
