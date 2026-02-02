@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { triggerFollowUpAutomation } from "./useAutoFollowUp";
 import { useRealtimeSubscription } from "./useRealtimeSubscription";
+import { createOrUpdateUpsellFromProposal } from "./useUpsell";
 
 export type PipeProposta = Tables<"pipe_propostas">;
 export type PipePropostaInsert = TablesInsert<"pipe_propostas">;
@@ -95,7 +96,18 @@ export function useUpdatePipeProposta() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, leadId, closerId, ...updates }: PipePropostaUpdate & { id: string; leadId?: string; closerId?: string | null }) => {
+    mutationFn: async ({ 
+      id, 
+      leadId, 
+      leadName,
+      closerId, 
+      ...updates 
+    }: PipePropostaUpdate & { 
+      id: string; 
+      leadId?: string; 
+      leadName?: string;
+      closerId?: string | null 
+    }) => {
       const { data, error } = await supabase
         .from("pipe_propostas")
         .update(updates)
@@ -114,6 +126,23 @@ export function useUpdatePipeProposta() {
           stage: updates.status,
           sourcePipeId: data.id,
         });
+
+        // If status changed to "vendido", create/update upsell client
+        if (updates.status === "vendido" && leadName) {
+          try {
+            await createOrUpdateUpsellFromProposal(
+              data.id,
+              leadId,
+              leadName,
+              closerId || data.closer_id,
+              data.sale_value || 0,
+              data.product_id
+            );
+          } catch (upsellError) {
+            console.error("Error creating upsell from proposal:", upsellError);
+            // Don't throw - upsell creation is secondary
+          }
+        }
       }
 
       return data;
@@ -123,6 +152,8 @@ export function useUpdatePipeProposta() {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["recent_activity"] });
       queryClient.invalidateQueries({ queryKey: ["follow_ups"] });
+      queryClient.invalidateQueries({ queryKey: ["upsell_clients"] });
+      queryClient.invalidateQueries({ queryKey: ["upsell_campanhas"] });
     },
   });
 }
