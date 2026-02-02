@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { UpsellCampanha, upsellStatusColumns, tipoAcaoLabels, canalLabels } from "@/hooks/useUpsell";
+import { useGoals } from "@/hooks/useGoals";
 import {
   BarChart,
   Bar,
@@ -13,19 +15,45 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { TrendingUp, DollarSign, Target, Users } from "lucide-react";
+import { TrendingUp, DollarSign, Target, Percent, Package } from "lucide-react";
 
 interface CampanhaAnalyticsSectionProps {
   campanhas: UpsellCampanha[];
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
-export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSectionProps) {
-  // Calculate metrics
+export function CampanhaAnalyticsSection({ campanhas, selectedMonth, selectedYear }: CampanhaAnalyticsSectionProps) {
+  const now = new Date();
+  const month = selectedMonth ?? now.getMonth() + 1;
+  const year = selectedYear ?? now.getFullYear();
+
+  const { data: goals = [] } = useGoals(month, year);
+
+  // Calculate metrics - Planned vs Sold
   const totalCampanhas = campanhas.length;
   const campanhasVendidas = campanhas.filter((c) => c.status === "vendido");
+
+  // MRR Metrics
+  const mrrPlanejado = campanhas.reduce((acc, c) => acc + (c.mrr_planejado || 0), 0);
+  const mrrVendido = campanhasVendidas
+    .filter((c) => c.product?.type === "mrr" || c.mrr_planejado > 0)
+    .reduce((acc, c) => acc + (c.valor_fechado || 0), 0);
+
+  // Projeto Metrics
+  const projetoPlanejado = campanhas.reduce((acc, c) => acc + (c.projeto_planejado || 0), 0);
+  const projetoVendido = campanhasVendidas
+    .filter((c) => c.product?.type !== "mrr" && !c.mrr_planejado)
+    .reduce((acc, c) => acc + (c.valor_fechado || 0), 0);
+
+  // Total values
+  const totalPlanejado = mrrPlanejado + projetoPlanejado;
   const totalVendido = campanhasVendidas.reduce((acc, c) => acc + (c.valor_fechado || 0), 0);
   const taxaConversao = totalCampanhas > 0 ? (campanhasVendidas.length / totalCampanhas) * 100 : 0;
-  const receitaIncremental = campanhas.reduce((acc, c) => acc + (c.receita_incremental || 0), 0);
+
+  // Goals
+  const metaMrrUpsell = goals.find((g) => g.type === "upsell_mrr");
+  const metaProjetoUpsell = goals.find((g) => g.type === "upsell_projeto");
 
   // Status distribution data
   const statusData = upsellStatusColumns.map((status) => ({
@@ -34,12 +62,19 @@ export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSection
     color: status.color,
   })).filter((s) => s.value > 0);
 
-  // Tipo de ação distribution
-  const tipoAcaoData = Object.entries(tipoAcaoLabels).map(([key, label]) => ({
-    name: label,
-    campanhas: campanhas.filter((c) => c.tipo_acao === key).length,
-    vendidos: campanhas.filter((c) => c.tipo_acao === key && c.status === "vendido").length,
-  })).filter((t) => t.campanhas > 0);
+  // Planned vs Sold comparison data
+  const comparisonData = [
+    {
+      name: "MRR",
+      planejado: mrrPlanejado,
+      vendido: mrrVendido,
+    },
+    {
+      name: "Projeto",
+      planejado: projetoPlanejado,
+      vendido: projetoVendido,
+    },
+  ].filter((d) => d.planejado > 0 || d.vendido > 0);
 
   // Canal distribution
   const canalData = Object.entries(canalLabels).map(([key, label]) => ({
@@ -51,12 +86,116 @@ export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSection
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
 
-  const COLORS = ["#22C55E", "#3B82F6", "#F97316", "#8B5CF6", "#EF4444", "#F5C518", "#64748B"];
+  const COLORS = ["#22C55E", "#3B82F6", "#F97316", "#8B5CF6", "#EF4444", "#F5C518", "#64748B", "#6B7280"];
 
   return (
     <div className="space-y-6">
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* KPI Cards - Planejado vs Vendido */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-3 rounded-full bg-green-500/10">
+              <DollarSign className="h-5 w-5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">MRR Planejado</p>
+              <p className="text-2xl font-bold text-green-500">{formatCurrency(mrrPlanejado)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-3 rounded-full bg-green-600/10">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">MRR Vendido</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(mrrVendido)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-3 rounded-full bg-blue-500/10">
+              <Package className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Projeto Planejado</p>
+              <p className="text-2xl font-bold text-blue-500">{formatCurrency(projetoPlanejado)}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-3 rounded-full bg-blue-600/10">
+              <Target className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Projeto Vendido</p>
+              <p className="text-2xl font-bold text-blue-600">{formatCurrency(projetoVendido)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Goal Progress Cards */}
+      {(metaMrrUpsell || metaProjetoUpsell) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {metaMrrUpsell && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Target className="h-4 w-4 text-green-500" />
+                  Meta MRR Upsell
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{formatCurrency(mrrVendido)}</span>
+                    <span className="text-muted-foreground">{formatCurrency(metaMrrUpsell.target_value)}</span>
+                  </div>
+                  <Progress 
+                    value={Math.min((mrrVendido / metaMrrUpsell.target_value) * 100, 100)} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {((mrrVendido / metaMrrUpsell.target_value) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {metaProjetoUpsell && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Target className="h-4 w-4 text-blue-500" />
+                  Meta Projeto Upsell
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>{formatCurrency(projetoVendido)}</span>
+                    <span className="text-muted-foreground">{formatCurrency(metaProjetoUpsell.target_value)}</span>
+                  </div>
+                  <Progress 
+                    value={Math.min((projetoVendido / metaProjetoUpsell.target_value) * 100, 100)} 
+                    className="h-2"
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {((projetoVendido / metaProjetoUpsell.target_value) * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-3 rounded-full bg-primary/10">
@@ -74,15 +213,15 @@ export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSection
               <DollarSign className="h-5 w-5 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Valor Vendido</p>
+              <p className="text-sm text-muted-foreground">Total Vendido</p>
               <p className="text-2xl font-bold">{formatCurrency(totalVendido)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-blue-500/10">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+            <div className="p-3 rounded-full bg-purple-500/10">
+              <Percent className="h-5 w-5 text-purple-500" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Taxa de Conversão</p>
@@ -90,21 +229,40 @@ export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSection
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-purple-500/10">
-              <Users className="h-5 w-5 text-purple-500" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Receita Incremental</p>
-              <p className="text-2xl font-bold">{formatCurrency(receitaIncremental)}</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Planejado vs Vendido */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Planejado vs Vendido</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {comparisonData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-muted-foreground">
+                Nenhuma campanha com valores planejados
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={comparisonData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                  <XAxis dataKey="name" stroke="#888" />
+                  <YAxis stroke="#888" tickFormatter={(v) => `R$${v / 1000}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "#1f2937", border: "none" }}
+                    labelStyle={{ color: "#fff" }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                  <Bar dataKey="planejado" name="Planejado" fill="#64748B" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="vendido" name="Vendido" fill="#22C55E" radius={[4, 4, 0, 0]} />
+                  <Legend />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Status Distribution Pie */}
         <Card>
           <CardHeader>
@@ -134,35 +292,6 @@ export function CampanhaAnalyticsSection({ campanhas }: CampanhaAnalyticsSection
                   </Pie>
                   <Tooltip />
                 </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Tipo de Ação Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Campanhas por Tipo de Ação</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {tipoAcaoData.length === 0 ? (
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                Nenhuma campanha neste período
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={tipoAcaoData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                  <XAxis type="number" stroke="#888" />
-                  <YAxis dataKey="name" type="category" stroke="#888" width={100} fontSize={12} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: "#1f2937", border: "none" }}
-                    labelStyle={{ color: "#fff" }}
-                  />
-                  <Bar dataKey="campanhas" name="Total" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="vendidos" name="Vendidos" fill="#22C55E" radius={[0, 4, 4, 0]} />
-                  <Legend />
-                </BarChart>
               </ResponsiveContainer>
             )}
           </CardContent>

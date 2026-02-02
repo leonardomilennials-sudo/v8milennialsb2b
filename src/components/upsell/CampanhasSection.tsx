@@ -98,7 +98,11 @@ export function CampanhasSection() {
           <UpsellKanban campanhas={filteredCampanhas} onCardClick={handleCardClick} />
         )
       ) : (
-        <CampanhaAnalyticsSection campanhas={campanhas} />
+        <CampanhaAnalyticsSection 
+          campanhas={campanhas} 
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
       )}
 
       {/* Modals */}

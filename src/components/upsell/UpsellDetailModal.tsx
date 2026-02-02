@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { useProducts } from "@/hooks/useProducts";
+import { useActiveProducts } from "@/hooks/useProducts";
 import {
   UpsellCampanha,
   useUpdateUpsellCampanha,
@@ -24,7 +24,7 @@ import {
   upsellStatusColumns,
 } from "@/hooks/useUpsell";
 import { toast } from "sonner";
-import { Trash2, Plus, Building2, DollarSign, TrendingUp, Calendar } from "lucide-react";
+import { Trash2, Plus, Building2, DollarSign, TrendingUp, Calendar, Package } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -36,7 +36,7 @@ interface UpsellDetailModalProps {
 
 export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetailModalProps) {
   const { data: teamMembers = [] } = useTeamMembers();
-  const { data: products = [] } = useProducts();
+  const { data: products = [] } = useActiveProducts();
   const updateCampanha = useUpdateUpsellCampanha();
   const updateClient = useUpdateUpsellClient();
   const deleteCampanha = useDeleteUpsellCampanha();
@@ -55,6 +55,12 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
   const [receitaIncremental, setReceitaIncremental] = useState("");
   const [responsavelFechamento, setResponsavelFechamento] = useState("");
 
+  // Product planning fields
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [valorProduto, setValorProduto] = useState("");
+  const [mrrPlanejado, setMrrPlanejado] = useState("");
+  const [projetoPlanejado, setProjetoPlanejado] = useState("");
+
   // Client fields
   const [mrrAtual, setMrrAtual] = useState("");
   const [ltvAtual, setLtvAtual] = useState("");
@@ -66,6 +72,8 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
   const [newProductId, setNewProductId] = useState("");
   const [newProductStatus, setNewProductStatus] = useState("elegivel");
 
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
+
   useEffect(() => {
     if (campanha) {
       setStatus(campanha.status);
@@ -75,6 +83,10 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
       setValorFechado(String(campanha.valor_fechado || ""));
       setReceitaIncremental(String(campanha.receita_incremental || ""));
       setResponsavelFechamento(campanha.responsavel_fechamento || "");
+      setSelectedProductId(campanha.product_id || "");
+      setValorProduto(String(campanha.valor_produto || ""));
+      setMrrPlanejado(String(campanha.mrr_planejado || ""));
+      setProjetoPlanejado(String(campanha.projeto_planejado || ""));
 
       if (campanha.client) {
         setMrrAtual(String(campanha.client.mrr_atual || ""));
@@ -85,6 +97,20 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
       }
     }
   }, [campanha]);
+
+  // Auto-calculate planned values when product changes
+  useEffect(() => {
+    if (selectedProduct && valorProduto) {
+      const valor = parseFloat(valorProduto) || 0;
+      if (selectedProduct.type === "mrr") {
+        setMrrPlanejado(String(valor));
+        setProjetoPlanejado("0");
+      } else {
+        setMrrPlanejado("0");
+        setProjetoPlanejado(String(valor));
+      }
+    }
+  }, [selectedProduct, valorProduto]);
 
   const handleSave = async () => {
     if (!campanha) return;
@@ -100,7 +126,11 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
         valor_fechado: parseFloat(valorFechado) || 0,
         receita_incremental: parseFloat(receitaIncremental) || 0,
         responsavel_fechamento: responsavelFechamento || null,
-        data_abordagem: status !== "planejado" && !campanha.data_abordagem 
+        product_id: selectedProductId || null,
+        valor_produto: parseFloat(valorProduto) || 0,
+        mrr_planejado: parseFloat(mrrPlanejado) || 0,
+        projeto_planejado: parseFloat(projetoPlanejado) || 0,
+        data_abordagem: status !== "cliente" && status !== "planejado" && !campanha.data_abordagem 
           ? new Date().toISOString() 
           : campanha.data_abordagem,
       });
@@ -158,6 +188,9 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
 
   const client = campanha.client;
   const statusColumn = upsellStatusColumns.find((s) => s.id === campanha.status);
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,6 +252,63 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            {/* Product Planning Section */}
+            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                Produto Planejado
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Produto</Label>
+                  <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um produto..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Nenhum</SelectItem>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} ({p.type === "mrr" ? "MRR" : "Projeto"})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor Negociado (R$)</Label>
+                  <Input
+                    type="number"
+                    value={valorProduto}
+                    onChange={(e) => setValorProduto(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              {selectedProduct && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-green-500">MRR Planejado (R$)</Label>
+                    <Input
+                      type="number"
+                      value={mrrPlanejado}
+                      onChange={(e) => setMrrPlanejado(e.target.value)}
+                      className="border-green-500/30"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-blue-500">Projeto Planejado (R$)</Label>
+                    <Input
+                      type="number"
+                      value={projetoPlanejado}
+                      onChange={(e) => setProjetoPlanejado(e.target.value)}
+                      className="border-blue-500/30"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -381,7 +471,7 @@ export function UpsellDetailModal({ campanha, open, onOpenChange }: UpsellDetail
                   <SelectValue placeholder="Selecione um produto..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.filter(p => p.is_active).map((p) => (
+                  {products.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
                     </SelectItem>
