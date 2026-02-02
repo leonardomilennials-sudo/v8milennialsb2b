@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Users, DollarSign, Target, UserCheck, UserX } from "lucide-react";
+import { TrendingUp, Target, Repeat, Briefcase } from "lucide-react";
 import { UpsellCampanha, UpsellClient } from "@/hooks/useUpsell";
 
 interface UpsellStatsProps {
@@ -8,51 +8,50 @@ interface UpsellStatsProps {
 }
 
 export function UpsellStats({ campanhas, clients }: UpsellStatsProps) {
-  // Total MRR atual de todos os clientes
-  const totalMrr = clients.reduce((sum, c) => sum + (c.mrr_atual || 0), 0);
+  // MRR Planejado no mês
+  const mrrPlanejado = campanhas.reduce((sum, c) => sum + (c.mrr_planejado || 0), 0);
   
-  // Total LTV atual
-  const totalLtv = clients.reduce((sum, c) => sum + (c.ltv_atual || 0), 0);
+  // Projeto Planejado no mês
+  const projetoPlanejado = campanhas.reduce((sum, c) => sum + (c.projeto_planejado || 0), 0);
   
-  // Valor fechado no mês (campanhas com status vendido)
-  const valorFechadoMes = campanhas
-    .filter((c) => c.status === "vendido")
+  // MRR Vendido no mês (campanhas com status vendido e produto MRR)
+  const mrrVendido = campanhas
+    .filter((c) => c.status === "vendido" && (c.product?.type === "mrr" || (c.mrr_planejado || 0) > 0))
     .reduce((sum, c) => sum + (c.valor_fechado || 0), 0);
   
-  // Clientes ativos (MRR > 0)
-  const clientesAtivos = clients.filter((c) => (c.mrr_atual || 0) > 0).length;
-  
-  // Clientes inativos (MRR = 0)
-  const clientesInativos = clients.filter((c) => (c.mrr_atual || 0) === 0).length;
+  // Projeto Vendido no mês
+  const projetoVendido = campanhas
+    .filter((c) => c.status === "vendido" && c.product?.type !== "mrr" && (c.projeto_planejado || 0) > 0)
+    .reduce((sum, c) => sum + (c.valor_fechado || 0), 0);
 
   const stats = [
     {
-      label: "MRR Total da Base",
-      value: `R$ ${totalMrr.toLocaleString("pt-BR")}`,
-      icon: DollarSign,
+      label: "MRR Planejado",
+      value: `R$ ${mrrPlanejado.toLocaleString("pt-BR")}`,
+      icon: Repeat,
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+    },
+    {
+      label: "MRR Vendido",
+      value: `R$ ${mrrVendido.toLocaleString("pt-BR")}`,
+      icon: TrendingUp,
       color: "text-green-500",
       bgColor: "bg-green-500/10",
     },
     {
-      label: "Upsell Fechado no Mês",
-      value: `R$ ${valorFechadoMes.toLocaleString("pt-BR")}`,
+      label: "Projeto Planejado",
+      value: `R$ ${projetoPlanejado.toLocaleString("pt-BR")}`,
+      icon: Briefcase,
+      color: "text-orange-500",
+      bgColor: "bg-orange-500/10",
+    },
+    {
+      label: "Projeto Vendido",
+      value: `R$ ${projetoVendido.toLocaleString("pt-BR")}`,
       icon: Target,
       color: "text-primary",
       bgColor: "bg-primary/10",
-    },
-    {
-      label: "Clientes Ativos",
-      value: clientesAtivos.toString(),
-      icon: UserCheck,
-      color: "text-emerald-500",
-      bgColor: "bg-emerald-500/10",
-    },
-    {
-      label: "Clientes Inativos",
-      value: clientesInativos.toString(),
-      icon: UserX,
-      color: "text-muted-foreground",
-      bgColor: "bg-muted/50",
     },
   ];
 

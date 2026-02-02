@@ -1239,6 +1239,7 @@ export type Database = {
           potencial_expansao: string | null
           responsavel_interno: string | null
           setor: string | null
+          status: string
           tempo_contrato_meses: number | null
           ticket_medio_historico: number | null
           tipo_cliente: string | null
@@ -1259,6 +1260,7 @@ export type Database = {
           potencial_expansao?: string | null
           responsavel_interno?: string | null
           setor?: string | null
+          status?: string
           tempo_contrato_meses?: number | null
           ticket_medio_historico?: number | null
           tipo_cliente?: string | null
@@ -1279,6 +1281,7 @@ export type Database = {
           potencial_expansao?: string | null
           responsavel_interno?: string | null
           setor?: string | null
+          status?: string
           tempo_contrato_meses?: number | null
           ticket_medio_historico?: number | null
           tipo_cliente?: string | null

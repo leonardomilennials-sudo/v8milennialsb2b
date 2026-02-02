@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Users, TrendingUp, DollarSign, Building2, Upload, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Users, DollarSign, Upload, LayoutGrid, List, UserCheck, UserX } from "lucide-react";
 import { useUpsellClients, UpsellClient, tipoClienteTempoLabels } from "@/hooks/useUpsell";
 import { CreateClienteModal } from "./CreateClienteModal";
 import { ClienteDetailModal } from "./ClienteDetailModal";
@@ -36,8 +36,8 @@ export function ClientesList() {
   // Stats
   const totalClients = clients.length;
   const totalMRR = clients.reduce((acc, c) => acc + (c.mrr_atual || 0), 0);
-  const totalLTV = clients.reduce((acc, c) => acc + (c.ltv_atual || 0), 0);
-  const highPotentialClients = clients.filter((c) => c.potencial_expansao === "alto").length;
+  const clientesAtivos = clients.filter((c) => c.status === "ativo").length;
+  const clientesInativos = clients.filter((c) => c.status === "inativo").length;
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -107,23 +107,23 @@ export function ClientesList() {
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-blue-500/10">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+            <div className="p-3 rounded-full bg-emerald-500/10">
+              <UserCheck className="h-5 w-5 text-emerald-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">LTV Total</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalLTV)}</p>
+              <p className="text-sm text-muted-foreground">Clientes Ativos</p>
+              <p className="text-2xl font-bold">{clientesAtivos}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-3 rounded-full bg-orange-500/10">
-              <Building2 className="h-5 w-5 text-orange-500" />
+            <div className="p-3 rounded-full bg-muted">
+              <UserX className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Alto Potencial</p>
-              <p className="text-2xl font-bold">{highPotentialClients}</p>
+              <p className="text-sm text-muted-foreground">Clientes Inativos</p>
+              <p className="text-2xl font-bold">{clientesInativos}</p>
             </div>
           </CardContent>
         </Card>
