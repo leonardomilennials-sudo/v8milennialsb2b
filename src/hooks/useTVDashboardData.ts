@@ -81,8 +81,13 @@ export function useTVDashboardData() {
       const closers = teamMembers?.filter(m => m.role === "closer" && m.is_active) || [];
       const sdrs = teamMembers?.filter(m => m.role === "sdr" && m.is_active) || [];
       
-      // Get sales goal from team goals
-      const salesGoal = teamGoals?.find(g => g.type === "faturamento" || g.name.toLowerCase().includes("faturamento"));
+      // Get sales goal from team goals - support both "faturamento" and "vendas" types
+      const salesGoal = teamGoals?.find(g => 
+        g.type === "faturamento" || 
+        g.type === "vendas" || 
+        g.name.toLowerCase().includes("faturamento") ||
+        g.name.toLowerCase().includes("vendas")
+      );
       const metaVendasMes = salesGoal?.target_value || 0;
       
       // Filter proposals for current month
@@ -304,7 +309,7 @@ export function useTVDashboardData() {
         }
       } as TVDashboardMetrics;
     },
-    enabled: !!teamMembers && !!propostas && !!confirmacoes && !!whatsapp,
+    enabled: !!teamMembers && !!propostas && !!confirmacoes && !!whatsapp && !!teamGoals && !!individualGoals,
     refetchInterval: 30000, // Refresh every 30 seconds for TV display
   });
 }
