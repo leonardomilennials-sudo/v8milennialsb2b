@@ -22,9 +22,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { CampanhaStage, CampanhaLead, useUpdateCampanhaLead, useDeleteCampanhaLead } from "@/hooks/useCampanhas";
 import { useDeleteLead } from "@/hooks/useLeads";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
-import { Phone, Mail, Building2, GripVertical, User, DollarSign, Star, Tag, Trash2, Edit2, Filter, MessageSquare, Save, X } from "lucide-react";
+import { Phone, Mail, Building2, GripVertical, User, DollarSign, Star, Tag, Trash2, Edit2, Filter, MessageSquare, Save, X, Clock, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { differenceInDays, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { LeadDetailModal } from "@/components/leads/LeadDetailModal";
 import { LeadModal } from "@/components/leads/LeadModal";
 import {
@@ -104,10 +106,25 @@ const formatFaturamento = (value: string): string => {
   return formatted;
 };
 
+// Calculate days since lead was added to this stage (using updated_at) or campaign (created_at)
+function getDaysInPipe(lead: CampanhaLead): number {
+  const referenceDate = lead.updated_at ? new Date(lead.updated_at) : new Date(lead.created_at);
+  return differenceInDays(new Date(), referenceDate);
+}
+
+// Extract import date from lead tags or creation date
+function getImportDate(lead: CampanhaLead): string | null {
+  const createdAt = new Date(lead.created_at);
+  return format(createdAt, "dd/MM", { locale: ptBR });
+}
+
 function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onEdit, onDelete, onUpdateNotes }: KanbanCardProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(lead.notes || "");
   const [isSaving, setIsSaving] = useState(false);
+  
+  const daysInPipe = getDaysInPipe(lead);
+  const importDate = getImportDate(lead);
   
   const {
     attributes,
@@ -158,6 +175,19 @@ function KanbanCardItem({ lead, isReuniao, onMoveToConfirmacao, onCardClick, onE
         onClick={handleCardClick}
       >
         <CardContent className="p-3 space-y-2">
+          {/* Days in pipe and import date badges */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="outline" className="text-xs bg-chart-1/10 text-chart-1 border-chart-1/30">
+              <Clock className="w-3 h-3 mr-1" />
+              {daysInPipe === 0 ? "Hoje" : `${daysInPipe}d no pipe`}
+            </Badge>
+            {importDate && (
+              <Badge variant="outline" className="text-xs bg-muted text-muted-foreground border-border">
+                <Calendar className="w-3 h-3 mr-1" />
+                {importDate}
+              </Badge>
+            )}
+          </div>
           {/* Header with drag handle and actions */}
           <div className="flex items-start gap-2">
             <div
@@ -500,11 +530,21 @@ export function CampanhaKanban({
     return Array.from(sdrMap.values());
   }, [leads]);
 
-  // Filter leads by SDR
+  // Filter leads by SDR and sort by recency (newest first)
   const filteredLeads = useMemo(() => {
-    if (sdrFilter === "all") return leads;
-    if (sdrFilter === "none") return leads.filter((l) => !l.sdr_id);
-    return leads.filter((l) => l.sdr_id === sdrFilter);
+    let filtered = leads;
+    if (sdrFilter === "none") {
+      filtered = leads.filter((l) => !l.sdr_id);
+    } else if (sdrFilter !== "all") {
+      filtered = leads.filter((l) => l.sdr_id === sdrFilter);
+    }
+    
+    // Sort by created_at descending (most recent = hottest leads on top)
+    return [...filtered].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return dateB - dateA;
+    });
   }, [leads, sdrFilter]);
 
   const sensors = useSensors(
