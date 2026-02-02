@@ -1,0 +1,16 @@
+INSTRUCOES PARA EXPORTACAO
+
+Este arquivo é apenas um placeholder. 
+
+Para gerar o Excel completo com todos os leads, acesse a página de Leads no sistema e clique no botão "Exportar Excel" que foi criado.
+
+O arquivo gerado terá 7 abas:
+1. Leads - Todos os leads com dados completos
+2. Pipe_WhatsApp - Status de qualificação de cada lead
+3. Pipe_Confirmacao - Status de confirmação de reunião
+4. Pipe_Propostas - Status de propostas e vendas
+5. Tags - Lista de tags disponíveis
+6. Team_Members - Membros da equipe
+7. Products - Produtos cadastrados
+
+Cada lead terá indicado em qual etapa do pipeline ele está (whatsapp_status, confirmacao_status, proposta_status), junto com todas as informações relacionadas como data da reunião, vendedor responsável, valor da proposta, etc.
