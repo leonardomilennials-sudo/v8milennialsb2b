@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
+import { useActiveProducts } from "@/hooks/useProducts";
 import { useUpsellClients, useCreateUpsellCampanha, tipoAcaoLabels, canalLabels } from "@/hooks/useUpsell";
 import { toast } from "sonner";
-import { Users, DollarSign, TrendingUp, Search } from "lucide-react";
+import { Search, Package } from "lucide-react";
 
 interface CreateCampanhaUpsellModalProps {
   open: boolean;
@@ -27,17 +28,19 @@ export function CreateCampanhaUpsellModal({
 }: CreateCampanhaUpsellModalProps) {
   const { data: teamMembers = [] } = useTeamMembers();
   const { data: existingClients = [] } = useUpsellClients();
+  const { data: products = [] } = useActiveProducts();
   const createCampanha = useCreateUpsellCampanha();
 
   const [loading, setLoading] = useState(false);
   const [searchCliente, setSearchCliente] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [valorProduto, setValorProduto] = useState("");
   const [tipoAcao, setTipoAcao] = useState("upsell_ativacao");
   const [canal, setCanal] = useState("manual");
   const [campanhaNome, setCampanhaNome] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [responsavel, setResponsavel] = useState("");
-  const [comissaoPercent, setComissaoPercent] = useState("");
 
   const filteredClients = existingClients.filter(
     (c) =>
@@ -46,16 +49,29 @@ export function CreateCampanhaUpsellModal({
   );
 
   const selectedClient = existingClients.find((c) => c.id === selectedClientId);
+  const selectedProduct = products.find((p) => p.id === selectedProductId);
+
+  // Auto-fill value when product is selected
+  useEffect(() => {
+    if (selectedProduct && !valorProduto) {
+      setValorProduto(String(selectedProduct.ticket || ""));
+    }
+  }, [selectedProduct]);
+
+  // Calculate planned values based on product type
+  const mrrPlanejado = selectedProduct?.type === "mrr" ? parseFloat(valorProduto) || 0 : 0;
+  const projetoPlanejado = selectedProduct?.type !== "mrr" && selectedProduct ? parseFloat(valorProduto) || 0 : 0;
 
   const resetForm = () => {
     setSearchCliente("");
     setSelectedClientId("");
+    setSelectedProductId("");
+    setValorProduto("");
     setTipoAcao("upsell_ativacao");
     setCanal("manual");
     setCampanhaNome("");
     setObservacoes("");
     setResponsavel("");
-    setComissaoPercent("");
   };
 
   const handleSubmit = async () => {
@@ -74,8 +90,12 @@ export function CreateCampanhaUpsellModal({
         canal: canal as any,
         campanha_nome: campanhaNome || null,
         observacoes: observacoes || null,
-        status: "planejado",
+        status: selectedProductId ? "planejado" : "cliente",
         responsavel_fechamento: responsavel || null,
+        product_id: selectedProductId || null,
+        mrr_planejado: mrrPlanejado,
+        projeto_planejado: projetoPlanejado,
+        valor_produto: parseFloat(valorProduto) || 0,
       });
 
       toast.success("Campanha de upsell criada com sucesso!");
@@ -198,9 +218,56 @@ export function CreateCampanhaUpsellModal({
             )}
           </div>
 
+          {/* Product Selection */}
+          <div className="border-t pt-4 space-y-4">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              2. Produto Planejado (opcional)
+            </Label>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Produto</Label>
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um produto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum (apenas cliente)</SelectItem>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} ({p.type === "mrr" ? "MRR" : "Projeto"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Valor Negociado (R$)</Label>
+                <Input
+                  type="number"
+                  value={valorProduto}
+                  onChange={(e) => setValorProduto(e.target.value)}
+                  placeholder={selectedProduct?.ticket ? `Sugerido: ${selectedProduct.ticket}` : "0"}
+                />
+              </div>
+            </div>
+
+            {selectedProduct && valorProduto && (
+              <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {selectedProduct.type === "mrr" ? "MRR Planejado:" : "Projeto Planejado:"}
+                </span>
+                <span className={`font-bold ${selectedProduct.type === "mrr" ? "text-green-500" : "text-blue-500"}`}>
+                  {formatCurrency(parseFloat(valorProduto) || 0)}
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Campaign Details */}
           <div className="border-t pt-4 space-y-4">
-            <Label className="text-base font-semibold">2. Planejamento da Campanha</Label>
+            <Label className="text-base font-semibold">3. Detalhes da Campanha</Label>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -252,23 +319,13 @@ export function CreateCampanhaUpsellModal({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Comissão do Responsável (%)</Label>
+                <Label>Nome da Campanha (opcional)</Label>
                 <Input
-                  type="number"
-                  value={comissaoPercent}
-                  onChange={(e) => setComissaoPercent(e.target.value)}
-                  placeholder="Ex: 10"
+                  value={campanhaNome}
+                  onChange={(e) => setCampanhaNome(e.target.value)}
+                  placeholder="Ex: Expansão Q1, Cross-sell Premium..."
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Nome da Campanha (opcional)</Label>
-              <Input
-                value={campanhaNome}
-                onChange={(e) => setCampanhaNome(e.target.value)}
-                placeholder="Ex: Expansão Q1, Cross-sell Premium..."
-              />
             </div>
 
             <div className="space-y-2">

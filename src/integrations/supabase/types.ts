@@ -1133,8 +1133,11 @@ export type Database = {
           id: string
           impacto_ltv: number | null
           mes: number
+          mrr_planejado: number | null
           observacoes: string | null
           pipe_proposta_id: string | null
+          product_id: string | null
+          projeto_planejado: number | null
           receita_incremental: number | null
           responsavel_fechamento: string | null
           status: string
@@ -1142,6 +1145,7 @@ export type Database = {
           updated_at: string
           upsell_client_id: string
           valor_fechado: number | null
+          valor_produto: number | null
         }
         Insert: {
           ano: number
@@ -1152,8 +1156,11 @@ export type Database = {
           id?: string
           impacto_ltv?: number | null
           mes: number
+          mrr_planejado?: number | null
           observacoes?: string | null
           pipe_proposta_id?: string | null
+          product_id?: string | null
+          projeto_planejado?: number | null
           receita_incremental?: number | null
           responsavel_fechamento?: string | null
           status?: string
@@ -1161,6 +1168,7 @@ export type Database = {
           updated_at?: string
           upsell_client_id: string
           valor_fechado?: number | null
+          valor_produto?: number | null
         }
         Update: {
           ano?: number
@@ -1171,8 +1179,11 @@ export type Database = {
           id?: string
           impacto_ltv?: number | null
           mes?: number
+          mrr_planejado?: number | null
           observacoes?: string | null
           pipe_proposta_id?: string | null
+          product_id?: string | null
+          projeto_planejado?: number | null
           receita_incremental?: number | null
           responsavel_fechamento?: string | null
           status?: string
@@ -1180,6 +1191,7 @@ export type Database = {
           updated_at?: string
           upsell_client_id?: string
           valor_fechado?: number | null
+          valor_produto?: number | null
         }
         Relationships: [
           {
@@ -1187,6 +1199,13 @@ export type Database = {
             columns: ["pipe_proposta_id"]
             isOneToOne: false
             referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_campanhas_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
           {

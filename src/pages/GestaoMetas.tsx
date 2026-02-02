@@ -51,6 +51,8 @@ const goalTypes = [
   { value: "conversao", label: "Taxa de Conversão", icon: "📈" },
   { value: "vendas", label: "Vendas (Individual)", icon: "🎯" },
   { value: "produto", label: "Meta por Produto", icon: "📦" },
+  { value: "upsell_mrr", label: "Meta Upsell MRR", icon: "🔄" },
+  { value: "upsell_projeto", label: "Meta Upsell Projeto", icon: "📊" },
 ];
 
 interface GoalFormData {
@@ -91,9 +93,10 @@ export default function GestaoMetas() {
 
   const years = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - 2 + i);
 
-  const teamGoals = goals.filter(g => !g.team_member_id && !g.product_id);
-  const individualGoals = goals.filter(g => g.team_member_id && !g.product_id);
+  const teamGoals = goals.filter(g => !g.team_member_id && !g.product_id && !g.type.startsWith("upsell_"));
+  const individualGoals = goals.filter(g => g.team_member_id && !g.product_id && !g.type.startsWith("upsell_"));
   const productGoals = goals.filter(g => g.product_id);
+  const upsellGoals = goals.filter(g => g.type.startsWith("upsell_"));
 
   const handleOpenDialog = (goal?: Goal) => {
     if (goal) {
@@ -182,7 +185,7 @@ export default function GestaoMetas() {
   };
 
   const formatValue = (type: string, value: number) => {
-    if (type === "faturamento" || type === "vendas" || type === "produto") {
+    if (type === "faturamento" || type === "vendas" || type === "produto" || type === "upsell_mrr" || type === "upsell_projeto") {
       return `R$ ${value.toLocaleString("pt-BR")}`;
     }
     if (type === "conversao") return `${value}%`;
@@ -447,6 +450,75 @@ export default function GestaoMetas() {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-lg font-bold text-primary">
+                              {formatValue(goal.type, goal.target_value)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Meta</p>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenDialog(goal)}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteGoalId(goal.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Upsell Goals */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <span className="text-lg">🔄</span>
+                Metas de Upsell
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {upsellGoals.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Nenhuma meta de upsell configurada para {months[selectedMonth - 1]} {selectedYear}.
+                </p>
+              ) : (
+                <div className="grid gap-3">
+                  {upsellGoals.map((goal) => {
+                    const typeInfo = getGoalTypeInfo(goal.type);
+                    const isMrr = goal.type === "upsell_mrr";
+                    return (
+                      <div
+                        key={goal.id}
+                        className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMrr ? "bg-green-500/10" : "bg-blue-500/10"}`}>
+                            <span className="text-lg">{typeInfo.icon}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium">{goal.name || typeInfo.label}</p>
+                            <Badge 
+                              variant="outline" 
+                              className={isMrr ? "bg-green-500/10 text-green-500 border-green-500/20 mt-1" : "bg-blue-500/10 text-blue-500 border-blue-500/20 mt-1"}
+                            >
+                              {isMrr ? "MRR Recorrente" : "Projeto Pontual"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className={`text-lg font-bold ${isMrr ? "text-green-500" : "text-blue-500"}`}>
                               {formatValue(goal.type, goal.target_value)}
                             </p>
                             <p className="text-xs text-muted-foreground">Meta</p>

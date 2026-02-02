@@ -43,7 +43,7 @@ export interface UpsellCampanha {
   tipo_acao: "upsell_ativacao" | "cross_sell" | "expansao_escopo" | "recontratacao";
   campanha_nome: string | null;
   canal: "whatsapp" | "reuniao" | "anuncio_base" | "automacao" | "manual";
-  status: "planejado" | "abordado" | "interesse_gerado" | "proposta_enviada" | "vendido" | "futuro" | "perdido";
+  status: "cliente" | "planejado" | "abordado" | "interesse_gerado" | "proposta_enviada" | "vendido" | "futuro" | "perdido";
   data_abordagem: string | null;
   observacoes: string | null;
   valor_fechado: number;
@@ -51,19 +51,26 @@ export interface UpsellCampanha {
   impacto_ltv: number;
   responsavel_fechamento: string | null;
   pipe_proposta_id: string | null;
+  // New fields for product planning
+  product_id: string | null;
+  mrr_planejado: number;
+  projeto_planejado: number;
+  valor_produto: number;
   created_at: string;
   updated_at: string;
   client?: UpsellClient | null;
   responsavel?: { id: string; name: string } | null;
+  product?: { id: string; name: string; type: string; ticket: number | null } | null;
 }
 
 export type UpsellStatus = UpsellCampanha["status"];
 
 export const upsellStatusColumns: { id: UpsellStatus; title: string; color: string }[] = [
-  { id: "planejado", title: "Planejado", color: "#64748B" },
+  { id: "cliente", title: "Cliente", color: "#6B7280" },
+  { id: "planejado", title: "Planejado", color: "#3B82F6" },
   { id: "abordado", title: "Abordado", color: "#F5C518" },
   { id: "interesse_gerado", title: "Interesse Gerado", color: "#F97316" },
-  { id: "proposta_enviada", title: "Proposta Enviada", color: "#3B82F6" },
+  { id: "proposta_enviada", title: "Proposta Enviada", color: "#6366F1" },
   { id: "vendido", title: "Vendido ✓", color: "#22C55E" },
   { id: "futuro", title: "Futuro", color: "#8B5CF6" },
   { id: "perdido", title: "Perdido", color: "#EF4444" },
@@ -131,7 +138,8 @@ export function useUpsellCampanhas(mes?: number, ano?: number) {
             mrr_atual, ltv_atual, ltv_projetado, potencial_expansao,
             responsavel:team_members!upsell_clients_responsavel_interno_fkey(id, name)
           ),
-          responsavel:team_members!upsell_campanhas_responsavel_fechamento_fkey(id, name)
+          responsavel:team_members!upsell_campanhas_responsavel_fechamento_fkey(id, name),
+          product:products(id, name, type, ticket)
         `)
         .order("updated_at", { ascending: false });
 

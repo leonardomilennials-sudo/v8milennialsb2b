@@ -1,8 +1,8 @@
 import { useDraggable } from "@dnd-kit/core";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Building2, DollarSign, TrendingUp, User } from "lucide-react";
-import { UpsellCampanha, tipoAcaoLabels, canalLabels, tipoClienteTempoLabels } from "@/hooks/useUpsell";
+import { Building2, DollarSign, User, Package } from "lucide-react";
+import { UpsellCampanha, tipoAcaoLabels, canalLabels } from "@/hooks/useUpsell";
 import { cn } from "@/lib/utils";
 
 interface UpsellCardProps {
@@ -10,21 +10,6 @@ interface UpsellCardProps {
   onClick: () => void;
   isDragging?: boolean;
 }
-
-const potencialColors: Record<string, string> = {
-  baixo: "bg-gray-500/20 text-gray-400",
-  medio: "bg-yellow-500/20 text-yellow-400",
-  alto: "bg-green-500/20 text-green-400",
-};
-
-const tipoClienteColors: Record<string, string> = {
-  onboarding: "bg-blue-500/20 text-blue-400",
-  recentes: "bg-cyan-500/20 text-cyan-400",
-  iniciantes: "bg-teal-500/20 text-teal-400",
-  momento_chave: "bg-orange-500/20 text-orange-400",
-  fieis: "bg-purple-500/20 text-purple-400",
-  mavericks: "bg-pink-500/20 text-pink-400",
-};
 
 export function UpsellCard({ campanha, onClick, isDragging }: UpsellCardProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -38,8 +23,15 @@ export function UpsellCard({ campanha, onClick, isDragging }: UpsellCardProps) {
     : undefined;
 
   const client = campanha.client;
-  const potencial = client?.potencial_expansao || "medio";
-  const tipoTempo = client?.tipo_cliente_tempo || "onboarding";
+  const product = campanha.product;
+
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value);
+
+  // Determine what value to show based on status
+  const isPlanned = ["cliente", "planejado", "abordado", "interesse_gerado", "proposta_enviada"].includes(campanha.status);
+  const showMrr = campanha.mrr_planejado > 0 || (product?.type === "mrr");
+  const showProjeto = campanha.projeto_planejado > 0 || (product?.type !== "mrr" && product?.type);
 
   return (
     <Card
@@ -67,27 +59,54 @@ export function UpsellCard({ campanha, onClick, isDragging }: UpsellCardProps) {
               </p>
             )}
           </div>
-          <Badge className={cn("text-[10px] shrink-0", potencialColors[potencial])}>
-            {potencial.charAt(0).toUpperCase() + potencial.slice(1)}
-          </Badge>
         </div>
 
-        {/* Tipo de Cliente por Tempo */}
-        <Badge variant="outline" className={cn("text-[10px]", tipoClienteColors[tipoTempo])}>
-          {tipoClienteTempoLabels[tipoTempo]?.split(" ")[0] || tipoTempo}
-        </Badge>
+        {/* Produto Planejado */}
+        {product && (
+          <div className="flex items-center gap-1 text-xs">
+            <Package className="h-3 w-3 text-primary" />
+            <span className="font-medium truncate">{product.name}</span>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-[10px] ml-auto",
+                product.type === "mrr" ? "border-green-500/50 text-green-500" : "border-blue-500/50 text-blue-500"
+              )}
+            >
+              {product.type === "mrr" ? "MRR" : "Projeto"}
+            </Badge>
+          </div>
+        )}
 
-        {/* Métricas */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <DollarSign className="h-3 w-3 text-green-500" />
-            MRR: R$ {(client?.mrr_atual || 0).toLocaleString("pt-BR")}
-          </span>
-          <span className="flex items-center gap-1">
-            <TrendingUp className="h-3 w-3 text-blue-500" />
-            LTV: R$ {(client?.ltv_atual || 0).toLocaleString("pt-BR")}
-          </span>
-        </div>
+        {/* Valores Planejados ou Vendidos */}
+        {campanha.status === "vendido" && campanha.valor_fechado > 0 ? (
+          <div className="text-sm font-bold text-green-500 flex items-center gap-1">
+            <DollarSign className="h-4 w-4" />
+            {formatCurrency(campanha.valor_fechado)}
+            <span className="text-xs font-normal text-green-400">vendido</span>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {showMrr && campanha.mrr_planejado > 0 && (
+              <div className="text-xs flex items-center gap-1">
+                <span className="text-muted-foreground">MRR Plan.:</span>
+                <span className="font-semibold text-green-400">{formatCurrency(campanha.mrr_planejado)}</span>
+              </div>
+            )}
+            {showProjeto && campanha.projeto_planejado > 0 && (
+              <div className="text-xs flex items-center gap-1">
+                <span className="text-muted-foreground">Projeto Plan.:</span>
+                <span className="font-semibold text-blue-400">{formatCurrency(campanha.projeto_planejado)}</span>
+              </div>
+            )}
+            {campanha.valor_produto > 0 && !campanha.mrr_planejado && !campanha.projeto_planejado && (
+              <div className="text-xs flex items-center gap-1">
+                <span className="text-muted-foreground">Valor:</span>
+                <span className="font-semibold">{formatCurrency(campanha.valor_produto)}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tipo de Ação e Canal */}
         <div className="flex flex-wrap gap-1">
@@ -102,13 +121,6 @@ export function UpsellCard({ campanha, onClick, isDragging }: UpsellCardProps) {
             </Badge>
           )}
         </div>
-
-        {/* Valor Fechado (se vendido) */}
-        {campanha.status === "vendido" && campanha.valor_fechado > 0 && (
-          <div className="text-xs font-semibold text-green-500">
-            ✓ R$ {campanha.valor_fechado.toLocaleString("pt-BR")}
-          </div>
-        )}
 
         {/* Responsável */}
         {(campanha.responsavel || client?.responsavel) && (
