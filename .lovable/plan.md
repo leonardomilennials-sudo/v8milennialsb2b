@@ -1,161 +1,190 @@
 
-# Plano: Reestruturação Completa do Módulo Upsell
+# Plano: Exportar Base Completa de Leads para Excel
 
-## Resumo das Mudanças
-
-Este plano reestrutura o módulo de Upsell em 4 grandes blocos:
-
-1. **Novo Pipeline de Campanhas** com foco em valores planejados (MRR e Projeto)
-2. **Base de Clientes em formato Kanban** organizada por estágio do cliente
-3. **Metas de Upsell** integradas ao sistema de metas existente
-4. **Analytics atualizado** com métricas de planejado vs vendido
+## Objetivo
+Criar uma funcionalidade para exportar um Excel completo com todos os leads e suas informações relacionadas (pipelines, tags, responsáveis, etc.) para importação em um sistema réplica.
 
 ---
 
-## Parte 1: Novo Pipeline de Campanhas
+## Estrutura do Excel
 
-### Novas Colunas do Kanban
-Atualizar o fluxo de status para incluir etapa inicial "Cliente":
-- **Cliente** (cinza) - Cliente selecionado, sem planejamento
-- **Planejado** (azul) - Produto e valores definidos
-- **Abordado** (amarelo) - Contato realizado
-- **Interesse Gerado** (laranja) - Cliente demonstrou interesse
-- **Proposta Enviada** (azul forte) - Proposta formal enviada
-- **Vendido** (verde) - Fechado com sucesso
-- **Futuro** (roxo) - Para próximo ciclo
-- **Perdido** (vermelho) - Não converteu
+O arquivo terá **múltiplas abas** para organizar os dados de forma completa:
 
-### Novos Campos na Campanha (Database)
-Adicionar colunas em `upsell_campanhas`:
-- `product_id` (UUID, FK para products) - Produto planejado
-- `mrr_planejado` (numeric) - MRR esperado se for produto recorrente
-- `projeto_planejado` (numeric) - Valor projeto se for produto pontual
-- `valor_produto` (numeric) - Preço negociado do produto
+### Aba 1: Leads (Principal)
+Contém todos os campos do lead com dados relacionados:
 
-### Card do Kanban Atualizado
-O card agora mostra informações focadas no upsell:
-- Nome do cliente (compacto)
-- Produto planejado (se definido)
-- MRR Planejado ou Projeto Planejado
-- Tipo de ação e canal
-- Responsável pela abordagem
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID único do lead (UUID) |
+| name | Nome do lead |
+| company | Empresa |
+| email | Email |
+| phone | Telefone |
+| origin | Origem (calendly, whatsapp, meta_ads, etc.) |
+| rating | Nota de qualidade (0-10) |
+| segment | Segmento |
+| faturamento | Faixa de faturamento |
+| urgency | Urgência |
+| notes | Notas/Observações |
+| sdr_id | ID do SDR responsável |
+| sdr_nome | Nome do SDR |
+| closer_id | ID do Closer responsável |
+| closer_nome | Nome do Closer |
+| tags | Tags separadas por vírgula |
+| compromisso_date | Data de compromisso |
+| utm_campaign | UTM Campaign |
+| utm_source | UTM Source |
+| utm_medium | UTM Medium |
+| utm_content | UTM Content |
+| utm_term | UTM Term |
+| created_at | Data de criação |
+| updated_at | Data de atualização |
+
+### Aba 2: Pipe WhatsApp
+Status do lead no pipeline de WhatsApp:
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID do registro |
+| lead_id | ID do lead |
+| lead_nome | Nome do lead |
+| status | Status (novo, abordado, respondeu, esfriou, agendado) |
+| sdr_id | ID do SDR |
+| sdr_nome | Nome do SDR |
+| scheduled_date | Data agendada |
+| notes | Notas |
+| created_at | Data de criação |
+
+### Aba 3: Pipe Confirmação
+Status do lead no pipeline de confirmação de reuniões:
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID do registro |
+| lead_id | ID do lead |
+| lead_nome | Nome do lead |
+| status | Status da confirmação |
+| meeting_date | Data da reunião |
+| is_confirmed | Se foi confirmada |
+| sdr_id | ID do SDR |
+| sdr_nome | Nome do SDR |
+| closer_id | ID do Closer |
+| closer_nome | Nome do Closer |
+| notes | Notas |
+| created_at | Data de criação |
+
+### Aba 4: Pipe Propostas
+Status do lead no pipeline de propostas:
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID do registro |
+| lead_id | ID do lead |
+| lead_nome | Nome do lead |
+| status | Status (marcar_compromisso, vendido, perdido, etc.) |
+| product_id | ID do produto |
+| product_nome | Nome do produto |
+| product_type | Tipo (mrr, projeto, unitario) |
+| sale_value | Valor da venda |
+| calor | Temperatura (1-10) |
+| commitment_date | Data de compromisso |
+| contract_duration | Duração do contrato |
+| is_contract_signed | Contrato assinado |
+| closer_id | ID do Closer |
+| closer_nome | Nome do Closer |
+| notes | Notas |
+| closed_at | Data de fechamento |
+| created_at | Data de criação |
+
+### Aba 5: Tags
+Lista de todas as tags disponíveis:
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID da tag |
+| name | Nome |
+| color | Cor |
+
+### Aba 6: Team Members
+Lista de membros da equipe (para referência de IDs):
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID do membro |
+| name | Nome |
+| email | Email |
+| role | Função (admin, sdr, closer) |
+| is_active | Se está ativo |
+
+### Aba 7: Products
+Lista de produtos (para referência de IDs):
+
+| Coluna | Descrição |
+|--------|-----------|
+| id | ID do produto |
+| name | Nome |
+| type | Tipo (mrr, projeto, unitario) |
+| ticket | Valor padrão |
+| ticket_minimo | Valor mínimo |
 
 ---
 
-## Parte 2: Base de Clientes em Kanban
+## Implementação Técnica
 
-### Nova Visualização
-Trocar a tabela atual por um Kanban organizado por `tipo_cliente_tempo`:
-- **Onboarding** (0-30 dias)
-- **Recentes** (30-60 dias)
-- **Iniciantes** (60-90 dias)
-- **Momento-chave** (90-180 dias)
-- **Fiéis** (180-360 dias)
-- **Mavericks** (+1 ano)
+### Arquivos a Criar/Modificar
 
-### Cards de Cliente
-Cada card exibe:
-- Nome do cliente
-- Setor
-- MRR Atual
-- LTV Atual
-- Potencial de expansão (badge colorido)
-- Responsável
+| Arquivo | Ação |
+|---------|------|
+| `src/hooks/useExportLeads.ts` | Criar hook com lógica de exportação |
+| `src/pages/Leads.tsx` | Adicionar botão "Exportar Excel" |
 
-### Ações no Card
-- Clique: Abre modal de detalhes
-- Drag & drop: Permite mover entre estágios (atualiza tipo_cliente_tempo)
+### Bibliotecas Utilizadas
+- **xlsx** (já instalada) - Para gerar o arquivo Excel com múltiplas abas
 
----
+### Fluxo de Exportação
+1. Usuário clica no botão "Exportar Excel"
+2. Sistema busca todos os dados das tabelas relacionadas
+3. Monta as abas do Excel com os dados formatados
+4. Gera o arquivo .xlsx e inicia o download automático
 
-## Parte 3: Metas de Upsell
+### Código Principal (Snippet)
+```typescript
+// useExportLeads.ts
+import * as XLSX from "xlsx";
 
-### Novo Tipo de Meta
-Adicionar tipo "upsell" no sistema de metas existente:
-- **Meta MRR Upsell** - Meta de MRR adicional via expansão
-- **Meta Projeto Upsell** - Meta de projetos pontuais via base
-
-### Onde Aparece
-1. Na página de Gestão de Metas (`/metas`) - Seção dedicada "Metas de Upsell"
-2. No dashboard de campanhas - Widget de progresso no topo
-
-### Progresso Automático
-O sistema calcula automaticamente:
-- MRR Vendido = soma de `valor_fechado` onde produto.type = "mrr"
-- Projeto Vendido = soma de `valor_fechado` onde produto.type != "mrr"
-
----
-
-## Parte 4: Analytics Atualizado
-
-### Novas Métricas no Topo
-- **MRR Planejado** - Soma de mrr_planejado das campanhas do mês
-- **MRR Vendido** - Soma de valor_fechado (produtos MRR) com status "vendido"
-- **Projeto Planejado** - Soma de projeto_planejado
-- **Projeto Vendido** - Soma de valor_fechado (produtos não-MRR) com status "vendido"
-- **Meta MRR** (se existir) - Barra de progresso
-- **Meta Projeto** (se existir) - Barra de progresso
-
-### Gráficos
-- Planejado vs Vendido (barras comparativas)
-- Funil de conversão por etapa
-- Performance por canal e tipo de ação
-
----
-
-## Fluxo de Criação de Campanha Atualizado
-
-1. **Selecionar Cliente** (busca na base)
-2. **Escolher Produto** (lista de produtos ativos)
-3. **Definir Valor** (preço negociado)
-4. **Sistema calcula**:
-   - Se produto.type = "mrr" → preenche mrr_planejado
-   - Se produto.type != "mrr" → preenche projeto_planejado
-5. **Definir tipo de ação, canal, responsável**
-6. **Criar** → Status inicial = "planejado"
-
----
-
-## Detalhes Técnicos
-
-### Alteração no Banco de Dados
-```sql
-ALTER TABLE upsell_campanhas
-ADD COLUMN product_id UUID REFERENCES products(id),
-ADD COLUMN mrr_planejado NUMERIC DEFAULT 0,
-ADD COLUMN projeto_planejado NUMERIC DEFAULT 0,
-ADD COLUMN valor_produto NUMERIC DEFAULT 0;
+export function useExportLeads() {
+  const exportToExcel = async () => {
+    // Buscar todos os dados
+    const { data: leads } = await supabase.from("leads").select(`
+      *, sdr:team_members!leads_sdr_id_fkey(id, name),
+      closer:team_members!leads_closer_id_fkey(id, name),
+      lead_tags(tag:tags(id, name, color))
+    `);
+    
+    const { data: pipeWhatsapp } = await supabase.from("pipe_whatsapp").select(`...`);
+    const { data: pipeConfirmacao } = await supabase.from("pipe_confirmacao").select(`...`);
+    const { data: pipePropostas } = await supabase.from("pipe_propostas").select(`...`);
+    
+    // Criar workbook com múltiplas abas
+    const wb = XLSX.utils.book_new();
+    
+    // Adicionar cada aba
+    XLSX.utils.book_append_sheet(wb, leadsSheet, "Leads");
+    XLSX.utils.book_append_sheet(wb, whatsappSheet, "Pipe_WhatsApp");
+    // ... demais abas
+    
+    // Download
+    XLSX.writeFile(wb, `leads_export_${date}.xlsx`);
+  };
+}
 ```
 
-### Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/hooks/useUpsell.ts` | Atualizar tipos e status columns |
-| `src/components/upsell/UpsellKanban.tsx` | Adicionar coluna "Cliente" |
-| `src/components/upsell/UpsellCard.tsx` | Mostrar produto e valores planejados |
-| `src/components/upsell/CreateCampanhaUpsellModal.tsx` | Adicionar seleção de produto e cálculo automático |
-| `src/components/upsell/UpsellDetailModal.tsx` | Adicionar campos de produto e valores |
-| `src/components/upsell/ClientesList.tsx` | Trocar tabela por Kanban |
-| `src/components/upsell/CampanhaAnalyticsSection.tsx` | Adicionar métricas planejado/vendido |
-| `src/pages/GestaoMetas.tsx` | Adicionar seção de metas upsell |
-| `src/hooks/useGoals.ts` | Suportar tipo "upsell" |
-
-### Novos Componentes
-
-| Componente | Descrição |
-|------------|-----------|
-| `ClientesKanban.tsx` | Kanban de clientes por estágio |
-| `ClienteCard.tsx` | Card de cliente para o Kanban |
-| `UpsellGoalWidget.tsx` | Widget de progresso da meta no dashboard |
-
 ---
 
-## Ordem de Implementação
+## Resultado Esperado
 
-1. Migração do banco (adicionar colunas)
-2. Atualizar hooks e tipos TypeScript
-3. Implementar Kanban de Clientes
-4. Atualizar pipeline de Campanhas
-5. Implementar metas de Upsell
-6. Atualizar Analytics
+Um arquivo Excel com 7 abas contendo:
+- Todos os leads com informações completas
+- Status em cada pipeline (WhatsApp, Confirmação, Propostas)
+- Referências para tags, membros da equipe e produtos
+- IDs preservados para facilitar a importação no sistema réplica
