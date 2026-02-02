@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { TrendingUp, Users, DollarSign, Target } from "lucide-react";
+import { TrendingUp, Users, DollarSign, Target, UserCheck, UserX } from "lucide-react";
 import { UpsellCampanha, UpsellClient } from "@/hooks/useUpsell";
 
 interface UpsellStatsProps {
@@ -19,18 +19,11 @@ export function UpsellStats({ campanhas, clients }: UpsellStatsProps) {
     .filter((c) => c.status === "vendido")
     .reduce((sum, c) => sum + (c.valor_fechado || 0), 0);
   
-  // Receita incremental gerada
-  const receitaIncremental = campanhas
-    .filter((c) => c.status === "vendido")
-    .reduce((sum, c) => sum + (c.receita_incremental || 0), 0);
+  // Clientes ativos (MRR > 0)
+  const clientesAtivos = clients.filter((c) => (c.mrr_atual || 0) > 0).length;
   
-  // Clientes por potencial
-  const clientesPotencialAlto = clients.filter((c) => c.potencial_expansao === "alto").length;
-  
-  // Campanhas em andamento (não vendido/perdido/futuro)
-  const campanhasEmAndamento = campanhas.filter(
-    (c) => !["vendido", "perdido", "futuro"].includes(c.status)
-  ).length;
+  // Clientes inativos (MRR = 0)
+  const clientesInativos = clients.filter((c) => (c.mrr_atual || 0) === 0).length;
 
   const stats = [
     {
@@ -41,13 +34,6 @@ export function UpsellStats({ campanhas, clients }: UpsellStatsProps) {
       bgColor: "bg-green-500/10",
     },
     {
-      label: "LTV Total",
-      value: `R$ ${totalLtv.toLocaleString("pt-BR")}`,
-      icon: TrendingUp,
-      color: "text-blue-500",
-      bgColor: "bg-blue-500/10",
-    },
-    {
       label: "Upsell Fechado no Mês",
       value: `R$ ${valorFechadoMes.toLocaleString("pt-BR")}`,
       icon: Target,
@@ -55,11 +41,18 @@ export function UpsellStats({ campanhas, clients }: UpsellStatsProps) {
       bgColor: "bg-primary/10",
     },
     {
-      label: "Clientes Alto Potencial",
-      value: clientesPotencialAlto.toString(),
-      icon: Users,
-      color: "text-orange-500",
-      bgColor: "bg-orange-500/10",
+      label: "Clientes Ativos",
+      value: clientesAtivos.toString(),
+      icon: UserCheck,
+      color: "text-emerald-500",
+      bgColor: "bg-emerald-500/10",
+    },
+    {
+      label: "Clientes Inativos",
+      value: clientesInativos.toString(),
+      icon: UserX,
+      color: "text-muted-foreground",
+      bgColor: "bg-muted/50",
     },
   ];
 
