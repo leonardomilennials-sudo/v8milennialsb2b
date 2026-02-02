@@ -20,6 +20,7 @@ import {
   Tv,
   Target,
   Package,
+  TrendingUp,
 } from "lucide-react";
 import logoDark from "@/assets/logo-light.png";
 import v8Logo from "@/assets/v8-logo.png";
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { label: "Revisão", icon: Wrench, path: "/follow-ups" },
   { label: "Confirmação", icon: Calendar, path: "/pipe-confirmacao" },
   { label: "Propostas", icon: Kanban, path: "/pipe-propostas" },
+  { label: "Upsell", icon: TrendingUp, path: "/upsell" },
   { label: "Qualificação", icon: MessageSquare, path: "/pipe-whatsapp" },
   { label: "Combustível", icon: Fuel, path: "/leads" },
   { label: "Pódio", icon: Trophy, path: "/performance" },

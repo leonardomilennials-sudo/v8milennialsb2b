@@ -255,6 +255,9 @@ export function ProposalDetailModal({
       // Update the proposal
       await updateProposta.mutateAsync({
         id: proposta.id,
+        leadId: proposta.lead_id,
+        leadName: proposta.lead?.name || proposta.lead?.company || "Cliente",
+        closerId: formData.closer_id,
         status: formData.status as PipePropostasStatus,
         product_type: mainProductType,
         product_id: validItems.length === 1 ? validItems[0].product_id : null,

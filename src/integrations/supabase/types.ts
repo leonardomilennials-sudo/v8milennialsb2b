@@ -1123,6 +1123,212 @@ export type Database = {
         }
         Relationships: []
       }
+      upsell_campanhas: {
+        Row: {
+          ano: number
+          campanha_nome: string | null
+          canal: string | null
+          created_at: string
+          data_abordagem: string | null
+          id: string
+          impacto_ltv: number | null
+          mes: number
+          observacoes: string | null
+          pipe_proposta_id: string | null
+          receita_incremental: number | null
+          responsavel_fechamento: string | null
+          status: string
+          tipo_acao: string | null
+          updated_at: string
+          upsell_client_id: string
+          valor_fechado: number | null
+        }
+        Insert: {
+          ano: number
+          campanha_nome?: string | null
+          canal?: string | null
+          created_at?: string
+          data_abordagem?: string | null
+          id?: string
+          impacto_ltv?: number | null
+          mes: number
+          observacoes?: string | null
+          pipe_proposta_id?: string | null
+          receita_incremental?: number | null
+          responsavel_fechamento?: string | null
+          status?: string
+          tipo_acao?: string | null
+          updated_at?: string
+          upsell_client_id: string
+          valor_fechado?: number | null
+        }
+        Update: {
+          ano?: number
+          campanha_nome?: string | null
+          canal?: string | null
+          created_at?: string
+          data_abordagem?: string | null
+          id?: string
+          impacto_ltv?: number | null
+          mes?: number
+          observacoes?: string | null
+          pipe_proposta_id?: string | null
+          receita_incremental?: number | null
+          responsavel_fechamento?: string | null
+          status?: string
+          tipo_acao?: string | null
+          updated_at?: string
+          upsell_client_id?: string
+          valor_fechado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upsell_campanhas_pipe_proposta_id_fkey"
+            columns: ["pipe_proposta_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_campanhas_responsavel_fechamento_fkey"
+            columns: ["responsavel_fechamento"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_campanhas_upsell_client_id_fkey"
+            columns: ["upsell_client_id"]
+            isOneToOne: false
+            referencedRelation: "upsell_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upsell_clients: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          data_primeira_venda: string | null
+          id: string
+          lead_id: string | null
+          ltv_atual: number | null
+          ltv_projetado: number | null
+          mrr_atual: number | null
+          nome_cliente: string
+          pipe_proposta_id: string | null
+          potencial_expansao: string | null
+          responsavel_interno: string | null
+          setor: string | null
+          tempo_contrato_meses: number | null
+          ticket_medio_historico: number | null
+          tipo_cliente: string | null
+          tipo_cliente_tempo: string | null
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          data_primeira_venda?: string | null
+          id?: string
+          lead_id?: string | null
+          ltv_atual?: number | null
+          ltv_projetado?: number | null
+          mrr_atual?: number | null
+          nome_cliente: string
+          pipe_proposta_id?: string | null
+          potencial_expansao?: string | null
+          responsavel_interno?: string | null
+          setor?: string | null
+          tempo_contrato_meses?: number | null
+          ticket_medio_historico?: number | null
+          tipo_cliente?: string | null
+          tipo_cliente_tempo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          data_primeira_venda?: string | null
+          id?: string
+          lead_id?: string | null
+          ltv_atual?: number | null
+          ltv_projetado?: number | null
+          mrr_atual?: number | null
+          nome_cliente?: string
+          pipe_proposta_id?: string | null
+          potencial_expansao?: string | null
+          responsavel_interno?: string | null
+          setor?: string | null
+          tempo_contrato_meses?: number | null
+          ticket_medio_historico?: number | null
+          tipo_cliente?: string | null
+          tipo_cliente_tempo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upsell_clients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_clients_pipe_proposta_id_fkey"
+            columns: ["pipe_proposta_id"]
+            isOneToOne: false
+            referencedRelation: "pipe_propostas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_clients_responsavel_interno_fkey"
+            columns: ["responsavel_interno"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      upsell_produtos: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string | null
+          status: string
+          upsell_client_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          status?: string
+          upsell_client_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string | null
+          status?: string
+          upsell_client_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upsell_produtos_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upsell_produtos_upsell_client_id_fkey"
+            columns: ["upsell_client_id"]
+            isOneToOne: false
+            referencedRelation: "upsell_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

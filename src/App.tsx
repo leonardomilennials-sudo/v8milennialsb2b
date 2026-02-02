@@ -25,6 +25,7 @@ import TVDashboard from "./pages/TVDashboard";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetail from "./pages/CampanhaDetail";
 import Produtos from "./pages/Produtos";
+import Upsell from "./pages/Upsell";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -203,6 +204,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <LayoutWrapper>
               <Produtos />
+            </LayoutWrapper>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/upsell"
+        element={
+          <ProtectedRoute>
+            <LayoutWrapper>
+              <Upsell />
             </LayoutWrapper>
           </ProtectedRoute>
         }
