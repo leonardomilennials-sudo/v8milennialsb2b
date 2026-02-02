@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { format, differenceInDays, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,20 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Campanha } from "@/hooks/useCampanhas";
-import { Calendar, Target, Users, ArrowRight, Trophy, Clock } from "lucide-react";
+import { Calendar, Target, Users, ArrowRight, Trophy, Clock, Pencil } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCampanhaLeads, useCampanhaStages, useCampanhaMembers } from "@/hooks/useCampanhas";
-
+import { useIsAdmin } from "@/hooks/useUserRole";
+import { EditCampanhaModal } from "./EditCampanhaModal";
 interface CampanhaCardProps {
   campanha: Campanha;
 }
 
 export function CampanhaCard({ campanha }: CampanhaCardProps) {
   const navigate = useNavigate();
+  const { isAdmin } = useIsAdmin();
+  const [editOpen, setEditOpen] = useState(false);
   const { data: leads } = useCampanhaLeads(campanha.id);
   const { data: stages } = useCampanhaStages(campanha.id);
   const { data: members } = useCampanhaMembers(campanha.id);
-
   const deadline = new Date(campanha.deadline);
   const daysRemaining = differenceInDays(deadline, new Date());
   const isExpired = isPast(deadline);
@@ -35,7 +38,7 @@ export function CampanhaCard({ campanha }: CampanhaCardProps) {
     <Card className="hover:border-primary/50 transition-colors cursor-pointer group">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1 min-w-0">
             <CardTitle className="text-lg group-hover:text-primary transition-colors">
               {campanha.name}
             </CardTitle>
@@ -45,9 +48,24 @@ export function CampanhaCard({ campanha }: CampanhaCardProps) {
               </p>
             )}
           </div>
-          <Badge variant={isExpired ? "destructive" : campanha.is_active ? "default" : "secondary"}>
-            {isExpired ? "Encerrada" : campanha.is_active ? "Ativa" : "Inativa"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditOpen(true);
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+            )}
+            <Badge variant={isExpired ? "destructive" : campanha.is_active ? "default" : "secondary"}>
+              {isExpired ? "Encerrada" : campanha.is_active ? "Ativa" : "Inativa"}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
 
@@ -121,6 +139,13 @@ export function CampanhaCard({ campanha }: CampanhaCardProps) {
           </Button>
         </div>
       </CardContent>
+
+      {/* Edit Modal */}
+      <EditCampanhaModal
+        campanha={campanha}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </Card>
   );
 }
