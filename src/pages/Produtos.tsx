@@ -49,24 +49,22 @@ export default function Produtos() {
     }
 
     const exportData = products.map((product) => ({
-      id: product.id,
-      nome: product.name,
-      tipo: product.type === "mrr" ? "MRR" : product.type === "unitario" ? "Unitário" : "Projeto",
+      name: product.name,
+      type: product.type,
       ticket: product.ticket || "",
       ticket_minimo: product.ticket_minimo || "",
       entregaveis: product.entregaveis || "",
       materiais: product.materiais || "",
-      links: product.links?.join("; ") || "",
+      links: product.links?.join(";") || "",
       logo_url: product.logo_url || "",
       contrato_padrao_url: product.contrato_padrao_url || "",
       contrato_minimo_url: product.contrato_minimo_url || "",
-      ativo: product.is_active ? "Sim" : "Não",
-      criado_em: new Date(product.created_at).toLocaleDateString("pt-BR"),
+      is_active: product.is_active ? "TRUE" : "FALSE",
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
     
     const fileName = `produtos_${new Date().toISOString().split("T")[0]}.xlsx`;
     XLSX.writeFile(wb, fileName);
