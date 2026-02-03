@@ -786,6 +786,8 @@ export default function PipePropostas() {
         Temperatura: item.calor || "",
         Valor: item.sale_value || "",
         Produto: item.product?.name || "",
+        "Data Compromisso": item.commitment_date ? format(new Date(item.commitment_date), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "",
+        "Tempo Contrato (meses)": item.contract_duration || "",
         utm_campaign: lead?.utm_campaign || "",
         utm_source: lead?.utm_source || "",
         utm_medium: lead?.utm_medium || "",
