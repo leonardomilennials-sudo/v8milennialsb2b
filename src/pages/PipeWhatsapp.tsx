@@ -547,6 +547,14 @@ export default function PipeWhatsapp() {
       return "Baixa";
     };
 
+    const statusLabels: Record<string, string> = {
+      novo: "Novo",
+      abordado: "Abordado",
+      respondeu: "Respondeu",
+      esfriou: "Esfriou",
+      agendado: "Agendado",
+    };
+
     const exportData = pipeData.map((item) => {
       const lead = item.lead;
       return {
@@ -559,6 +567,8 @@ export default function PipeWhatsapp() {
         Notas: lead?.notes || "",
         "Prioridade do lead": getPriorityLabel(lead?.rating),
         "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+        Etapa: item.status ? (statusLabels[item.status] || item.status) : "",
+        SDR: item.sdr?.name || lead?.sdr?.name || "",
         utm_campaign: lead?.utm_campaign || "",
         utm_source: lead?.utm_source || "",
         utm_medium: lead?.utm_medium || "",
