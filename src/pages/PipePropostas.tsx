@@ -788,6 +788,7 @@ export default function PipePropostas() {
         Produto: item.product?.name || "",
         "Data Compromisso": item.commitment_date ? format(new Date(item.commitment_date), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "",
         "Tempo Contrato (meses)": item.contract_duration || "",
+        "Vendedor Responsável": item.closer?.name || "",
         utm_campaign: lead?.utm_campaign || "",
         utm_source: lead?.utm_source || "",
         utm_medium: lead?.utm_medium || "",
