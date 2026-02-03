@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Calendar, Loader2, LayoutGrid, List } from "lucide-react";
+import { Plus, Calendar, Loader2, LayoutGrid, List, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
 import { usePipeConfirmacao, statusColumns, useUpdatePipeConfirmacao, PipeConfirmacaoStatus } from "@/hooks/usePipeConfirmacao";
 import { useCreatePipeProposta } from "@/hooks/usePipePropostas";
@@ -14,6 +15,7 @@ import { ConfirmacaoCard } from "@/components/confirmacao/ConfirmacaoCard";
 import { ConfirmacaoFilters, OriginFilter, TimeFilter, UrgencyFilter } from "@/components/confirmacao/ConfirmacaoFilters";
 import { MeetingTimeline } from "@/components/confirmacao/MeetingTimeline";
 import { CompareceuModal } from "@/components/confirmacao/CompareceuModal";
+import { ConfirmacaoAnalytics } from "@/components/confirmacao/ConfirmacaoAnalytics";
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast, startOfDay, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
@@ -118,6 +120,7 @@ export default function PipeConfirmacao() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<any>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<"pipeline" | "analytics">("pipeline");
   const [viewMode, setViewMode] = useState<"kanban" | "timeline">("kanban");
   
   // Compareceu modal state
@@ -352,22 +355,6 @@ export default function PipeConfirmacao() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center border rounded-lg p-1">
-            <Button 
-              variant={viewMode === "kanban" ? "secondary" : "ghost"} 
-              size="sm"
-              onClick={() => setViewMode("kanban")}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </Button>
-            <Button 
-              variant={viewMode === "timeline" ? "secondary" : "ghost"} 
-              size="sm"
-              onClick={() => setViewMode("timeline")}
-            >
-              <List className="w-4 h-4" />
-            </Button>
-          </div>
           <Button size="sm" className="gradient-gold" onClick={() => setIsMeetingModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Reunião
@@ -375,50 +362,91 @@ export default function PipeConfirmacao() {
         </div>
       </div>
 
-      {/* Stats */}
-      <ConfirmacaoStats data={pipeData || []} />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "pipeline" | "analytics")}>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="pipeline" className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4" />
+              Pipeline
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Filters */}
-      <ConfirmacaoFilters
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        originFilter={originFilter}
-        onOriginFilterChange={setOriginFilter}
-        timeFilter={timeFilter}
-        onTimeFilterChange={setTimeFilter}
-        urgencyFilter={urgencyFilter}
-        onUrgencyFilterChange={setUrgencyFilter}
-        selectedStatuses={selectedStatuses}
-        onStatusesChange={setSelectedStatuses}
-        statusOptions={statusColumns}
-        teamMembers={teamMemberOptions}
-        selectedSdrId={selectedSdrId}
-        onSdrFilterChange={setSelectedSdrId}
-        selectedCloserId={selectedCloserId}
-        onCloserFilterChange={setSelectedCloserId}
-      />
+          {activeTab === "pipeline" && (
+            <div className="flex items-center border rounded-lg p-1">
+              <Button 
+                variant={viewMode === "kanban" ? "secondary" : "ghost"} 
+                size="sm"
+                onClick={() => setViewMode("kanban")}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </Button>
+              <Button 
+                variant={viewMode === "timeline" ? "secondary" : "ghost"} 
+                size="sm"
+                onClick={() => setViewMode("timeline")}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
 
-      {/* Content */}
-      {viewMode === "kanban" ? (
-        <DraggableKanbanBoard
-          columns={columns}
-          onStatusChange={handleStatusChange}
-          renderCard={(card) => (
-            <ConfirmacaoCard 
-              card={card} 
-              onClick={() => handleCardClick(card)}
+        <TabsContent value="pipeline" className="space-y-6 mt-6">
+          {/* Stats */}
+          <ConfirmacaoStats data={pipeData || []} />
+
+          {/* Filters */}
+          <ConfirmacaoFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            originFilter={originFilter}
+            onOriginFilterChange={setOriginFilter}
+            timeFilter={timeFilter}
+            onTimeFilterChange={setTimeFilter}
+            urgencyFilter={urgencyFilter}
+            onUrgencyFilterChange={setUrgencyFilter}
+            selectedStatuses={selectedStatuses}
+            onStatusesChange={setSelectedStatuses}
+            statusOptions={statusColumns}
+            teamMembers={teamMemberOptions}
+            selectedSdrId={selectedSdrId}
+            onSdrFilterChange={setSelectedSdrId}
+            selectedCloserId={selectedCloserId}
+            onCloserFilterChange={setSelectedCloserId}
+          />
+
+          {/* Content */}
+          {viewMode === "kanban" ? (
+            <DraggableKanbanBoard
+              columns={columns}
+              onStatusChange={handleStatusChange}
+              renderCard={(card) => (
+                <ConfirmacaoCard 
+                  card={card} 
+                  onClick={() => handleCardClick(card)}
+                />
+              )}
+            />
+          ) : (
+            <MeetingTimeline 
+              meetings={pipeData || []} 
+              onMeetingClick={(meeting) => {
+                setSelectedItem(meeting);
+                setIsDetailModalOpen(true);
+              }}
             />
           )}
-        />
-      ) : (
-        <MeetingTimeline 
-          meetings={pipeData || []} 
-          onMeetingClick={(meeting) => {
-            setSelectedItem(meeting);
-            setIsDetailModalOpen(true);
-          }}
-        />
-      )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-6">
+          <ConfirmacaoAnalytics data={pipeData || []} />
+        </TabsContent>
+      </Tabs>
 
       {/* Modals */}
       <LeadModal
