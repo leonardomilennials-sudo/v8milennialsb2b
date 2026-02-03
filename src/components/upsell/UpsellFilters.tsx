@@ -1,6 +1,8 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { useTeamMembers } from "@/hooks/useTeamMembers";
 import { upsellStatusColumns, tipoClienteTempoLabels } from "@/hooks/useUpsell";
+import { Search } from "lucide-react";
 
 interface UpsellFiltersProps {
   selectedMonth: number;
@@ -9,12 +11,16 @@ interface UpsellFiltersProps {
   selectedTipoTempo: string;
   selectedPotencial: string;
   selectedResponsavel: string;
+  selectedFaturamento?: string;
+  searchQuery?: string;
   onMonthChange: (month: number) => void;
   onYearChange: (year: number) => void;
   onStatusChange: (status: string) => void;
   onTipoTempoChange: (tipo: string) => void;
   onPotencialChange: (potencial: string) => void;
   onResponsavelChange: (responsavel: string) => void;
+  onFaturamentoChange?: (faturamento: string) => void;
+  onSearchChange?: (query: string) => void;
 }
 
 const months = [
@@ -41,6 +47,14 @@ const potencialOptions = [
   { value: "alto", label: "Alto" },
 ];
 
+const faturamentoOptions = [
+  { value: "ate_100k", label: "Até R$ 100k" },
+  { value: "100k_500k", label: "R$ 100k - 500k" },
+  { value: "500k_1m", label: "R$ 500k - 1M" },
+  { value: "1m_5m", label: "R$ 1M - 5M" },
+  { value: "acima_5m", label: "Acima de R$ 5M" },
+];
+
 export function UpsellFilters({
   selectedMonth,
   selectedYear,
@@ -48,17 +62,34 @@ export function UpsellFilters({
   selectedTipoTempo,
   selectedPotencial,
   selectedResponsavel,
+  selectedFaturamento = "all",
+  searchQuery = "",
   onMonthChange,
   onYearChange,
   onStatusChange,
   onTipoTempoChange,
   onPotencialChange,
   onResponsavelChange,
+  onFaturamentoChange,
+  onSearchChange,
 }: UpsellFiltersProps) {
   const { data: teamMembers = [] } = useTeamMembers();
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-3 items-center">
+      {/* Busca por Nome */}
+      {onSearchChange && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar cliente..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-[180px] pl-9"
+          />
+        </div>
+      )}
+
       {/* Mês */}
       <Select value={String(selectedMonth)} onValueChange={(v) => onMonthChange(Number(v))}>
         <SelectTrigger className="w-[140px]">
@@ -131,6 +162,23 @@ export function UpsellFilters({
           ))}
         </SelectContent>
       </Select>
+
+      {/* Faturamento */}
+      {onFaturamentoChange && (
+        <Select value={selectedFaturamento} onValueChange={onFaturamentoChange}>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="Faturamento" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {faturamentoOptions.map((f) => (
+              <SelectItem key={f.value} value={f.value}>
+                {f.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {/* Responsável */}
       <Select value={selectedResponsavel} onValueChange={onResponsavelChange}>

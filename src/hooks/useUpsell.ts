@@ -24,7 +24,7 @@ export interface UpsellClient {
   created_at: string;
   updated_at: string;
   responsavel?: { id: string; name: string } | null;
-  lead?: { id: string; name: string; company: string | null } | null;
+  lead?: { id: string; name: string; company: string | null; faturamento: string | null } | null;
 }
 
 export interface UpsellProduto {
@@ -113,7 +113,7 @@ export function useUpsellClients() {
         .select(`
           *,
           responsavel:team_members!upsell_clients_responsavel_interno_fkey(id, name),
-          lead:leads(id, name, company)
+          lead:leads(id, name, company, faturamento)
         `)
         .order("updated_at", { ascending: false });
 
@@ -136,8 +136,9 @@ export function useUpsellCampanhas(mes?: number, ano?: number) {
           *,
           client:upsell_clients(
             id, nome_cliente, cnpj, setor, tipo_cliente, tipo_cliente_tempo,
-            mrr_atual, ltv_atual, ltv_projetado, potencial_expansao,
-            responsavel:team_members!upsell_clients_responsavel_interno_fkey(id, name)
+            mrr_atual, ltv_atual, ltv_projetado, potencial_expansao, lead_id,
+            responsavel:team_members!upsell_clients_responsavel_interno_fkey(id, name),
+            lead:leads(id, name, company, faturamento)
           ),
           responsavel:team_members!upsell_campanhas_responsavel_fechamento_fkey(id, name),
           product:products(id, name, type, ticket)
