@@ -359,6 +359,20 @@ export default function PipeConfirmacao() {
       return "Baixa";
     };
 
+    const statusLabels: Record<string, string> = {
+      reuniao_marcada: "Reunião Marcada",
+      confirmar_d5: "Confirmar D-5",
+      confirmar_d3: "Confirmar D-3",
+      confirmar_d2: "Confirmar D-2",
+      confirmar_d1: "Confirmar D-1",
+      pre_confirmada: "Pré-confirmada",
+      confirmacao_no_dia: "Confirmação no Dia",
+      confirmada_no_dia: "Confirmada no Dia",
+      remarcar: "Remarcar",
+      compareceu: "Compareceu",
+      perdido: "Perdido",
+    };
+
     const exportData = pipeData.map((item) => {
       const lead = item.lead;
       return {
@@ -371,6 +385,9 @@ export default function PipeConfirmacao() {
         Notas: item.notes || "",
         "Prioridade do lead": getPriorityLabel(lead?.rating),
         "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+        "Data da Reunião": item.meeting_date ? format(new Date(item.meeting_date), "dd/MM/yyyy HH:mm") : "",
+        Etapa: item.status ? (statusLabels[item.status] || item.status) : "",
+        Vendedor: item.closer?.name || item.sdr?.name || "",
         utm_campaign: lead?.utm_campaign || "",
         utm_source: lead?.utm_source || "",
         utm_medium: lead?.utm_medium || "",
