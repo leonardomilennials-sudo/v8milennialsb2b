@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target, MessageCircle, Mail, Calendar, DollarSign, Clock, Briefcase } from "lucide-react";
+import { Search, Plus, Zap, User, Building2, Star, Phone, Loader2, Globe, Trash2, MoreVertical, Target, MessageCircle, Mail, Calendar, DollarSign, Clock, Briefcase, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,10 +41,11 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useCreateAcaoDoDia } from "@/hooks/useAcoesDoDia";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { CreateOpportunityModal } from "@/components/kanban/CreateOpportunityModal";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { openWhatsApp, formatPhoneForWhatsApp } from "@/lib/whatsapp";
+import * as XLSX from "xlsx";
 
 // Origin labels and colors mapping
 const originLabels: Record<string, { label: string; color: string }> = {
@@ -516,6 +517,63 @@ export default function PipeWhatsapp() {
     }
   };
 
+  const handleExportQualificacao = () => {
+    if (!pipeData || pipeData.length === 0) {
+      toast.error("Não há dados para exportar");
+      return;
+    }
+
+    const originMap: Record<string, string> = {
+      calendly: "Calendly",
+      whatsapp: "WhatsApp",
+      meta_ads: "Meta Ads",
+      outro: "Outro",
+      remarketing: "Remarketing",
+      base_clientes: "Base de Clientes",
+      parceiro: "Parceiro",
+      indicacao: "Indicação",
+      quiz: "Quiz",
+      site: "Site",
+      organico: "Orgânico",
+      cal: "Cal.com",
+      ambos: "Ambos",
+      zydon: "Zydon",
+    };
+
+    const getPriorityLabel = (rating: number | null | undefined): string => {
+      if (!rating) return "";
+      if (rating >= 4) return "Alta";
+      if (rating >= 2) return "Média";
+      return "Baixa";
+    };
+
+    const exportData = pipeData.map((item) => {
+      const lead = item.lead;
+      return {
+        Nome: lead?.name || "",
+        Empresa: lead?.company || "",
+        Email: lead?.email || "",
+        Telefone: lead?.phone || "",
+        Faturamento: lead?.faturamento || "",
+        Segmento: lead?.segment || "",
+        Notas: lead?.notes || "",
+        "Prioridade do lead": getPriorityLabel(lead?.rating),
+        "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+        utm_campaign: lead?.utm_campaign || "",
+        utm_source: lead?.utm_source || "",
+        utm_medium: lead?.utm_medium || "",
+        utm_content: lead?.utm_content || "",
+        utm_term: lead?.utm_term || "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Qualificação");
+    XLSX.writeFile(wb, `qualificacao-export-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Dados exportados com sucesso!");
+  };
+
   const handleOpenDeleteDialog = (pipeId: string, leadId: string) => {
     setDeleteDialog({ open: true, pipeId, leadId });
   };
@@ -547,6 +605,10 @@ export default function PipeWhatsapp() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleExportQualificacao}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
           <Button size="sm" variant="outline" onClick={() => { setEditingLead(null); setIsLeadModalOpen(true); }}>
             <Plus className="w-4 h-4 mr-2" />
             Novo Lead
