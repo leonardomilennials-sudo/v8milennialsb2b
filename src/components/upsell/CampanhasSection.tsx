@@ -19,6 +19,8 @@ export function CampanhasSection() {
   const [selectedTipoTempo, setSelectedTipoTempo] = useState("all");
   const [selectedPotencial, setSelectedPotencial] = useState("all");
   const [selectedResponsavel, setSelectedResponsavel] = useState("all");
+  const [selectedFaturamento, setSelectedFaturamento] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -38,6 +40,19 @@ export function CampanhasSection() {
         c.responsavel_fechamento === selectedResponsavel ||
         c.client?.responsavel?.id === selectedResponsavel;
       if (!matchesResponsavel) return false;
+    }
+    // Filter by faturamento (from the lead associated with the client)
+    if (selectedFaturamento !== "all") {
+      // Since faturamento comes from the lead, we need to check client's lead data
+      // For now, we'll assume client has access to lead faturamento through the relation
+      const leadFaturamento = c.client?.lead?.faturamento;
+      if (leadFaturamento !== selectedFaturamento) return false;
+    }
+    // Filter by search query (client name)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      const clientName = c.client?.nome_cliente?.toLowerCase() || "";
+      if (!clientName.includes(query)) return false;
     }
     return true;
   });
@@ -80,12 +95,16 @@ export function CampanhasSection() {
         selectedTipoTempo={selectedTipoTempo}
         selectedPotencial={selectedPotencial}
         selectedResponsavel={selectedResponsavel}
+        selectedFaturamento={selectedFaturamento}
+        searchQuery={searchQuery}
         onMonthChange={setSelectedMonth}
         onYearChange={setSelectedYear}
         onStatusChange={setSelectedStatus}
         onTipoTempoChange={setSelectedTipoTempo}
         onPotencialChange={setSelectedPotencial}
         onResponsavelChange={setSelectedResponsavel}
+        onFaturamentoChange={setSelectedFaturamento}
+        onSearchChange={setSearchQuery}
       />
 
       {/* Content based on view */}
