@@ -47,6 +47,7 @@ export function usePipeConfirmacao() {
           *,
           lead:leads(
             id, name, company, email, phone, rating, origin, segment, faturamento, urgency,
+            utm_campaign, utm_source, utm_medium, utm_content, utm_term,
             sdr:team_members!leads_sdr_id_fkey(id, name),
             closer:team_members!leads_closer_id_fkey(id, name),
             lead_tags(tag:tags(id, name, color))

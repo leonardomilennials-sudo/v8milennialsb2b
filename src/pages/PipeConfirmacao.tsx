@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Plus, Calendar, Loader2, LayoutGrid, List, BarChart3 } from "lucide-react";
+import { Plus, Calendar, Loader2, LayoutGrid, List, BarChart3, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DraggableKanbanBoard, DraggableItem, KanbanColumn } from "@/components/kanban/DraggableKanbanBoard";
@@ -19,6 +19,7 @@ import { ConfirmacaoAnalytics } from "@/components/confirmacao/ConfirmacaoAnalyt
 import { format, isToday, startOfWeek, endOfWeek, isWithinInterval, isTomorrow, isPast, startOfDay, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 interface ConfirmacaoCardData extends DraggableItem {
   name: string;
@@ -328,6 +329,63 @@ export default function PipeConfirmacao() {
     }
   };
 
+  const handleExportConfirmacao = () => {
+    if (!pipeData || pipeData.length === 0) {
+      toast.error("Não há dados para exportar");
+      return;
+    }
+
+    const originMap: Record<string, string> = {
+      calendly: "Calendly",
+      whatsapp: "WhatsApp",
+      meta_ads: "Meta Ads",
+      outro: "Outro",
+      remarketing: "Remarketing",
+      base_clientes: "Base de Clientes",
+      parceiro: "Parceiro",
+      indicacao: "Indicação",
+      quiz: "Quiz",
+      site: "Site",
+      organico: "Orgânico",
+      cal: "Cal.com",
+      ambos: "Ambos",
+      zydon: "Zydon",
+    };
+
+    const getPriorityLabel = (rating: number | null | undefined): string => {
+      if (!rating) return "";
+      if (rating >= 4) return "Alta";
+      if (rating >= 2) return "Média";
+      return "Baixa";
+    };
+
+    const exportData = pipeData.map((item) => {
+      const lead = item.lead;
+      return {
+        Nome: lead?.name || "",
+        Empresa: lead?.company || "",
+        Email: lead?.email || "",
+        Telefone: lead?.phone || "",
+        Faturamento: lead?.faturamento || "",
+        Segmento: lead?.segment || "",
+        Notas: item.notes || "",
+        "Prioridade do lead": getPriorityLabel(lead?.rating),
+        "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+        utm_campaign: lead?.utm_campaign || "",
+        utm_source: lead?.utm_source || "",
+        utm_medium: lead?.utm_medium || "",
+        utm_content: lead?.utm_content || "",
+        utm_term: lead?.utm_term || "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Confirmação");
+    XLSX.writeFile(wb, `confirmacao-export-${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    toast.success("Dados exportados com sucesso!");
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -355,6 +413,10 @@ export default function PipeConfirmacao() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleExportConfirmacao}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
           <Button size="sm" className="gradient-gold" onClick={() => setIsMeetingModalOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Nova Reunião
