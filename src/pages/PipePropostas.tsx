@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Filter, Plus, Calendar, User, Building2, Star, 
   DollarSign, Clock, Tag, Loader2, TrendingUp, Package,
-  ArrowUpRight, Percent, BarChart3, Target, Flame, MessageCircle
+  ArrowUpRight, Percent, BarChart3, Target, Flame, MessageCircle,
+  Download
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import * as XLSX from "xlsx";
 
 interface ProposalItem {
   id: string;
@@ -727,6 +729,66 @@ export default function PipePropostas() {
     }
   };
 
+  // Export proposals to Excel
+  const handleExportProposals = () => {
+    if (!pipeData || pipeData.length === 0) {
+      toast.error("Nenhuma proposta para exportar");
+      return;
+    }
+
+    const originMap: Record<string, string> = {
+      calendly: "Calendly",
+      whatsapp: "WhatsApp",
+      meta_ads: "Meta Ads",
+      outro: "Outro",
+      remarketing: "Remarketing",
+      base_clientes: "Base Clientes",
+      parceiro: "Parceiro",
+      indicacao: "Indicação",
+      quiz: "Quiz",
+      site: "Site",
+      organico: "Orgânico",
+      cal: "Cal",
+      ambos: "Ambos",
+      zydon: "Zydon",
+    };
+
+    const getPriorityLabel = (rating: number | null | undefined) => {
+      if (!rating) return "";
+      if (rating >= 8) return "Alta";
+      if (rating >= 5) return "Média";
+      return "Baixa";
+    };
+
+    const exportData = pipeData.map((item) => {
+      const lead = item.lead;
+      return {
+        Nome: lead?.name || "",
+        Empresa: lead?.company || "",
+        Email: lead?.email || "",
+        Telefone: lead?.phone || "",
+        Faturamento: lead?.faturamento || "",
+        Segmento: lead?.segment || "",
+        Notas: item.notes || lead?.notes || "",
+        "Prioridade do lead": getPriorityLabel(lead?.rating),
+        "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+        utm_campaign: lead?.utm_campaign || "",
+        utm_source: lead?.utm_source || "",
+        utm_medium: lead?.utm_medium || "",
+        utm_content: lead?.utm_content || "",
+        utm_term: lead?.utm_term || "",
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+
+    const fileName = `leads_propostas_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    toast.success(`${pipeData.length} leads exportados com sucesso!`);
+  };
+
   // Render column footer with total value
   const renderColumnFooter = (column: KanbanColumn<ProposalCard>) => (
     <div className="mb-3 p-2 rounded-lg bg-background/50">
@@ -773,6 +835,15 @@ export default function PipePropostas() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={handleExportProposals}
+            disabled={!pipeData || pipeData.length === 0}
+          >
+            <Download className="w-4 h-4" />
+            Exportar
+          </Button>
           <Button className="gap-2" onClick={() => setIsCreateModalOpen(true)}>
             <Plus className="w-4 h-4" />
             Nova Proposta
