@@ -785,7 +785,9 @@ export default function PipePropostas() {
         Etapa: statusMap[item.status] || item.status,
         Temperatura: item.calor || "",
         Valor: item.sale_value || "",
-        Produto: item.product?.name || "",
+        Produto: item.items && item.items.length > 0 
+          ? item.items.map((i: any) => i.product?.name).filter(Boolean).join("; ")
+          : (item.product?.name || ""),
         "Data Compromisso": item.commitment_date ? format(new Date(item.commitment_date), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "",
         "Tempo Contrato (meses)": item.contract_duration || "",
         "Vendedor Responsável": item.closer?.name || "",
