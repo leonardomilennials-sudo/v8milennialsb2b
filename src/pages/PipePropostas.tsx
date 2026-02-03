@@ -729,12 +729,9 @@ export default function PipePropostas() {
     }
   };
 
-  // Export proposals to Excel
-  const handleExportProposals = () => {
-    if (!pipeData || pipeData.length === 0) {
-      toast.error("Nenhuma proposta para exportar");
-      return;
-    }
+  // Export proposals to Excel - fetches ALL data with pagination
+  const handleExportProposals = async () => {
+    toast.info("Buscando todas as propostas...");
 
     const originMap: Record<string, string> = {
       calendly: "Calendly",
@@ -770,42 +767,91 @@ export default function PipePropostas() {
       perdido: "Perdido",
     };
 
-    const exportData = pipeData.map((item) => {
-      const lead = item.lead;
-      return {
-        Nome: lead?.name || "",
-        Empresa: lead?.company || "",
-        Email: lead?.email || "",
-        Telefone: lead?.phone || "",
-        Faturamento: lead?.faturamento || "",
-        Segmento: lead?.segment || "",
-        Notas: item.notes || lead?.notes || "",
-        "Prioridade do lead": getPriorityLabel(lead?.rating),
-        "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
-        Etapa: statusMap[item.status] || item.status,
-        Temperatura: item.calor || "",
-        Valor: item.sale_value || "",
-        Produto: item.items && item.items.length > 0 
-          ? item.items.map((i: any) => i.product?.name).filter(Boolean).join("; ")
-          : (item.product?.name || ""),
-        "Data Compromisso": item.commitment_date ? format(new Date(item.commitment_date), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "",
-        "Tempo Contrato (meses)": item.contract_duration || "",
-        "Vendedor Responsável": item.closer?.name || "",
-        utm_campaign: lead?.utm_campaign || "",
-        utm_source: lead?.utm_source || "",
-        utm_medium: lead?.utm_medium || "",
-        utm_content: lead?.utm_content || "",
-        utm_term: lead?.utm_term || "",
-      };
-    });
+    try {
+      // Fetch ALL proposals with pagination to bypass 1000 row limit
+      const allProposals: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("pipe_propostas")
+          .select(`
+            *,
+            lead:leads(
+              id, name, company, email, phone, rating, origin, segment, faturamento, notes,
+              utm_campaign, utm_source, utm_medium, utm_content, utm_term,
+              sdr:team_members!leads_sdr_id_fkey(id, name),
+              closer:team_members!leads_closer_id_fkey(id, name),
+              lead_tags(tag:tags(id, name, color))
+            ),
+            closer:team_members!pipe_propostas_closer_id_fkey(id, name),
+            product:products(id, name, type, ticket, ticket_minimo),
+            items:pipe_proposta_items(
+              id, product_id, sale_value, created_at,
+              product:products(id, name, type, ticket, ticket_minimo)
+            )
+          `)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
 
-    const fileName = `leads_propostas_${new Date().toISOString().split("T")[0]}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    toast.success(`${pipeData.length} leads exportados com sucesso!`);
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          allProposals.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      if (allProposals.length === 0) {
+        toast.error("Nenhuma proposta para exportar");
+        return;
+      }
+
+      const exportData = allProposals.map((item) => {
+        const lead = item.lead;
+        return {
+          Nome: lead?.name || "",
+          Empresa: lead?.company || "",
+          Email: lead?.email || "",
+          Telefone: lead?.phone || "",
+          Faturamento: lead?.faturamento || "",
+          Segmento: lead?.segment || "",
+          Notas: item.notes || lead?.notes || "",
+          "Prioridade do lead": getPriorityLabel(lead?.rating),
+          "Público de origem": lead?.origin ? (originMap[lead.origin] || lead.origin) : "",
+          Etapa: statusMap[item.status] || item.status,
+          Temperatura: item.calor || "",
+          Valor: item.sale_value || "",
+          Produto: item.items && item.items.length > 0 
+            ? item.items.map((i: any) => i.product?.name).filter(Boolean).join("; ")
+            : (item.product?.name || ""),
+          "Data Compromisso": item.commitment_date ? format(new Date(item.commitment_date), "dd/MM/yyyy HH:mm", { locale: ptBR }) : "",
+          "Tempo Contrato (meses)": item.contract_duration || "",
+          "Vendedor Responsável": item.closer?.name || "",
+          utm_campaign: lead?.utm_campaign || "",
+          utm_source: lead?.utm_source || "",
+          utm_medium: lead?.utm_medium || "",
+          utm_content: lead?.utm_content || "",
+          utm_term: lead?.utm_term || "",
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Leads");
+
+      const fileName = `leads_propostas_${new Date().toISOString().split("T")[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      toast.success(`${allProposals.length} leads exportados com sucesso!`);
+    } catch (error) {
+      console.error("Erro ao exportar:", error);
+      toast.error("Erro ao exportar propostas");
+    }
   };
 
   // Render column footer with total value
