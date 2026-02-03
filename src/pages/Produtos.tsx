@@ -3,7 +3,9 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Package, FileText, Link as LinkIcon, ExternalLink } from "lucide-react";
+import { Plus, Edit2, Trash2, Package, FileText, Link as LinkIcon, ExternalLink, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+import { toast } from "sonner";
 import { useProducts, useDeleteProduct, Product } from "@/hooks/useProducts";
 import { CreateProductModal } from "@/components/products/CreateProductModal";
 import { EditProductModal } from "@/components/products/EditProductModal";
@@ -40,6 +42,38 @@ export default function Produtos() {
     }
   };
 
+  const handleExportProducts = () => {
+    if (!products || products.length === 0) {
+      toast.error("Nenhum produto para exportar");
+      return;
+    }
+
+    const exportData = products.map((product) => ({
+      id: product.id,
+      nome: product.name,
+      tipo: product.type === "mrr" ? "MRR" : product.type === "unitario" ? "Unitário" : "Projeto",
+      ticket: product.ticket || "",
+      ticket_minimo: product.ticket_minimo || "",
+      entregaveis: product.entregaveis || "",
+      materiais: product.materiais || "",
+      links: product.links?.join("; ") || "",
+      logo_url: product.logo_url || "",
+      contrato_padrao_url: product.contrato_padrao_url || "",
+      contrato_minimo_url: product.contrato_minimo_url || "",
+      ativo: product.is_active ? "Sim" : "Não",
+      criado_em: new Date(product.created_at).toLocaleDateString("pt-BR"),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+    
+    const fileName = `produtos_${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    
+    toast.success(`${products.length} produtos exportados com sucesso!`);
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -51,10 +85,16 @@ export default function Produtos() {
               Gerencie seus produtos de MRR e Projetos
             </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Produto
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExportProducts} disabled={!products || products.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Exportar
+            </Button>
+            <Button onClick={() => setIsCreateModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Produto
+            </Button>
+          </div>
         </div>
 
         {/* Products Grid */}
